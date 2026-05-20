@@ -26,10 +26,158 @@ Seed & 42 \\
 \end{center}
 
 \paragraph{Dữ liệu.}
+Tập dữ liệu \emph{Harvard Medical Image Fusion} \cite{zhao2023cddfuse} đã được chia sẵn train/test:
 \begin{itemize}\itemsep0pt
-    \item \textbf{Huấn luyện}: 130 cặp Harvard medical theo split paper, patch $128 \times 128$ stride 64 (sau filter low-contrast còn $\sim 1100$ patches).
-    \item \textbf{Đánh giá}: 72 cặp test (24 mỗi modality CT, PET, SPECT) từ \texttt{data/reference/}, dùng chung với các phương pháp SOTA trong Bảng~\ref{tab:sota-raw-metrics}.
+    \item \textbf{Huấn luyện}: 738 cặp ảnh ($160$ CT-MRI + $245$ PET-MRI + $333$ SPECT-MRI). Sau khi crop patch $128 \times 128$ với stride $64$ và loại bỏ patch low-contrast, còn lại $\sim 6000$--$8000$ patches dùng cho training.
+    \item \textbf{Đánh giá}: 72 cặp test (24 mỗi modality CT, PET, SPECT), dùng chung với các phương pháp SOTA trong Bảng~\ref{tab:sota-raw-metrics}.
 \end{itemize}
+
+\section{Luồng xử lý dữ liệu (Data Flow)}
+\label{sec:dataflow}
+
+Phần này mô tả chi tiết cách dữ liệu đầu vào được biến đổi qua các bước xử lý, từ ảnh PNG gốc đến ảnh tổng hợp đầu ra. Luồng được chia thành hai giai đoạn: \emph{Tiền xử lý dữ liệu huấn luyện} và \emph{Suy luận trên ảnh test}.
+
+\subsection{Luồng xử lý huấn luyện}
+\label{ssec:train-dataflow}
+
+\begin{figure}[h]
+\centering
+\fbox{\parbox{0.92\textwidth}{\centering\small
+\texttt{[Ảnh PNG gốc]} $\to$ \texttt{[Convert sang grayscale Y]} $\to$ \texttt{[Chuẩn hóa 0-1]} \\
+$\to$ \texttt{[Cắt patch 128$\times$128 stride 64]} $\to$ \texttt{[Lọc low-contrast]} $\to$ \texttt{[Lưu HDF5]} \\
+$\to$ \texttt{[DataLoader batch 16]} $\to$ \texttt{[Forward train pha I/II]}
+}}
+\caption{Luồng tiền xử lý dữ liệu huấn luyện cho CDDFuse-AG.}
+\label{fig:train-dataflow}
+\end{figure}
+
+Chi tiết từng bước:
+
+\paragraph{Bước 1 --- Đọc ảnh raw.}
+Mỗi cặp huấn luyện gồm một ảnh source ($I_V$: CT hoặc PET hoặc SPECT) và một ảnh MRI ($I_I$), kích thước $H \times W = 256 \times 256$. CT/MRI ở định dạng grayscale 8-bit; PET/SPECT ở định dạng RGB 8-bit (mã hóa màu giả --- pseudo-color).
+
+\paragraph{Bước 2 --- Chuẩn hóa sang miền chung.}
+Để đưa hai modality về cùng không gian xử lý:
+\begin{itemize}\itemsep0pt
+    \item Với PET/SPECT RGB: chuyển đổi không gian màu sang YCbCr, lấy kênh độ sáng $Y$:
+    \begin{equation}
+    Y = 0.299 R + 0.587 G + 0.114 B
+    \end{equation}
+    Hai kênh $C_b, C_r$ được lưu lại để khôi phục màu khi xuất ảnh.
+    \item Tất cả tensor được chuẩn hóa về miền $[0, 1]$: $\tilde{I} = I / 255$.
+\end{itemize}
+
+\paragraph{Bước 3 --- Trích xuất patch.}
+Mỗi cặp ảnh $(I_V, I_I)$ kích thước $256 \times 256$ được cắt thành các patch $128 \times 128$ với bước trượt (stride) bằng $64$. Số patch sinh ra trên mỗi ảnh là $\lfloor (256-128)/64 \rfloor + 1 = 3$ ngang $\times$ $3$ dọc $= 9$ patch/ảnh.
+
+\paragraph{Bước 4 --- Lọc patch low-contrast.}
+Patch có dynamic range thấp (background đồng nhất, không chứa cấu trúc) bị loại bỏ:
+\begin{equation}
+\text{Loại bỏ nếu} \quad \frac{p_{90} - p_{10}}{p_{90} + \epsilon} < 0.1
+\end{equation}
+trong đó $p_{10}, p_{90}$ là percentile $10$\% và $90$\% của patch. Mục đích: tránh huấn luyện trên patch không có thông tin, ổn định hóa decomposition loss.
+
+\paragraph{Bước 5 --- Lưu HDF5.}
+Các patch hợp lệ được lưu vào file HDF5 (\texttt{MIF\_train\_imgsize\_128\_stride\_64.h5}) với hai nhóm:
+\begin{itemize}\itemsep0pt
+    \item \texttt{mri\_patchs/}: tensor $[1, 128, 128]$ cho mỗi patch MRI.
+    \item \texttt{src\_patchs/}: tensor $[1, 128, 128]$ cho mỗi patch source.
+\end{itemize}
+Định dạng này cho phép load nhanh và memory-efficient.
+
+\paragraph{Bước 6 --- DataLoader.}
+Trong vòng huấn luyện, \texttt{PyTorch DataLoader} đọc từ HDF5, tạo batch kích thước $16$ (theo paper text \S5.1), shuffle ngẫu nhiên, pin memory cho GPU transfer.
+
+\paragraph{Bước 7 --- Forward pass.}
+Tùy theo pha huấn luyện (Pha I hoặc Pha II), batch được forward qua các thành phần khác nhau (xem Mục~\ref{ssec:cddfuse-train}). Loss được tính, backward, update tham số.
+
+\subsection{Luồng suy luận trên ảnh test}
+\label{ssec:inference-dataflow}
+
+\begin{figure}[h]
+\centering
+\fbox{\parbox{0.92\textwidth}{\centering\small
+\texttt{[Ảnh PNG]} $\to$ \texttt{[Convert grayscale Y]} $\to$ \texttt{[Normalize 0-1]} $\to$ \texttt{[Tensor [1,1,H,W]]} \\
+$\to$ \texttt{[Encoder $\to$ (f$^B$, f$^D$) cho cả 2 modality]} \\
+$\to$ \texttt{[Adaptive Gating: g$^B \odot$ f$^B_V$ + (1-g$^B$) $\odot$ f$^B_I$]} (Module A) \\
+$\to$ \texttt{[BaseFuseLayer, DetailFuseLayer]} \\
+$\to$ \texttt{[Decoder concat $\to$ refine $\to$ sigmoid]} \\
+$\to$ \texttt{[Scale 0-255 uint8]} $\to$ \texttt{[Restore màu YCbCr cho PET/SPECT]} $\to$ \texttt{[Lưu PNG]}
+}}
+\caption{Luồng suy luận trên ảnh test, từ đầu vào đến ảnh tổng hợp đầu ra.}
+\label{fig:inference-dataflow}
+\end{figure}
+
+Chi tiết từng bước (cho một cặp ảnh test):
+
+\paragraph{Bước 1 --- Đọc ảnh test.}
+Ảnh nguồn $I_V$ và ảnh giải phẫu $I_I$ (MRI) được load từ thư mục test bằng PIL.
+
+\paragraph{Bước 2 --- Tiền xử lý.}
+\begin{itemize}\itemsep0pt
+    \item Convert sang grayscale Y nếu là RGB (PET/SPECT): $Y = 0.299R + 0.587G + 0.114B$.
+    \item Chuẩn hóa $[0, 1]$.
+    \item Tạo tensor 4D $[1, 1, H, W]$ chuyển lên GPU.
+\end{itemize}
+
+\paragraph{Bước 3 --- Encoder phân rã.}
+Hai modality được đưa qua \emph{cùng một} Restormer Encoder (shared weights):
+\begin{align}
+(f_V^B, f_V^D) &= \mathrm{Encoder}(I_V) \\
+(f_I^B, f_I^D) &= \mathrm{Encoder}(I_I)
+\end{align}
+Output là hai cặp đặc trưng: Base ($64$ kênh, low-frequency, shared structure) và Detail ($64$ kênh, high-frequency, modality-specific).
+
+\paragraph{Bước 4 --- Adaptive Gating (đóng góp của đồ án).}
+Mỗi nhánh được kết hợp bằng cổng học được thay vì phép cộng đơn giản:
+\begin{align}
+g^B &= \sigma\big(W_g^B \cdot [f_V^B ; f_I^B] + b_g^B\big) \in (0, 1)^{64 \times H \times W} \\
+\tilde{f}_F^B &= g^B \odot f_V^B + (1 - g^B) \odot f_I^B
+\end{align}
+Tương tự cho $\tilde{f}_F^D$. Cổng $g$ được học per-pixel và per-channel, cho phép trọng số khác nhau ở từng vị trí trong ảnh.
+
+\paragraph{Bước 5 --- BaseFuseLayer + DetailFuseLayer.}
+Đặc trưng đã gate được tinh chỉnh thêm bằng các module gốc của CDDFuse:
+\begin{align}
+f_F^B &= \mathrm{BaseFuseLayer}(\tilde{f}_F^B) \quad \text{(1 Transformer block)} \\
+f_F^D &= \mathrm{DetailFuseLayer}(\tilde{f}_F^D) \quad \text{(1 INN block)}
+\end{align}
+
+\paragraph{Bước 6 --- Decoder tái tạo.}
+Hai luồng đặc trưng được concat theo channel ($128$ kênh), giảm về $64$ kênh, refine qua $4$ Restormer block, đi qua output head và sigmoid:
+\begin{equation}
+\hat{I}_F^Y = \sigma\big(\mathrm{Decoder}(f_F^B, f_F^D)\big) \in [0, 1]^{H \times W}
+\end{equation}
+
+\paragraph{Bước 7 --- Hậu xử lý.}
+\begin{itemize}\itemsep0pt
+    \item Scale về dải $[0, 255]$ và ép kiểu \texttt{uint8}: $F^Y = \mathrm{clip}(\hat{I}_F^Y \cdot 255, 0, 255)$.
+    \item Với PET/SPECT (modality màu): khôi phục màu bằng cách ghép $F^Y$ với $C_b, C_r$ của ảnh nguồn, sau đó convert YCbCr $\to$ RGB.
+    \item Với CT-MRI (grayscale thuần): xuất trực tiếp $F^Y$.
+\end{itemize}
+
+\paragraph{Bước 8 --- Lưu và đánh giá.}
+Ảnh tổng hợp được lưu thành file PNG. Đồng thời, 22+ chỉ số chất lượng được tính trực tiếp trên kết quả (so với $I_V, I_I$ làm reference): \texttt{NABF, SSIM, PSNR, QG, QM, MI, SCD, \ldots} (chi tiết Mục~\ref{ssec:metrics}).
+
+\subsection{Sơ đồ tổng quan đầu-cuối}
+\label{ssec:end2end-dataflow}
+
+Hợp nhất cả huấn luyện và suy luận:
+
+\begin{figure}[h]
+\centering
+\fbox{\parbox{0.95\textwidth}{\centering\small
+\textbf{Huấn luyện (offline, 1 lần)}: \\
+$738$ cặp ảnh train $\to$ patches $128\times 128$ $\to$ HDF5 $\to$ DataLoader (batch $16$) \\
+$\to$ Train $120$ epoch (Pha I: $40$ ep decomposition $\to$ Pha II: $80$ ep fusion) \\
+$\to$ Lưu checkpoint \texttt{.pth} chứa weights Encoder + Decoder + AG-Base + AG-Detail + BaseFuseLayer + DetailFuseLayer \\
+\quad \\
+\textbf{Suy luận (online, mỗi cặp ảnh)}: \\
+Load checkpoint $\to$ đọc cặp ($I_V, I_I$) $\to$ encode $\to$ AG $\to$ refine $\to$ decode $\to$ post-process $\to$ ảnh tổng hợp.
+}}
+\caption{Sơ đồ end-to-end luồng dữ liệu CDDFuse-AG.}
+\label{fig:end2end-dataflow}
+\end{figure}
 
 \paragraph{Baseline so sánh.}
 Để đảm bảo \emph{so sánh apples-to-apples}, đồ án không chỉ so với CDDFuse pretrained gốc mà còn \emph{huấn luyện lại} CDDFuse từ đầu với cùng quy trình paper-faithful trên dữ liệu của đồ án (gọi là \textbf{CDDFuse-Paper-MIF}). So sánh chính của đồ án là:
