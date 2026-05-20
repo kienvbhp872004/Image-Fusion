@@ -9,12 +9,12 @@ Trên cơ sở phương pháp SOTA \emph{CDDFuse} \cite{zhao2023cddfuse} (CVPR 2
 
 Kết quả trên 72 cặp ảnh test (24 cặp mỗi modality CT, PET, SPECT), so với baseline CDDFuse được huấn luyện lại theo cùng quy trình (120 epoch, 2 pha, batch 8, AMP fp16 trên GPU Tesla P100) --- gọi là CDDFuse-Paper-MIF --- mô hình \textbf{CDDFuse-AG} cho thấy:
 \begin{itemize}\itemsep0pt
-    \item \textbf{PET}: ảo ảnh biên (NABF) \textbf{giảm $\sim 27\%$}, gradient quality (QG) \textbf{tăng $\sim 3\%$}, wavelet quality (QM) tăng nhẹ $\sim 1\%$.
-    \item \textbf{SPECT}: độ tương đồng cấu trúc (SSIM) \textbf{tăng $\sim 3.5\%$}, độ sắc nét (QSF) \textbf{tăng $\sim 7.5\%$}, mutual information (QMI) \textbf{tăng $\sim 4\%$}.
-    \item \textbf{CT}: SSIM \textbf{tăng $\sim 3.3\%$}, wavelet quality (QM) \textbf{tăng $\sim 9.5\%$}, NABF giảm $\sim 7\%$.
+    \item \textbf{CT}: NABF \textbf{giảm $\sim 8\%$} (ít ảo ảnh biên), QM \textbf{tăng $\sim 8\%$} (chất lượng wavelet), QMI tăng $\sim 2\%$.
+    \item \textbf{PET}: NABF giảm $\sim 7\%$, QSF nhỉnh hơn $\sim 2\%$.
+    \item \textbf{SPECT}: tương đương baseline ở hầu hết chỉ số ($\pm 2\%$).
 \end{itemize}
 
-Trung bình trên cả 72 cặp test (gộp 3 modality): NABF \textbf{giảm $\sim 4\%$}, SSIM \textbf{tăng $\sim 1\%$}, gradient quality (QG) \textbf{tăng $\sim 1\%$}, mutual information (QMI) \textbf{tăng $\sim 1.2\%$}; một số chỉ số khác như MI và sharpness (QSF) giảm nhẹ $\sim 4\text{--}10\%$ --- phản ánh trade-off cố hữu giữa làm sạch biên và giữ lại đầy đủ thông tin nguồn. Sau kiểm định Wilcoxon với hiệu chỉnh Holm--Bonferroni, mô hình đạt \textbf{10/25 chỉ số có ý nghĩa trên CT và 10/25 trên PET}; SPECT đạt 2/25.
+Trung bình trên cả 72 cặp test (gộp 3 modality): NABF \textbf{giảm $\sim 5\%$}, QMI tăng nhẹ; các chỉ số chính như SSIM/PSNR/QG gần như không đổi ($|$chênh$| < 1\%$). Một số chỉ số thông tin (QSF, QM, MI, VAR) giảm $2\text{--}8\%$ --- phản ánh trade-off cố hữu giữa làm sạch biên và giữ thông tin nguồn. Sau kiểm định Wilcoxon với hiệu chỉnh Holm--Bonferroni, mô hình đạt \textbf{9/22 chỉ số có ý nghĩa trên CT (CONFIRM\_IMPROVEMENT)}; PET 2/22 và SPECT 4/22 (MIXED).
 
 \bigskip
 \noindent\textbf{Từ khóa:} tổng hợp ảnh y tế, CDDFuse-AG, adaptive gating, saliency-guided pixel, ablation study, Wilcoxon.

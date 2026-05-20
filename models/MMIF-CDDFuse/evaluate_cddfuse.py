@@ -27,6 +27,11 @@ from PIL import Image
 
 warnings.filterwarnings('ignore')
 
+# Deterministic inference: tránh NaN output do cudnn non-determinism trên GPU
+torch.backends.cudnn.deterministic = True
+torch.backends.cudnn.benchmark = False
+torch.use_deterministic_algorithms(False, warn_only=True)
+
 # ─── Paths ───────────────────────────────────────────────────────────────────
 SCRIPT_DIR = Path(__file__).resolve().parent          # models/MMIF-CDDFuse
 REPO_ROOT  = SCRIPT_DIR.parent.parent                 # Image-Fusion/
@@ -159,9 +164,17 @@ def run_inference(model, mri_path: Path, src_path: Path, modal: str, device: tor
     t_vi = torch.from_numpy(np.array(img_vi_raw.convert('L'), dtype=np.float32) / 255.0).reshape(1, 1, h, w).to(device)
     
     fused_tensor = model.fuse(t_ir, t_vi)
-    
+
+    # NaN fallback: nếu GPU output có NaN (cudnn instability với INN exp()), retry CPU.
+    if torch.isnan(fused_tensor).any() and device.type == 'cuda':
+        warnings.warn(f"NaN detected on GPU for {mri_path.name}, retrying on CPU")
+        model.to('cpu')
+        fused_tensor = model.fuse(t_ir.cpu(), t_vi.cpu())
+        model.to(device)  # move back to GPU for next iteration
+
     # Squeeze and convert back to 0-255
     out_np = fused_tensor.squeeze().detach().cpu().numpy()
+    out_np = np.nan_to_num(out_np, nan=0.0, posinf=1.0, neginf=0.0)
     out_np = (out_np * 255.0).clip(0, 255).astype(np.uint8)
 
     fused_y_pil = Image.fromarray(out_np)

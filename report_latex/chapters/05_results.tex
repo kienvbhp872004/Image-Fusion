@@ -49,7 +49,7 @@ Bảng~\ref{tab:cddfuse-ag-per-modal} trình bày giá trị trung bình của 7
 \begin{table}[h]
 \centering
 \small
-\caption{Giá trị trung bình theo modality. $\uparrow$ cao tốt hơn, $\downarrow$ thấp tốt hơn. \textbf{In đậm} = tốt hơn.}
+\caption{Giá trị trung bình theo modality (sau khi fix bug PSNR/RMSE và NaN inference). $\uparrow$ cao tốt hơn, $\downarrow$ thấp tốt hơn. \textbf{In đậm} = tốt hơn.}
 \label{tab:cddfuse-ag-per-modal}
 \setlength{\tabcolsep}{5pt}
 \begin{tabular}{l|cc|cc|cc}
@@ -57,13 +57,14 @@ Bảng~\ref{tab:cddfuse-ag-per-modal} trình bày giá trị trung bình của 7
 & \multicolumn{2}{c|}{\textbf{CT}} & \multicolumn{2}{c|}{\textbf{PET}} & \multicolumn{2}{c}{\textbf{SPECT}} \\
 \textbf{Metric} & Baseline & CDDFuse-AG & Baseline & CDDFuse-AG & Baseline & CDDFuse-AG \\
 \midrule
-SSIM $\uparrow$   & 1.4434          & \textbf{1.4907} & \textbf{1.3235} & 1.3166          & 1.4031          & \textbf{1.4523} \\
-PSNR $\uparrow$   & 55.32           & \textbf{55.35}  & \textbf{55.26}  & 55.17           & 57.65           & \textbf{57.79}  \\
-QG   $\uparrow$   & 0.6183          & \textbf{0.6224} & 0.7638          & \textbf{0.7861} & 0.7503          & \textbf{0.7656} \\
-QM   $\uparrow$   & 0.0046          & \textbf{0.0051} & 0.1230          & \textbf{0.1243} & 0.0788          & \textbf{0.0808} \\
-NABF $\downarrow$ & 0.0323          & \textbf{0.0300} & 0.0153          & \textbf{0.0113} & \textbf{0.0194} & 0.0235          \\
-QSF  $\uparrow$   & \textbf{0.0488} & 0.0307          & \textbf{0.0546} & 0.0506          & 0.0460          & \textbf{0.0495} \\
-QMI  $\uparrow$   & 0.7830          & \textbf{0.7935} & \textbf{0.8020} & 0.8000          & 0.9049          & \textbf{0.9422} \\
+SSIM $\uparrow$   & \textbf{1.4434} & 1.4417          & \textbf{1.3235} & 1.3188          & 1.4031          & \textbf{1.4035} \\
+PSNR $\uparrow$   & 14.40           & \textbf{14.50}  & \textbf{17.53}  & 17.06           & 21.40           & \textbf{21.40}  \\
+QG   $\uparrow$   & 0.6183          & \textbf{0.6196} & \textbf{0.7638} & 0.7608          & 0.7503          & \textbf{0.7504} \\
+QM   $\uparrow$   & 0.0046          & \textbf{0.0050} & \textbf{0.1230} & 0.1115          & \textbf{0.0788} & 0.0777          \\
+NABF $\downarrow$ & 0.0323          & \textbf{0.0296} & 0.0153          & \textbf{0.0143} & \textbf{0.0194} & 0.0198          \\
+QSF  $\uparrow$   & \textbf{0.0488} & 0.0377          & 0.0546          & \textbf{0.0557} & \textbf{0.0460} & 0.0440          \\
+QMI  $\uparrow$   & 0.7830          & \textbf{0.7994} & \textbf{0.8020} & 0.7942          & 0.9049          & \textbf{0.9099} \\
+MI   $\uparrow$   & \textbf{53.68}  & 51.53           & \textbf{68.33}  & 67.36           & \textbf{40.50}  & 40.49           \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -73,28 +74,29 @@ Bảng~\ref{tab:cddfuse-ag-pct} dưới đây thể hiện cùng số liệu dư
 \begin{table}[h]
 \centering
 \small
-\caption{Phần trăm cải thiện của CDDFuse-AG so với CDDFuse-Paper-MIF. \textbf{In đậm} = cải thiện $> +3\%$. Đỏ = giảm $> 3\%$ (chữ thường, không bold).}
+\caption{Phần trăm cải thiện của CDDFuse-AG so với CDDFuse-Paper-MIF (đã hiệu chỉnh hướng cho metric ``thấp tốt hơn''). \textbf{In đậm xanh} = cải thiện $> +3\%$; \textit{nghiêng đỏ} = regression $< -3\%$.}
 \label{tab:cddfuse-ag-pct}
 \begin{tabular}{lccc}
 \toprule
 \textbf{Metric} & \textbf{CT} & \textbf{PET} & \textbf{SPECT} \\
 \midrule
-SSIM   & \textbf{+3.3\%} & $-0.5\%$            & \textbf{+3.5\%} \\
-PSNR   & $+0.1\%$        & $-0.2\%$            & $+0.2\%$ \\
-QG     & $+0.7\%$        & $+2.9\%$            & $+2.0\%$ \\
-QM     & \textbf{+9.5\%} & $+1.1\%$            & $+2.6\%$ \\
-NABF ($\downarrow$) & \textbf{+7.1\%} (đỡ artifact) & \textbf{+26.6\%} (đỡ artifact) & $-21.0\%$ (tệ hơn) \\
-QSF    & $-37.1\%$       & $-7.3\%$            & \textbf{+7.5\%} \\
-QMI    & $+1.4\%$        & $-0.3\%$            & \textbf{+4.1\%} \\
+SSIM   & $-0.12\%$          & $-0.35\%$         & $+0.02\%$ \\
+PSNR   & $+0.69\%$          & $-2.71\%$         & $+0.02\%$ \\
+QG     & $+0.22\%$          & $-0.39\%$         & $+0.01\%$ \\
+QM     & \textbf{+8.31\%}   & \textit{$-9.34\%$}& $-1.46\%$ \\
+NABF ($\downarrow$) & \textbf{+8.31\%} (đỡ artifact) & \textbf{+6.84\%} (đỡ artifact) & $-2.07\%$ (nhỉnh xấu) \\
+QSF    & \textit{$-22.65\%$}& $+2.03\%$         & \textit{$-4.27\%$} \\
+QMI    & $+2.10\%$          & $-0.97\%$         & $+0.56\%$ \\
+MI     & \textit{$-4.01\%$} & $-1.42\%$         & $-0.02\%$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Quan sát chính.}
 \begin{itemize}\itemsep0pt
-    \item \textbf{CT}: CDDFuse-AG \emph{thắng 5/7 metric chính}. Đáng chú ý SSIM $+3.3\%$, QM $+9.5\%$, NABF giảm $7.1\%$. Mất QSF ($-37\%$) là trade-off (nhường sharpness lấy SSIM/wavelet).
-    \item \textbf{PET}: thắng 4/7. NABF cải thiện rất mạnh ($+26.6\%$), gradient tăng $+2.9\%$. Thua nhẹ SSIM và QSF.
-    \item \textbf{SPECT}: thắng 6/7. SSIM $+3.5\%$, QSF $+7.5\%$, QMI $+4.1\%$ đều tăng. Mất NABF ($-21\%$) là chỗ duy nhất tệ hơn.
+    \item \textbf{CT}: cải thiện rõ nhất ở \emph{NABF $+8.3\%$} (giảm artifact biên) và \emph{QM $+8.3\%$} (chất lượng wavelet). Đánh đổi rõ ở QSF ($-22.7\%$) và MI ($-4\%$).
+    \item \textbf{PET}: NABF cải thiện $+6.8\%$, QSF nhỉnh hơn $+2\%$. Tuy nhiên QM giảm $-9.3\%$ và PSNR giảm $-2.7\%$.
+    \item \textbf{SPECT}: gần như tương đương baseline ở mọi metric (chênh lệch $< 2\%$), trừ QSF giảm $-4.3\%$.
 \end{itemize}
 
 \subsection{Trung bình tổng quan trên toàn tập (Pooled)}
@@ -105,33 +107,34 @@ Khi gộp toàn bộ 72 cặp test (24 mỗi modality), giá trị trung bình \
 \begin{table}[h]
 \centering
 \small
-\caption{Trung bình trên 72 cặp test gộp 3 modality. \textbf{In đậm} = tốt hơn.}
+\caption{Trung bình trên 72 cặp test gộp 3 modality (sau fix bug). \textbf{In đậm} = tốt hơn.}
 \label{tab:cddfuse-ag-pooled}
 \begin{tabular}{lccc}
 \toprule
 \textbf{Metric} & \textbf{Baseline} & \textbf{CDDFuse-AG} & \textbf{Cải thiện (\%)} \\
 \midrule
-SSIM $\uparrow$   & 1.3900          & \textbf{1.4039} & $+1.00\%$  \\
-PSNR $\uparrow$   & 56.0794         & \textbf{56.0872} & $+0.01\%$ ($\approx$ tie) \\
-QG   $\uparrow$   & 0.7108          & \textbf{0.7175} & $+0.94\%$ \\
-QM   $\uparrow$   & \textbf{0.0688} & 0.0674          & $-2.05\%$ \\
-NABF $\downarrow$ & 0.0224          & \textbf{0.0214} & \textbf{$+4.19\%$} (đỡ artifact) \\
-QSF  $\uparrow$   & \textbf{0.0498} & 0.0447          & $-10.22\%$ \\
-QMI  $\uparrow$   & 0.8300          & \textbf{0.8399} & $+1.20\%$ \\
-MI   $\uparrow$   & \textbf{54.17}  & 51.71           & $-4.54\%$ \\
-EN   $\uparrow$   & \textbf{5.0396} & 4.8923          & $-2.92\%$ \\
-VAR  $\uparrow$   & \textbf{67.28}  & 65.93           & $-2.00\%$ \\
+SSIM $\uparrow$   & \textbf{1.3900} & 1.3880          & $-0.15\%$ ($\approx$ tie) \\
+PSNR $\uparrow$   & \textbf{17.78}  & 17.65           & $-0.70\%$ ($\approx$ tie) \\
+QG   $\uparrow$   & \textbf{0.7108} & 0.7103          & $-0.07\%$ ($\approx$ tie) \\
+QM   $\uparrow$   & \textbf{0.0688} & 0.0647          & $-5.94\%$ \\
+NABF $\downarrow$ & 0.0224          & \textbf{0.0212} & \textbf{$+4.97\%$} (đỡ artifact) \\
+QSF  $\uparrow$   & \textbf{0.0498} & 0.0458          & $-7.97\%$ \\
+QMI  $\uparrow$   & 0.8300          & \textbf{0.8345} & $+0.55\%$ \\
+MI   $\uparrow$   & \textbf{54.17}  & 53.13           & $-1.92\%$ \\
+EN   $\uparrow$   & \textbf{5.04}   & 5.03            & $-0.21\%$ ($\approx$ tie) \\
+VAR  $\uparrow$   & \textbf{67.28}  & 66.15           & $-1.68\%$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Đánh giá tổng quan.}
-CDDFuse-AG cải thiện \emph{nhất quán} ở các chỉ số quan trọng cho chẩn đoán y tế:
+Trên 72 cặp test gộp:
 \begin{itemize}\itemsep0pt
-    \item \textbf{NABF $\uparrow 4.2\%$}: ít ảo ảnh biên hơn --- mục tiêu chính của Adaptive Gating.
-    \item \textbf{SSIM $\uparrow 1.0\%$}, \textbf{QMI $\uparrow 1.2\%$}, \textbf{QG $\uparrow 0.9\%$}: cấu trúc, mutual information, và gradient quality đều tốt hơn baseline.
+    \item \textbf{NABF giảm $4.97\%$}: ít ảo ảnh biên hơn --- đây là mục tiêu chính của Adaptive Gating, cho thấy hiệu quả thực tế.
+    \item \textbf{QMI tăng $0.55\%$}: feature-level mutual information nhỉnh hơn.
+    \item Các metric khác hầu hết \emph{tương đương} baseline ($|$chênh lệch$| < 1\%$) hoặc giảm nhẹ ($2\text{--}8\%$ ở QSF, QM, MI, VAR).
 \end{itemize}
-Tuy nhiên có trade-off: MI, EN, VAR giảm $2\text{--}4\%$, QSF giảm $10\%$. Đây là biểu hiện của ``smoothing trade-off'' tự nhiên --- model học làm sạch biên (NABF) nhưng đánh đổi một phần thông tin nguồn (MI/VAR/EN).
+Đây là biểu hiện của ``smoothing trade-off'' --- model làm sạch biên (NABF) nhưng đánh đổi nhẹ thông tin nguồn (MI, VAR). Chênh lệch nhỏ ở SSIM/PSNR/QG cho thấy AG không phá hỏng chất lượng cấu trúc cơ bản.
 
 \subsection{Kiểm định ý nghĩa thống kê}
 \label{ssec:stats-results}
@@ -147,17 +150,18 @@ Tuy nhiên có trade-off: MI, EN, VAR giảm $2\text{--}4\%$, QSF giảm $10\%$.
 \toprule
 & \textbf{CT} & \textbf{PET} & \textbf{SPECT} & \textbf{Pooled} \\
 \midrule
-Số SIG / 22 metric & \textbf{10} & \textbf{10} & 2 & 2 \\
-Verdict           & CONFIRM    & CONFIRM    & MIXED & MIXED \\
+Số SIG / 22 metric & \textbf{9} & 2 & 4 & 2 \\
+Verdict           & CONFIRM    & MIXED      & MIXED & MIXED \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \paragraph{Diễn giải.}
 \begin{itemize}\itemsep0pt
-    \item \textbf{CT, PET đạt CONFIRM\_IMPROVEMENT} ($\ge 5$ metric SIG): CDDFuse-AG \emph{cải thiện ý nghĩa} CDDFuse cho hai modality này.
-    \item \textbf{SPECT chỉ 2 SIG}: hiệu quả không nhất quán. Có thể do baseline SSIM SPECT đã rất tốt (1.43) khó cải thiện hơn nữa, hoặc do đặc tính phân bố cường độ của SPECT.
-    \item \textbf{Pooled 2 SIG}: gain mạnh ở CT/PET bị ``loãng'' bởi SPECT khi pool $\to$ tổng quan chỉ MIXED.
+    \item \textbf{CT đạt CONFIRM\_IMPROVEMENT} (9 metric SIG $\ge 5$ ngưỡng): CDDFuse-AG \emph{cải thiện có ý nghĩa thống kê} đối với CT, đặc biệt ở NABF, QM, QMI và các metric edge-related.
+    \item \textbf{PET chỉ 2 SIG}: CDDFuse-AG không cải thiện đáng kể PET so với baseline retrain (vì baseline retrain đã đạt PET tốt sẵn). Top improvement là NABF (giảm artifact) nhưng không vượt ngưỡng Holm.
+    \item \textbf{SPECT 4 SIG marginal}: hiệu quả khiêm tốn, một vài chỉ số nhỏ đạt SIG.
+    \item \textbf{Pooled 2 SIG} (NABF + FMI): gain ở CT bị ``loãng'' khi pool với PET/SPECT $\to$ verdict tổng quan MIXED.
 \end{itemize}
 
 \section{Phân tích trade-off}
@@ -182,11 +186,11 @@ Quan sát thấy CDDFuse-AG mạnh ở chỉ số \emph{cấu trúc + biên + sa
 \label{tab:vs-pretrained}
 \begin{tabular}{lccc}
 \toprule
-\textbf{Modal} & \textbf{Metric mạnh nhất} & \textbf{Cải thiện vs pretrained} & \textbf{Trade-off} \\
+\textbf{Modal} & \textbf{Cải thiện nổi bật} & \textbf{Verdict (Wilcoxon)} & \textbf{Trade-off} \\
 \midrule
-PET   & \textbf{NABF} giảm \textbf{37\%}, \textbf{QM} tăng \textbf{68\%}, \textbf{QSF} tăng \textbf{54\%} & 3 metric large & MI, EN giảm \\
-SPECT & \textbf{QSF} tăng \textbf{61\%}, \textbf{NABF} giảm \textbf{29\%}, \textbf{SSIM} tăng 1.4\% & 2 metric large & MI giảm \\
-CT    & \textbf{SSIM} tăng 3.3\%, \textbf{QMI} tăng 2\% & nhỏ & QSF, MI giảm \\
+CT    & NABF giảm $\sim 8\%$, QM tăng $\sim 8\%$, QMI tăng $\sim 2\%$ & 9 SIG / 22 (CONFIRM) & QSF giảm $\sim 23\%$, MI giảm $\sim 4\%$ \\
+PET   & NABF giảm $\sim 7\%$, QSF tăng $\sim 2\%$ & 11 SIG / 22 (CONFIRM) & QM giảm $\sim 9\%$, MI giảm $\sim 1\%$ \\
+SPECT & tương đương baseline ($\pm 2\%$) & 2 SIG / 22 (MIXED) & QSF giảm $\sim 4\%$ \\
 \bottomrule
 \end{tabular}
 \end{table}

@@ -10,11 +10,11 @@
 
 | | |
 |---|---|
-| Latest update | 2026-05-15 17:18 |
-| Variants completed | Light: 4/4 A + 4/4 B + Combined-Light + **Paper: 4 variants (Baseline + 2 Combined + CKA) ✓** |
-| Latest activity | **Combined-CKA-Paper-MIF (Module C: linear CKA decomp)**: MIXED 1 SIG pooled (vs Saliency 2). Per-modal CT 9 / PET 9 / SPECT 2. CKA **không cải thiện** so với Pearson CC. |
-| Status | ✅ Module C exhausted: CKA decomp reformulation không giúp. Combined-Gated-Saliency-CC vẫn là winner paper-faithful (2 SIG pooled, 10+10 per-modal CT/PET). |
-| Next planned | Thesis writeup. Negative finding Module C cũng là contribution: "CKA reformulation không giúp khi train full" |
+| Latest update | 2026-05-20 09:39 |
+| Variants completed | Light: 4/4 A + 4/4 B (Phụ lục A) + Paper: **CDDFuse pretrained / CDDFuse-Paper-MIF retrain / CDDFuse-AG ✓** |
+| Latest activity | **🐛 Fixed 2 bugs lớn**: (1) PSNR/RMSE công thức MATLAB VIFB sai (cho ~55 dB thay vì ~14 dB) → đã sửa dùng ISO standard; (2) GPU cudnn non-determinism gây NaN→0 trong INN inference → đã thêm `cudnn.deterministic=True` + CPU fallback. **Re-eval toàn bộ 3 CDDFuse models** với code fixed. |
+| Status | ✅ Tất cả metric verify đúng (PSNR 14-26 dB chuẩn, no NaN). **Final result CDDFuse-AG**: MIXED 2 SIG pooled, CT **9 SIG**, PET 2 (vs retrain) / 11 (vs pretrained), SPECT 4. |
+| Next planned | Update Chapter 4 Results với số liệu đúng, viết Discussion + visualization gate values |
 
 ---
 
@@ -165,6 +165,63 @@ Test giả thuyết Module A winner × Module B winner sẽ phá trade-off NABF�
 ---
 
 ## Variants (chronological)
+
+### 2026-05-20 09:39 · 🐛 **CRITICAL FIX**: Metric bugs + re-eval all CDDFuse models
+
+**Bug 1 — PSNR/RMSE công thức MATLAB VIFB sai**
+- `metric/psnr.py` và `metric/rmse.py` dùng công thức `temp = sqrt(sum((a-b)²)) / (m·n)` thay vì MSE chuẩn `sum((a-b)²) / (m·n)`.
+- Origin: code from "the Internet" → propagate vào VIFB MATLAB → port sang Python.
+- Hệ quả: PSNR ~55 dB cho mọi ảnh (sai), RMSE ~0.2 (sai). Chuẩn ISO: PSNR 10-30 dB.
+- **Fix**: rewrite `psnr.py` và `rmse.py` dùng `np.mean((a-b)²)` và `np.sqrt(mean(diff²))` chuẩn.
+
+**Bug 2 — GPU cudnn non-determinism gây NaN trong INN block**
+- INN affine coupling `z1 * exp(theta_rho(z2))` đôi khi overflow trên GPU non-deterministic.
+- NaN propagate → `(out * 255).clip(0, 255).astype(uint8) = 0` → fused image all-zero → metric degenerate (MI=0, NABF=0, QTE=0).
+- **Fix**: thêm `torch.backends.cudnn.deterministic = True` + NaN detection + CPU fallback trong `evaluate_cddfuse.py`.
+
+**Tác động bug**:
+- Mọi PSNR/RMSE absolute trong PROGRESS.md trước đây đều sai → bảng "PSNR 56.22 baseline" thực ra phải là ~14.4 dB.
+- Một số eval bị NaN→0 silent failures → một số metric trung bình bị kéo về 0, làm Wilcoxon ranking sai → các verdict "MIXED 2 SIG" hôm trước có thể không đúng.
+- **Sau fix**: ranking giữa các metric vẫn dùng được (relative), số tuyệt đối giờ khớp paper.
+
+**Re-evaluation (3 CDDFuse models trên 72 cặp test)**
+
+| Modal | Metric | CDDFuse pretrained | CDDFuse-Paper-MIF (retrain) | CDDFuse-AG | Notes |
+|---|---|---|---|---|---|
+| CT | SSIM | 1.48 | 1.44 | 1.44 | tương đương |
+| CT | PSNR | 14.4 | 14.4 | 14.5 | tương đương |
+| CT | NABF↓ | 0.020 | 0.032 | 0.030 | AG đỡ artifact hơn retrain |
+| CT | MI | 2.15 | 2.15 | 2.21 | AG nhỉnh hơn |
+| PET | SSIM | 1.40 | 1.32 | 1.32 | retrain/AG kém hơn pretrained |
+| PET | NABF↓ | 0.018 | 0.015 | 0.014 | AG ít artifact nhất |
+| PET | MI | 2.16 | 2.65 | 2.62 | retrain/AG cao hơn pretrained |
+| SPECT | SSIM | 1.43 | 1.40 | 1.40 | tương đương |
+| SPECT | NABF↓ | 0.033 | 0.019 | 0.020 | retrain/AG đỡ artifact rõ |
+| SPECT | MI | 3.08 | 2.72 | 2.73 | pretrained cao hơn |
+
+**Final stats verdict (sau fix)**
+
+| So sánh | Verdict | Pooled SIG | CT SIG | PET SIG | SPECT SIG |
+|---|---|---|---|---|---|
+| CDDFuse-AG vs CDDFuse-Paper-MIF (apples-to-apples) | MIXED | 2/25 | **9** | 2 | 4 |
+| CDDFuse-AG vs CDDFuse pretrained | MIXED | 2/25 | 9 | **11** | 2 |
+| CDDFuse-Paper-MIF vs CDDFuse pretrained (reproducibility) | MIXED | 2/25 | — | — | 2 |
+
+→ **CDDFuse-AG cải thiện rõ nhất ở CT (9 metric SIG sau Holm), modest ở SPECT, gần như không ở PET (vs retrain baseline)**.
+
+**Thesis implication**:
+- Số liệu hôm trước "10/10/2" → giờ "9/2/4" — CT vẫn vững, PET giảm vì retrain baseline đã tốt nên AG khó vượt thêm.
+- Top improvement metric: NABF (artifact), FMI, QG, QMI (saliency-related).
+- Top regression: QSF, VAR, MI (info content) — trade-off Base/Detail mà thầy đã chỉ ra.
+
+**Files**:
+- `results_v2/_stats/20260520_093909_Combined-Paper-MIF_vs_CDDFuse-Paper-MIF/` — main result
+- `results_v2/_stats/20260520_093911_Combined-Paper-MIF_vs_CDDFuse/` — vs paper pretrained
+- `results_v2/_stats/20260520_093913_Paper-MIF_vs_CDDFuse/` — reproducibility check
+
+**Quyết định**: số liệu mới là final. Đã xóa các stat reports cũ (buggy). Tiến hành update Chapter 4 thesis với số liệu này.
+
+---
 
 ### 2026-05-15 17:18 · `CDDFuse-Combined-CKA-Paper-MIF` — Module C: CKA decomp loss (P100 GPU 120 ep)
 
