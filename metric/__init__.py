@@ -5,6 +5,7 @@ from .entropy import entropy
 from .fmi import fmi
 from .ncie import ncie
 from .Nabf import nabf
+from .scd import scd
 
 # Matlab / Standard counterparts
 from .mutual_information import mutual_information

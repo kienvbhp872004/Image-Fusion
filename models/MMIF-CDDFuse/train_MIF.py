@@ -108,14 +108,15 @@ def main():
     parser.add_argument("--output", default="models/")
     parser.add_argument("--num_epochs", type=int, default=120)
     parser.add_argument("--epoch_gap", type=int, default=40)
-    parser.add_argument("--batch", type=int, default=8)
+    parser.add_argument("--batch", type=int, default=16)   # paper text §5.1 (was 8 in code release)
     parser.add_argument("--amp", action="store_true")
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--seed", type=int, default=42)
-    parser.add_argument("--coeff_mse_VF", type=float, default=1.0)
+    # Loss coefficients theo paper text §5.1: α1=1, α2=2, α3=10, α4=2
+    parser.add_argument("--coeff_mse_VF", type=float, default=1.0)   # α1
     parser.add_argument("--coeff_mse_IF", type=float, default=1.0)
-    parser.add_argument("--coeff_decomp", type=float, default=2.0)
-    parser.add_argument("--coeff_tv", type=float, default=5.0)
+    parser.add_argument("--coeff_decomp", type=float, default=2.0)   # α2, α4
+    parser.add_argument("--coeff_tv", type=float, default=10.0)      # α3 (paper text = 10, code release = 5)
     parser.add_argument("--clip_grad_norm", type=float, default=0.01)
     parser.add_argument("--optim_step", type=int, default=20)
     parser.add_argument("--optim_gamma", type=float, default=0.5)

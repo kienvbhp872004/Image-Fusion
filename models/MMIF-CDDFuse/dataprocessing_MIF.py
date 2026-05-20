@@ -1,30 +1,28 @@
 """
-Pre-processing cho Medical Image Fusion (paper CDDFuse sect 5.2).
+Pre-processing cho Medical Image Fusion — dùng split CÓ SẴN của dataset.
 
-Setup paper-faithful:
-- 286 pairs từ Harvard Medical
-- Split: 130 train + 20 val + 136 test (21 CT + 42 PET + 73 SPECT)
-- Random seed 42 cho reproducibility
+Cấu trúc input (dataset đã chia train/test sẵn):
+    Havard-Medical-Image-Fusion-Datasets-main/Havard-Medical-Image-Fusion-Datasets-main/MyDatasets/
+        CT-MRI/
+            train/{CT,MRI}/*.png   (160 cặp)
+            test/{CT,MRI}/*.png    (24 cặp)
+        PET-MRI/
+            train/{PET,MRI}/*.png  (245 cặp)
+            test/{PET,MRI}/*.png   (24 cặp)
+        SPECT-MRI/
+            train/{SPECT,MRI}/*.png  (333 cặp)
+            test/{SPECT,MRI}/*.png   (24 cặp)
 
-Cấu trúc input (đường dẫn relative từ project root):
-    ../../Havard-Medical-Image-Fusion-Datasets-main/Havard-Medical-Image-Fusion-Datasets-main/
-        CT-MRI/{CT,MRI}/*.png       (184 pairs, L mode 256x256)
-        PET-MRI/{PET,MRI}/*.png     (269 pairs, PET=RGB 256x256, MRI=L)
-        SPECT-MRI/{SPECT,MRI}/*.png (357 pairs, SPECT=RGB 256x256, MRI=L)
+Tổng: 738 cặp train + 72 cặp test (24 × 3 modality).
 
 Output:
-    data/MIF_train_imgsize_128_stride_64.h5
-        groups: mri_patchs, src_patchs (Y channel only, [1,128,128])
-    data/MIF_split.json  (lists for train/val/test reproducibility)
+    data/MIF_train_imgsize_128_stride_64.h5    --- patches h5
+    data/MIF_split.json                          --- danh sách file train/test
 
-Patch extraction: 128x128 với stride 64 → 9 patches/image, low-contrast filtered.
-
-Convention: MRI → "ir" role (anatomical), CT/PET_Y/SPECT_Y → "vi" role (functional).
-Khi train: 1 sample = (MRI patch [1,128,128], src patch [1,128,128]).
+Convention: MRI = "ir" role (anatomical), src = "vi" role (functional).
 """
 import json
 import os
-import random
 from pathlib import Path
 
 import h5py
@@ -33,18 +31,13 @@ from PIL import Image
 from tqdm import tqdm
 
 # ---------- config
-SEED = 42
 PATCH_SIZE = 128
 STRIDE = 64
 LOW_CONTRAST_FRACTION = 0.1
 
-# Test counts paper Tab.5 sect 5.2
-N_TEST_CT, N_TEST_PET, N_TEST_SPECT = 21, 42, 73
-N_TRAIN, N_VAL = 130, 20
-
 HERE = Path(__file__).resolve().parent
 ROOT = HERE.parent.parent
-DATASET_ROOT = ROOT / "Havard-Medical-Image-Fusion-Datasets-main" / "Havard-Medical-Image-Fusion-Datasets-main"
+DATASET_ROOT = ROOT / "Havard-Medical-Image-Fusion-Datasets-main" / "Havard-Medical-Image-Fusion-Datasets-main" / "MyDatasets"
 OUT_DIR = HERE / "data"
 OUT_H5 = OUT_DIR / f"MIF_train_imgsize_{PATCH_SIZE}_stride_{STRIDE}.h5"
 OUT_SPLIT = OUT_DIR / "MIF_split.json"
@@ -53,7 +46,7 @@ OUT_DIR.mkdir(parents=True, exist_ok=True)
 
 
 def rgb2y(img_rgb):
-    """[H,W,3] uint8/float -> [H,W] float Y channel."""
+    """[H,W,3] -> [H,W] Y channel."""
     r, g, b = img_rgb[..., 0], img_rgb[..., 1], img_rgb[..., 2]
     return 0.299 * r + 0.587 * g + 0.114 * b
 
@@ -65,11 +58,10 @@ def load_pair(src_path, mri_path):
         src = rgb2y(src)
     src = src / 255.0
     mri = mri / 255.0
-    return mri, src  # both [H,W] float32 in [0,1]
+    return mri, src
 
 
 def extract_patches(img, patch=PATCH_SIZE, stride=STRIDE):
-    """[H,W] -> [N, patch, patch]"""
     H, W = img.shape
     ys = list(range(0, H - patch + 1, stride))
     xs = list(range(0, W - patch + 1, stride))
@@ -89,10 +81,12 @@ def is_low_contrast(patch, frac_threshold=LOW_CONTRAST_FRACTION):
     return (hi - lo) / hi < frac_threshold
 
 
-def collect_pairs(modal_folder, src_subdir):
+def collect_pairs(modal_folder, src_subdir, split_name):
     """Return list of (src_path, mri_path) tuples."""
-    src_dir = DATASET_ROOT / modal_folder / src_subdir
-    mri_dir = DATASET_ROOT / modal_folder / "MRI"
+    src_dir = DATASET_ROOT / modal_folder / split_name / src_subdir
+    mri_dir = DATASET_ROOT / modal_folder / split_name / "MRI"
+    if not src_dir.exists() or not mri_dir.exists():
+        raise FileNotFoundError(f"Missing: {src_dir} or {mri_dir}")
     out = []
     for f in sorted(os.listdir(src_dir)):
         if not f.lower().endswith(".png"):
@@ -103,47 +97,33 @@ def collect_pairs(modal_folder, src_subdir):
     return out
 
 
-def split_286_from_pool():
-    """Pick 286 pairs from Harvard pool with paper-faithful test allocation."""
-    rng = random.Random(SEED)
-    ct = collect_pairs("CT-MRI", "CT")
-    pet = collect_pairs("PET-MRI", "PET")
-    spect = collect_pairs("SPECT-MRI", "SPECT")
-    print(f"[pool] CT={len(ct)} PET={len(pet)} SPECT={len(spect)} total={len(ct)+len(pet)+len(spect)}")
-
-    rng.shuffle(ct)
-    rng.shuffle(pet)
-    rng.shuffle(spect)
-
-    # Test split per paper
-    test_ct = ct[:N_TEST_CT]
-    test_pet = pet[:N_TEST_PET]
-    test_spect = spect[:N_TEST_SPECT]
-
-    # Remaining pool for train+val (must total 130+20 = 150)
-    remain = ct[N_TEST_CT:] + pet[N_TEST_PET:] + spect[N_TEST_SPECT:]
-    rng.shuffle(remain)
-    pool_286 = remain[: N_TRAIN + N_VAL]  # 150 non-test
-    train_pairs = pool_286[:N_TRAIN]
-    val_pairs = pool_286[N_TRAIN:N_TRAIN + N_VAL]
-
-    return {
-        "train":      [{"src": s, "mri": m} for s, m in train_pairs],
-        "val":        [{"src": s, "mri": m} for s, m in val_pairs],
-        "test_CT":    [{"src": s, "mri": m} for s, m in test_ct],
-        "test_PET":   [{"src": s, "mri": m} for s, m in test_pet],
-        "test_SPECT": [{"src": s, "mri": m} for s, m in test_spect],
+def main():
+    split = {
+        "train":      [],
+        "test_CT":    [],
+        "test_PET":   [],
+        "test_SPECT": [],
     }
 
+    # Train: gộp cả 3 modality (738 cặp)
+    for modal, sub in [("CT-MRI", "CT"), ("PET-MRI", "PET"), ("SPECT-MRI", "SPECT")]:
+        pairs = collect_pairs(modal, sub, "train")
+        split["train"].extend([{"src": s, "mri": m, "modal": sub} for s, m in pairs])
+        print(f"[train] {modal}: {len(pairs)} cặp")
+    print(f"[train] TOTAL: {len(split['train'])} cặp")
 
-def main():
-    split = split_286_from_pool()
+    # Test: riêng từng modality
+    for modal, sub, key in [("CT-MRI", "CT", "test_CT"),
+                            ("PET-MRI", "PET", "test_PET"),
+                            ("SPECT-MRI", "SPECT", "test_SPECT")]:
+        pairs = collect_pairs(modal, sub, "test")
+        split[key] = [{"src": s, "mri": m} for s, m in pairs]
+        print(f"[test ] {key}: {len(pairs)} cặp")
+
     OUT_SPLIT.write_text(json.dumps(split, indent=2))
-    print(f"[split] train={len(split['train'])} val={len(split['val'])} "
-          f"test CT/PET/SPECT={len(split['test_CT'])}/{len(split['test_PET'])}/{len(split['test_SPECT'])}")
     print(f"[split] saved -> {OUT_SPLIT}")
 
-    # Patch h5 only for train set
+    # Patch h5 cho train set
     h5f = h5py.File(OUT_H5, "w")
     g_mri = h5f.create_group("mri_patchs")
     g_src = h5f.create_group("src_patchs")
@@ -161,9 +141,8 @@ def main():
     h5f.close()
     print(f"[h5  ] {train_num} patches saved -> {OUT_H5}")
 
-    # Verify
     with h5py.File(OUT_H5, "r") as f:
-        print(f"[h5  ] groups: mri={len(f['mri_patchs'])} src={len(f['src_patchs'])}")
+        print(f"[h5  ] verify: mri={len(f['mri_patchs'])} src={len(f['src_patchs'])}")
 
 
 if __name__ == "__main__":
