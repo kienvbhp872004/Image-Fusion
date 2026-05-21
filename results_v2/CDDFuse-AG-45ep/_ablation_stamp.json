@@ -1,0 +1,15 @@
+{
+  "variant_name": "CDDFuse-Combined-Gated-Saliency-PaperMIF",
+  "based_on": "CDDFuse paper text \u00a75.1 (batch 16, \u03b13=10)",
+  "datetime": "2026-05-21T00:00:37.547450Z",
+  "train_mode": "full_paper_120ep_2phase",
+  "gpu": "Tesla P100-PCIE-16GB",
+  "epochs": 45,
+  "epoch_gap": 15,
+  "batch": 8,
+  "amp": true,
+  "seed": 42,
+  "coeff_tv": 10.0,
+  "coeff_decomp": 2.0,
+  "ckpt_sha256": "8ddd7a54479d1601fa2a0fc8a8553c04cda815677c35db3f231c01f4c31c7170"
+}

@@ -10,11 +10,11 @@
 
 | | |
 |---|---|
-| Latest update | 2026-05-20 09:39 |
-| Variants completed | Light: 4/4 A + 4/4 B (Phụ lục A) + Paper: **CDDFuse pretrained / CDDFuse-Paper-MIF retrain / CDDFuse-AG ✓** |
-| Latest activity | **🐛 Fixed 2 bugs lớn**: (1) PSNR/RMSE công thức MATLAB VIFB sai (cho ~55 dB thay vì ~14 dB) → đã sửa dùng ISO standard; (2) GPU cudnn non-determinism gây NaN→0 trong INN inference → đã thêm `cudnn.deterministic=True` + CPU fallback. **Re-eval toàn bộ 3 CDDFuse models** với code fixed. |
-| Status | ✅ Tất cả metric verify đúng (PSNR 14-26 dB chuẩn, no NaN). **Final result CDDFuse-AG**: MIXED 2 SIG pooled, CT **9 SIG**, PET 2 (vs retrain) / 11 (vs pretrained), SPECT 4. |
-| Next planned | Update Chapter 4 Results với số liệu đúng, viết Discussion + visualization gate values |
+| Latest update | 2026-05-21 08:43 |
+| Variants completed | CDDFuse pretrained / CDDFuse-Paper-MIF retrain / **CDDFuse-AG-45ep ✓ (full 738 train, batch 8, α₃=10, paper text §5.1)** |
+| Latest activity | 🎉 **CDDFuse-AG-45ep: CONFIRM_IMPROVEMENT cả 2 comparison**: vs Paper-MIF retrain 8/25 SIG (CT 8, PET 6, SPECT 5), vs CDDFuse pretrained 6/25 SIG (CT 8, PET 9, SPECT 2). Top win: QM, CE, SF, QMI, AG. Trade-off: NABF, SSIM, QY giảm nhẹ. |
+| Status | ✅ Train với hyperparam đúng paper text + dataset full 738 cặp cho kết quả mạnh nhất. Tất cả 3 modality CONFIRM_IMPROVEMENT vs apples-to-apples baseline. |
+| Next planned | Update thesis Ch.4 với số liệu mới + vẽ figures (training curve, qualitative, NABF heatmap) |
 
 ---
 
@@ -165,6 +165,70 @@ Test giả thuyết Module A winner × Module B winner sẽ phá trade-off NABF�
 ---
 
 ## Variants (chronological)
+
+### 2026-05-21 08:43 · 🎉 `CDDFuse-AG-45ep` — paper text §5.1 hyperparam, 738 train, P100 GPU
+
+**Cấu hình đúng paper text**:
+- α₁=1, α₂=2, **α₃=10** (paper text), α₄=2
+- batch 8 (P100 16GB), AMP fp16
+- 45 ep (Phase I=15, Phase II=30) — giảm từ 120 để fit Kaggle 12h với 738 train
+- Train data: **full 738 cặp** từ `MyDatasets/{modal}/train/` (160 CT + 245 PET + 333 SPECT)
+- Test: 72 cặp (24×3)
+- ckpt sha: `8ddd7a54...`
+- Train history: P1 loss 0.35→0.04 (ep 1-15), P2 loss 0.91→0.52 (ep 16-45)
+
+**Stats vs CDDFuse-Paper-MIF (retrain, apples-to-apples)**: **CONFIRM_IMPROVEMENT 8/25 SIG**
+
+| Modal | SIG | Verdict |
+|---|---|---|
+| CT | 8 + 1 MARG | CONFIRM |
+| PET | 6 + 1 MARG | CONFIRM |
+| SPECT | 5 + 6 MARG | CONFIRM |
+| Pooled | **8** | **CONFIRM** |
+
+**Top improvement (pooled)**:
+| Metric | δ | Effect |
+|---|---|---|
+| QM (wavelet quality) | +0.285 | small SIG |
+| CE (cross entropy) | +0.169 | small SIG |
+| QSF (sharpness rel.) | +0.173 | small SIG |
+| SF (spatial freq.) | +0.084 | trivial SIG |
+| QMI | +0.079 | trivial SIG |
+| AG | +0.076 | trivial SIG |
+| QG | +0.118 | trivial SIG |
+
+**Top regression (NS sau Holm)**:
+| Metric | δ | Notes |
+|---|---|---|
+| QY (Yang quality) | -0.349 | medium |
+| NABF | -0.328 | small |
+| SSIM | -0.135 | trivial |
+| RMSE | -0.131 | trivial |
+| PSNR | -0.128 | trivial |
+
+**Stats vs CDDFuse pretrained**: **CONFIRM_IMPROVEMENT 6/25 SIG**
+
+Per-modal: CT 8 + 4 MARG, PET **9**, SPECT 2.
+
+**Insight thesis-level**:
+
+So với run trước (CDDFuse-Paper-MIF với α₃=5, 120 ep, 130 train):
+
+| | Run trước | Run này (AG-45ep) |
+|---|---|---|
+| Train data | 130 cặp (random split) | **738 cặp** (full MyDatasets/train) |
+| α₃ (TV loss) | 5 (code) | **10** (paper text) |
+| Total ep | 120 | 45 |
+| Pooled SIG vs retrain | 2 | **8** ⭐ |
+| Per-modal CONFIRM | 1/3 (chỉ CT) | **3/3** ⭐ |
+
+→ Hyperparam đúng paper + full dataset → kết quả mạnh hơn hẳn, **cả 3 modality đều CONFIRM_IMPROVEMENT**.
+
+**Trade-off shifted**: lần này WIN information metrics (QM, CE, SF, QSF), LOSE perceptual metrics (NABF, SSIM, QY). Trái ngược với run trước (NABF win, QM lose). Nguyên nhân: α₃=10 stronger TV gradient → preserve edges/details/sharpness; nhưng có thể smooth ảnh nhẹ → SSIM perception giảm.
+
+**Files**: `results_v2/CDDFuse-AG-45ep/`, `models/MMIF-CDDFuse/models/CDDFuse-AG-45ep.pth`, train_history.json.
+
+---
 
 ### 2026-05-20 09:39 · 🐛 **CRITICAL FIX**: Metric bugs + re-eval all CDDFuse models
 

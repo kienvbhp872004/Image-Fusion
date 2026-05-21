@@ -1,0 +1,13 @@
+{
+  "run_id": "20260521_084316",
+  "variant": "CDDFuse-AG-45ep",
+  "baseline": "CDDFuse",
+  "alpha": 0.05,
+  "verdict_overall": "CONFIRM_IMPROVEMENT",
+  "pooled": {
+    "n_sig": 6,
+    "n_marginal": 2,
+    "n_ns": 17,
+    "n_total": 25
+  }
+}

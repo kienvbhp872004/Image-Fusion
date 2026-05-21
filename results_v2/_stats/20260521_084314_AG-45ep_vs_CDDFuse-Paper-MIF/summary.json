@@ -1,0 +1,13 @@
+{
+  "run_id": "20260521_084314",
+  "variant": "CDDFuse-AG-45ep",
+  "baseline": "CDDFuse-Paper-MIF",
+  "alpha": 0.05,
+  "verdict_overall": "CONFIRM_IMPROVEMENT",
+  "pooled": {
+    "n_sig": 8,
+    "n_marginal": 0,
+    "n_ns": 17,
+    "n_total": 25
+  }
+}
