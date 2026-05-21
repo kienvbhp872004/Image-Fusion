@@ -1,6 +1,8 @@
 # Hướng dẫn train CDDFuse-AG trên GPU remote (Docker)
 
 > Package này dùng để train mô hình **CDDFuse-AG** (Adaptive Gating + Saliency-guided Pixel) cho bài toán tổng hợp ảnh y tế. Train 120 epoch, batch 16, ~3-5h trên A100/A30/L40/L40s.
+>
+> **Môi trường**: Python 3.8 + PyTorch 2.4.1+cu121 (CUDA 12.1, Ubuntu 20.04 base) — khớp paper CDDFuse gốc.
 
 ---
 
@@ -23,15 +25,39 @@ Phải thấy GPU output. Nếu báo `unknown runtime: nvidia` → cài thêm `n
 
 ## 2. Lấy package
 
-Mình gửi file zip qua Google Drive: **[link Drive sẽ điền sau]**
+Link Drive: <https://drive.google.com/file/d/1ECY8LJNtkEYoQQMNIn1d5_-ddjOgOo8C/view?usp=drive_link>
 
+### Cách 1 — Tải bằng `gdown` (khuyến cáo)
 ```bash
-# Tải về và giải nén
-wget -O cddfuse_ag_package.zip "<link Drive>"
+# Cài gdown (1 lần)
+pip install --user gdown
+
+# Tải file (file ID đã có trong link)
+gdown 1ECY8LJNtkEYoQQMNIn1d5_-ddjOgOo8C -O cddfuse_ag_package.zip
+
+# Giải nén
 unzip cddfuse_ag_package.zip -d cddfuse_ag
 cd cddfuse_ag
 ls -la
-# Phải thấy: Dockerfile, run_train.sh, models/, metric/, data/, Havard-Medical-Image-Fusion-Datasets-main/, README.md
+# Phải thấy: remote_train/, models/, metric/, data/, Havard-Medical-Image-Fusion-Datasets-main/
+```
+
+### Cách 2 — Tải bằng `wget` (link export trực tiếp)
+```bash
+FILE_ID="1ECY8LJNtkEYoQQMNIn1d5_-ddjOgOo8C"
+wget --load-cookies /tmp/cookies.txt \
+  "https://docs.google.com/uc?export=download&confirm=$(wget --quiet --save-cookies /tmp/cookies.txt --keep-session-cookies --no-check-certificate 'https://docs.google.com/uc?export=download&id=${FILE_ID}' -O- | sed -rn 's/.*confirm=([0-9A-Za-z_]+).*/\1/p')&id=${FILE_ID}" \
+  -O cddfuse_ag_package.zip && rm -rf /tmp/cookies.txt
+unzip cddfuse_ag_package.zip -d cddfuse_ag
+cd cddfuse_ag
+```
+
+### Cách 3 — Tải qua browser
+Mở link Drive trên, click ⬇ Download → upload file lên server bằng `scp`:
+```bash
+scp cddfuse_ag_package.zip user@server:/path/to/work/
+ssh user@server
+cd /path/to/work && unzip cddfuse_ag_package.zip -d cddfuse_ag
 ```
 
 ---
