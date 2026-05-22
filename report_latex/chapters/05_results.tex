@@ -326,10 +326,117 @@ Quan sát từ kết quả CDDFuse-AG-45ep (full 738 train, $\alpha_3=10$): mô 
 \end{itemize}
 Đây là trade-off đặc trưng của mô hình ưu tiên \emph{texture vi mô và edge preservation} (mục tiêu chẩn đoán: nhìn rõ tổn thương) thay vì \emph{smoothing perceptual} (giảm artifact đồng đều).
 
-\section{So sánh phụ với CDDFuse pretrained công bố}
+\section{So sánh với CDDFuse pretrained công bố}
 \label{sec:results-vs-pretrained}
 
-Để đặt CDDFuse-AG trong bối cảnh SOTA, đồ án cũng so sánh với checkpoint pretrained CDDFuse công bố (\texttt{CDDFuse\_MIF.pth}, không retrain). Đây không phải so sánh apples-to-apples (khác training data composition) nên chỉ là tham khảo.
+Bên cạnh so sánh apples-to-apples với baseline retrain (Mục~\ref{sec:results-main}), đồ án cũng đánh giá CDDFuse-AG-45ep so với \emph{checkpoint pretrained CDDFuse} công bố trên repo gốc (\texttt{CDDFuse\_MIF.pth}). Đây là so sánh \textbf{tham khảo} vì pretrained dùng training data và quy trình có thể không hoàn toàn trùng đồ án, nhưng cho thấy CDDFuse-AG-45ep \emph{cạnh tranh được} với phiên bản chính thức.
+
+\subsection{Số liệu so sánh trên 3 modality}
+\label{ssec:vs-pretrained-numbers}
+
+\begin{table}[h]
+\centering
+\small
+\caption{CDDFuse-AG-45ep vs CDDFuse pretrained (paper checkpoint) --- giá trị trung bình theo modality. \textbf{In đậm} = tốt hơn.}
+\label{tab:vs-pretrained-per-modal}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{l|cc|cc|cc}
+\toprule
+& \multicolumn{2}{c|}{\textbf{CT}} & \multicolumn{2}{c|}{\textbf{PET}} & \multicolumn{2}{c}{\textbf{SPECT}} \\
+\textbf{Metric} & Pretrained & AG-45ep & Pretrained & AG-45ep & Pretrained & AG-45ep \\
+\midrule
+SSIM $\uparrow$  & \textbf{1.4799} & 1.4101          & \textbf{1.4043} & 1.2924          & \textbf{1.4319} & 1.3946          \\
+PSNR $\uparrow$  & \textbf{14.41}  & 14.12           & 16.53           & \textbf{16.69}  & \textbf{26.53}  & 21.20           \\
+QG   $\uparrow$  & 0.6141          & \textbf{0.6454} & 0.7344          & \textbf{0.7641} & \textbf{0.7584} & 0.7514          \\
+QM   $\uparrow$  & 0.0088          & \textbf{0.0148} & 0.0740          & \textbf{0.2318} & \textbf{0.1680} & 0.0909          \\
+NABF $\downarrow$ & \textbf{0.0197} & 0.0356         & \textbf{0.0181} & 0.0276          & 0.0329          & \textbf{0.0202} \\
+QSF  $\uparrow$  & 0.0513          & \textbf{0.0871} & \textbf{0.0329} & 0.0219          & 0.0307          & \textbf{0.0459} \\
+QMI  $\uparrow$  & 0.7777          & \textbf{0.7943} & 0.7649          & \textbf{0.8094} & \textbf{1.0219} & 0.9189          \\
+MI   $\uparrow$  & \textbf{65.71}  & 51.92           & \textbf{81.30}  & 68.77           & \textbf{46.76}  & 40.14           \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Quan sát.}
+\begin{itemize}\itemsep0pt
+    \item \textbf{CT}: AG-45ep cải thiện \emph{QM} (chất lượng wavelet) $+68\%$, \emph{QSF} (sharpness) $+70\%$, \emph{QG} (gradient) $+5\%$, \emph{QMI} $+2\%$. Đánh đổi: SSIM/PSNR/EN/MI/VAR giảm $\sim 2$--$21\%$.
+    \item \textbf{PET}: AG-45ep cải thiện \emph{QM rất mạnh ($+213\%$)}, \emph{QG} $+4\%$, \emph{QMI} $+6\%$, PSNR $+1\%$. Đánh đổi: SSIM/MI/QSF/VAR giảm.
+    \item \textbf{SPECT}: AG-45ep cải thiện \emph{QSF} $+50\%$, \emph{NABF} cải thiện $39\%$ (giảm artifact). Đánh đổi: QM $-46\%$ (mất chi tiết wavelet ở SPECT --- modality có baseline QM cao $0.168$ vốn khó cải thiện), PSNR giảm 20\%.
+\end{itemize}
+
+\subsection{Trung bình tổng quan (Pooled 72 cặp)}
+\label{ssec:vs-pretrained-pooled}
+
+\begin{table}[h]
+\centering
+\small
+\caption{CDDFuse-AG-45ep vs CDDFuse pretrained --- trung bình gộp 72 cặp test. \textbf{In đậm} = tốt hơn.}
+\label{tab:vs-pretrained-pooled}
+\begin{tabular}{lccc}
+\toprule
+\textbf{Metric} & \textbf{Pretrained} & \textbf{AG-45ep} & \textbf{Cải thiện (\%)} \\
+\midrule
+SSIM $\uparrow$  & \textbf{1.4387} & 1.3657          & $-5.07\%$ \\
+PSNR $\uparrow$  & \textbf{19.16}  & 17.34           & $-9.48\%$ \\
+QG   $\uparrow$  & 0.7023          & \textbf{0.7203} & $+2.56\%$ \\
+QM   $\uparrow$  & 0.0836          & \textbf{0.1125} & \textbf{$+34.56\%$} \\
+NABF $\downarrow$ & 0.0236         & 0.0278          & $-17.78\%$ (artifact tăng) \\
+QSF  $\uparrow$  & 0.0383          & \textbf{0.0516} & \textbf{$+34.80\%$} \\
+QMI  $\uparrow$  & \textbf{0.8548} & 0.8409          & $-1.63\%$ \\
+MI   $\uparrow$  & \textbf{64.59}  & 53.61           & $-17.00\%$ \\
+EN   $\uparrow$  & \textbf{5.10}   & 4.92            & $-3.56\%$ \\
+VAR  $\uparrow$  & \textbf{76.86}  & 67.35           & $-12.37\%$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Điểm cải thiện chính so với pretrained.}
+\begin{itemize}\itemsep0pt
+    \item \textbf{QM tăng $34.56\%$} (wavelet quality): CDDFuse-AG-45ep \emph{giữ chi tiết tần số cao tốt hơn nhiều} so với phiên bản pretrained.
+    \item \textbf{QSF tăng $34.80\%$} (sharpness fusion-specific): ảnh tổng hợp \emph{sắc nét hơn}.
+    \item \textbf{QG tăng $2.56\%$} (gradient preservation): biên/cạnh được giữ tốt hơn.
+\end{itemize}
+
+\paragraph{Đánh đổi so với pretrained.}
+Pretrained có ưu thế ở các chỉ số \emph{thông tin tổng quát}:
+\begin{itemize}\itemsep0pt
+    \item SSIM $-5\%$, PSNR $-9.5\%$: pretrained có structural similarity cao hơn.
+    \item MI $-17\%$, VAR $-12\%$, EN $-3.6\%$: pretrained giữ nhiều thông tin nguồn hơn (do training data có thể đa dạng hơn).
+    \item NABF $+17.78\%$ (artifact nhẹ tăng) so với pretrained $0.024$.
+\end{itemize}
+
+\paragraph{Kết luận so sánh với pretrained.}
+CDDFuse-AG-45ep \textbf{vượt pretrained ở 3 metric quan trọng cho ứng dụng lâm sàng}:
+\begin{enumerate}\itemsep0pt
+    \item \textbf{QM} (wavelet quality) --- giữ chi tiết texture mạnh nhất ($+34.56\%$).
+    \item \textbf{QSF} (sharpness) --- output sắc nét hơn ($+34.80\%$).
+    \item \textbf{QG} (gradient preservation) --- biên rõ hơn ($+2.56\%$).
+\end{enumerate}
+Pretrained vượt ở các chỉ số \emph{thông tin tổng quát} (MI, SSIM, EN, VAR), phản ánh ưu thế training data lớn của paper gốc. Đây là trade-off \emph{texture/sharpness} (AG-45ep) vs \emph{information richness} (pretrained).
+
+Sau kiểm định Wilcoxon (Holm-corrected), CDDFuse-AG-45ep đạt \textbf{verdict CONFIRM\_IMPROVEMENT} (6/25 SIG pooled): top SIG là CE, QSF, SF, QG --- nhóm metric \emph{frequency \& sharpness}. Per-modal: \textbf{CT 8 SIG + 4 MARG, PET 9 SIG + 1 MARG, SPECT 2 SIG + 1 MARG}.
+
+\subsection{Tổng hợp hai so sánh}
+\label{ssec:vs-pretrained-summary}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Tóm tắt verdict CDDFuse-AG-45ep so với 2 baseline.}
+\label{tab:summary-comparisons}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{So với} & \textbf{Pooled SIG / 22} & \textbf{CT SIG} & \textbf{PET SIG} & \textbf{SPECT SIG} \\
+\midrule
+CDDFuse-Paper-MIF (retrain, apples-to-apples) & \textbf{8} (CONFIRM) & \textbf{8} (CONFIRM) & \textbf{6} (CONFIRM) & \textbf{5} (CONFIRM) \\
+CDDFuse pretrained (paper checkpoint)         & 6 (CONFIRM)          & 8 (CONFIRM)          & \textbf{9} (CONFIRM) & 2 (MIXED) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+CDDFuse-AG-45ep đạt \textbf{verdict CONFIRM\_IMPROVEMENT} trong \emph{cả hai} so sánh, với pooled SIG count đạt 8 (so với baseline retrain) và 6 (so với pretrained). Đây là kết quả \emph{thuyết phục về mặt thống kê} cho việc đề xuất CDDFuse-AG là cải tiến có ý nghĩa.
+
+(Để tham khảo so sánh hình ảnh tổng hợp giữa các phương pháp, xem các hình \ref{fig:F23_qualitative_CT}, \ref{fig:F24_qualitative_PET}, \ref{fig:F25_qualitative_SPECT} trong Phụ lục.)
 
 \begin{table}[h]
 \centering
