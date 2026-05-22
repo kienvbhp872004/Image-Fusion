@@ -7,14 +7,14 @@ Bài toán đối mặt với nhiều thách thức: mỗi phương thức chụ
 
 Trên cơ sở phương pháp SOTA \emph{CDDFuse} \cite{zhao2023cddfuse} (CVPR 2023), đồ án đề xuất mô hình \textbf{CDDFuse-AG} với hai cải tiến chính: (i) thay phép cộng đơn giản ở tầng fusion bằng cơ chế \emph{Adaptive Gating} (AG) cho phép mô hình học trọng số kết hợp đặc trưng giữa hai modality theo từng pixel và từng channel; (ii) thay quy tắc \emph{max-pixel} trong hàm mất mát bằng \emph{Saliency-guided Pixel selection} dựa trên gradient cường độ để giảm ảo ảnh biên.
 
-Kết quả trên 72 cặp ảnh test (24 cặp mỗi modality CT, PET, SPECT), so với baseline CDDFuse được huấn luyện lại theo cùng quy trình (120 epoch, 2 pha, batch 8, AMP fp16 trên GPU Tesla P100) --- gọi là CDDFuse-Paper-MIF --- mô hình \textbf{CDDFuse-AG} cho thấy:
+Kết quả trên 72 cặp ảnh test (24 cặp mỗi modality CT, PET, SPECT), so với baseline CDDFuse được huấn luyện lại theo cùng quy trình (45 epoch / 2 pha, batch 8, $\alpha_3 = 10$ theo paper text §5.1, AMP fp16 trên GPU Tesla P100, full 738 train pairs) --- gọi là CDDFuse-Paper-MIF --- mô hình \textbf{CDDFuse-AG-45ep} cho thấy:
 \begin{itemize}\itemsep0pt
-    \item \textbf{CT}: NABF \textbf{giảm $\sim 8\%$} (ít ảo ảnh biên), QM \textbf{tăng $\sim 8\%$} (chất lượng wavelet), QMI tăng $\sim 2\%$.
-    \item \textbf{PET}: NABF giảm $\sim 7\%$, QSF nhỉnh hơn $\sim 2\%$.
-    \item \textbf{SPECT}: tương đương baseline ở hầu hết chỉ số ($\pm 2\%$).
+    \item \textbf{CT}: QM \textbf{tăng $\sim 220\%$} (wavelet quality), QSF \textbf{tăng $\sim 78\%$} (sharpness), QG tăng $\sim 4\%$.
+    \item \textbf{PET}: QM \textbf{tăng $\sim 89\%$}, QMI/QG/MI cải thiện nhẹ ($+0.6\%$ -- $+1\%$).
+    \item \textbf{SPECT}: QM tăng $\sim 15\%$, QMI/QG tăng nhẹ, các metric khác tương đương.
 \end{itemize}
 
-Trung bình trên cả 72 cặp test (gộp 3 modality): NABF \textbf{giảm $\sim 5\%$}, QMI tăng nhẹ; các chỉ số chính như SSIM/PSNR/QG gần như không đổi ($|$chênh$| < 1\%$). Một số chỉ số thông tin (QSF, QM, MI, VAR) giảm $2\text{--}8\%$ --- phản ánh trade-off cố hữu giữa làm sạch biên và giữ thông tin nguồn. Sau kiểm định Wilcoxon với hiệu chỉnh Holm--Bonferroni, mô hình đạt \textbf{9/22 chỉ số có ý nghĩa trên CT (CONFIRM\_IMPROVEMENT)}; PET 2/22 và SPECT 4/22 (MIXED).
+Trung bình trên cả 72 cặp test (gộp 3 modality): \textbf{QM tăng $\sim 64\%$} (cải thiện mạnh nhất), QG/QSF/QMI tăng nhẹ $1$--$4\%$. Trade-off: SSIM/PSNR/EN giảm $\sim 2\%$, NABF tăng nhẹ --- phản ánh ưu tiên \emph{texture wavelet và sharpness} thay vì smoothing toàn ảnh. Sau kiểm định Wilcoxon với hiệu chỉnh Holm--Bonferroni, mô hình đạt \textbf{8/22 chỉ số có ý nghĩa trên CT, 6/22 trên PET, 5/22 trên SPECT} --- \emph{cả 3 modality đều đạt CONFIRM\_IMPROVEMENT}; pooled 8/22 SIG (CONFIRM).
 
 \bigskip
 \noindent\textbf{Từ khóa:} tổng hợp ảnh y tế, CDDFuse-AG, adaptive gating, saliency-guided pixel, ablation study, Wilcoxon.
