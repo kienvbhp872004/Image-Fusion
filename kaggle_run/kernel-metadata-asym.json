@@ -1,0 +1,17 @@
+{
+  "id": "kienvbhp1234/cddfuse-asym-d-base-vsm",
+  "title": "CDDFuse-AsymD-DB3-BaseVSM (Module D Stage 1)",
+  "code_file": "train_asym.ipynb",
+  "language": "python",
+  "kernel_type": "notebook",
+  "is_private": "true",
+  "enable_gpu": "true",
+  "enable_internet": "true",
+  "dataset_sources": [
+    "kienvbhp1234/harvard-medical-train",
+    "kienvbhp1234/harvard-medical-fusion",
+    "kienvbhp1234/cddfuse-pretrained"
+  ],
+  "competition_sources": [],
+  "kernel_sources": []
+}

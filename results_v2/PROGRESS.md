@@ -10,11 +10,11 @@
 
 | | |
 |---|---|
-| Latest update | 2026-05-21 08:43 |
+| Latest update | 2026-05-25 |
 | Variants completed | CDDFuse pretrained / CDDFuse-Paper-MIF retrain / **CDDFuse-AG-45ep ✓ (full 738 train, batch 8, α₃=10, paper text §5.1)** |
 | Latest activity | 🎉 **CDDFuse-AG-45ep: CONFIRM_IMPROVEMENT cả 2 comparison**: vs Paper-MIF retrain 8/25 SIG (CT 8, PET 6, SPECT 5), vs CDDFuse pretrained 6/25 SIG (CT 8, PET 9, SPECT 2). Top win: QM, CE, SF, QMI, AG. Trade-off: NABF, SSIM, QY giảm nhẹ. |
-| Status | ✅ Train với hyperparam đúng paper text + dataset full 738 cặp cho kết quả mạnh nhất. Tất cả 3 modality CONFIRM_IMPROVEMENT vs apples-to-apples baseline. |
-| Next planned | Update thesis Ch.4 với số liệu mới + vẽ figures (training curve, qualitative, NABF heatmap) |
+| Status | ✅ AG-45ep xếp #3/23 SOTA trên composite z̄₂₂. Module D protocol mới: **E/D frozen từ `CDDFuse_MIF.pth`**, chỉ train Fusion (Phase II only), baseline = Sum-Sum (paper). |
+| Next planned | **Module D Stage 1**: D-Base sweep (6 variant) với Detail=Sum fixed, E/D frozen, ~3h/variant × 6 = 18h Kaggle P100 |
 
 ---
 
@@ -161,6 +161,142 @@ Test giả thuyết Module A winner × Module B winner sẽ phá trade-off NABF�
 - **Hard win**: KHÔNG đạt — pooled SIG thấp hơn individual winners.
 - **Next step**: re-run A.2 Gated (GPU 25 ep) và B.3 Saliency (GPU 25 ep) làm baseline so sánh fair → có thể Combined sẽ thắng khi all-25-ep-GPU.
 - **Thesis framing**: report Combined như "ablation case study" cho thấy trade-off attenuation, không phải winner default.
+
+---
+
+## Module D — Asymmetric Fusion Rule (Base ≠ Detail) — **PLANNED**
+
+**Động cơ**: AG hiện dùng **cùng kiến trúc `GatedFuseLayer`** cho cả Base và Detail. Quan sát từ thầy + literature truyền thống (Liu 2017 review):
+- **Base** (low-freq) = cấu trúc chung 2 modality → cần rule **soft/average** (bảo toàn agreement)
+- **Detail** (high-freq) = đặc trưng riêng từng modality → cần rule **sharp/selection** (chọn modality mạnh hơn)
+
+→ Đánh giá riêng từng nhánh để tìm rule tốt nhất cho mỗi.
+
+**Tham chiếu thầy đưa (7 phương pháp)**: PP1 Trung bình, PP2 Max, PP3 Local energy, PP4 Local var/entropy, PP5 Sparse rep, PP6 Adaptive optim, PP7 Pretrained DL.
+
+### Strategy: 2-stage ablation (one-factor-at-a-time) — FROZEN E/D
+
+**Protocol mới (đề xuất 2026-05-25):**
+- **Đóng băng Phase I**: load pretrained `CDDFuse_MIF.pth` (E/D đã train trên dataset gốc paper) → `requires_grad=False`
+- **Chỉ train Phase II**: optimizer chỉ chứa params của fusion modules (BaseFuseLayer, DetailFuseLayer, gating layer)
+- **Baseline so sánh = CDDFuse paper (Sum-Sum)** chứ KHÔNG phải Gated-Gated → để chứng minh asymmetric vượt cả symmetric AG và paper
+
+```
+Stage 1 — D-Base sweep:    Detail = Sum (paper)
+                            sweep Base ∈ {Sum, Gated, L1Norm, VSM, LocalEnergy, ...}
+                            → tìm best Base rule
+
+Stage 2 — D-Detail sweep:  Base = Sum (paper)
+                            sweep Detail ∈ {Sum, Gated, MaxAbs, Saliency, SF, ...}
+                            → tìm best Detail rule
+
+Stage 3 — Combined:        best Base × best Detail → final model
+                            so sánh với CDDFuse Sum-Sum (paper) và AG-45ep (Gated-Gated)
+```
+
+**Lợi ích của FROZEN E/D:**
+
+| Khía cạnh | Skip Phase I (fine-tune) | **Frozen E/D (đề xuất)** |
+|---|---|---|
+| Params trainable | ~1.2M (E+D+Fusion) | **~10-20K (chỉ Fusion)** |
+| Tốc độ train | ~8h Kaggle P100 / variant | **~2-3h / variant** (4× nhanh hơn) |
+| Memory GPU | full backward pass | nhỏ (chỉ fusion grad) |
+| Fair comparison | E/D dao động giữa variant | **E/D cố định → so sánh rule sạch** |
+| Risk | E/D drift theo data | E/D không adapt domain Harvard |
+| Total time (12 variant) | ~96h ≈ 4 ngày | **~30h ≈ 1.5 ngày** ✓ |
+
+**Cấu hình chung**: giữ **B.3 Saliency pixel loss** + **Phase II 30 ep** + **E/D frozen từ `CDDFuse_MIF.pth`**.
+
+### Stage 1: D-Base ablation (Detail = **Sum** fixed, theo paper gốc)
+
+E/D frozen. Detail = Sum (paper convention). Chỉ thay đổi Base rule.
+
+| # | Variant | Base rule | PP nhóm | Tham số trainable | Metric kỳ vọng cải thiện |
+|---|---|---|---|---|---|
+| DB.0 | **`Base-Sum`** (= paper baseline) | Sum | PP1 | 0 (chỉ Fusion blocks) | reference |
+| DB.1 | **`Base-Gated`** | Gated (soft avg) | PP6 | 8K | NABF, SSIM |
+| DB.2 | **`Base-L1Norm`** | L1-norm weighted | PP1.5 | 0 (rule-based) | SSIM, MI |
+| DB.3 | **`Base-VSM`** | Visual Saliency Map weighted | PP4 | 4K | SSIM, QCB, EN |
+| DB.4 | **`Base-LocalEnergy`** | Local Energy weighted | PP3 | 6K | VAR, EN |
+| DB.5 | **`Base-LocalEntropy`** | Local Entropy weighted | PP4 | 6K | EN, MI |
+| DB.6 | `Base-WeightedAvg` (learnable scalar) | $\alpha f_V + (1-\alpha) f_I$, $\alpha$ scalar | PP6 | 1 | smooth/structural |
+
+**Metric ưu tiên đánh giá Base** (low-freq quality):
+- **SSIM ↑**: cấu trúc bảo toàn
+- **PSNR ↑**: fidelity tổng thể
+- **MI ↑**: information shared với source
+- **VAR ↑**: contrast/energy
+- **EN ↑**: information content
+- **QCB ↑**: chromatic/brightness preservation
+
+### Stage 2: D-Detail ablation (Base = **Sum** fixed, theo paper gốc)
+
+E/D frozen. Base = Sum (paper convention). Chỉ thay đổi Detail rule.
+
+| # | Variant | Detail rule | PP nhóm | Tham số trainable | Metric kỳ vọng cải thiện |
+|---|---|---|---|---|---|
+| DD.0 | **`Detail-Sum`** (= paper baseline) | Sum | PP1 | 0 | reference |
+| DD.1 | **`Detail-Gated`** | Gated | PP6 | 8K | QG, NABF |
+| DD.2 | **`Detail-MaxAbs`** | Soft choose-max-abs (temperature) | PP2 | 8K | QG, AG, NABF |
+| DD.3 | **`Detail-Saliency`** | Gradient-guided gate | PP4 | 10K | QG, QSF, SF |
+| DD.4 | **`Detail-SF`** | Spatial Frequency weighted | PP3 | 6K | SF, AG |
+| DD.5 | **`Detail-LocalEnergy`** | Local Energy weighted | PP3 | 6K | QG, NABF |
+| DD.6 | **`Detail-SML`** | Sum-Modified-Laplacian | PP3 | 4K | QG, AG |
+| DD.7 | **`Detail-L1Norm`** | L1-norm weighted | PP1.5 | 0 | QM, QC |
+| DD.8 | `Detail-PCNN-soft` | PCNN T=10 differentiable | PP3.5 | 12K | NABF, AG |
+
+**Metric ưu tiên đánh giá Detail** (high-freq quality):
+- **QG ↑**: gradient quality (edge fidelity)
+- **AG ↑**: average gradient (sharpness)
+- **SF ↑**: spatial frequency
+- **QSF ↑**: SF quality
+- **QM ↑**: wavelet detail quality
+- **NABF ↓**: edge artifact (LOWER better)
+- **EI ↑**: edge intensity
+
+### Stage 3: Combined (best Base × best Detail)
+
+Sau khi xác định winner từ Stage 1 + Stage 2:
+- Train cấu hình `AsymAG-{BestBase}-{BestDetail}` (E/D vẫn frozen)
+- So sánh head-to-head với:
+  - **CDDFuse Sum-Sum** (paper baseline, baseline chính)
+  - **AG-45ep Gated-Gated** (symmetric baseline)
+
+**Acceptance criteria final:**
+- **CONFIRM**: pooled SIG ≥ 8/22 sau Holm + vượt CẢ Sum-Sum và Gated-Gated ở Base metrics (SSIM/MI/VAR) và Detail metrics (QG/QSF/NABF)
+- **PARTIAL**: vượt Sum-Sum nhưng không vượt Gated-Gated
+- **REGRESS**: thua cả 2 baseline
+
+### Ưu tiên triển khai
+
+```
+Tuần 1, ngày 1-2:  Stage 1 D-Base (6 variant) — 6 × ~3h P100 = 18h ≈ 1 ngày máy chạy
+Tuần 1, ngày 3-4:  Stage 2 D-Detail (8 variant) — 8 × ~3h = 24h ≈ 1 ngày máy chạy
+Tuần 1, ngày 5:    Stage 3 Combined + stats + thesis update
+```
+
+**Tăng tốc nhờ E/D frozen:**
+- Mỗi variant ~3h thay vì ~8h (4× nhanh)
+- Total 14 variant ≈ 42h thay vì 112h
+- **Phù hợp với deadline đồ án**
+
+### Hypothesis trước khi train
+
+| Stage | Best rule kỳ vọng | Lý do |
+|---|---|---|
+| Stage 1 (Base, Detail=Sum) | **DB.3 VSM** hoặc **DB.1 Gated** | Base cần bảo toàn cấu trúc — VSM nhấn vùng quan trọng, Gated linh hoạt |
+| Stage 2 (Detail, Base=Sum) | **DD.3 Saliency** hoặc **DD.2 MaxAbs** | Detail cần "chọn" tín hiệu mạnh — Saliency đồng bộ loss, MaxAbs truyền thống mạnh |
+| Stage 3 (Combined) | **AsymAG-VSM-Saliency** | Kỳ vọng vượt cả Sum-Sum và Gated-Gated |
+
+**Lưu ý quan trọng — E/D frozen có thể giới hạn upper-bound:**
+- Pretrained `CDDFuse_MIF.pth` train trên dataset gốc paper → có thể không hoàn hảo cho Harvard 738
+- Nếu frozen E/D quá yếu, fusion rule dù tốt cũng khó vượt → sau Stage 3 nếu mọi variant đều dưới AG-45ep, cần thử fine-tune E/D thêm
+
+### Files
+
+- Code mới: [models/MMIF-CDDFuse/variants/base_rules.py](../models/MMIF-CDDFuse/variants/base_rules.py) + [detail_rules.py](../models/MMIF-CDDFuse/variants/detail_rules.py) (cần tạo)
+- Update `VARIANT_REGISTRY` trong [train_MIF.py](../models/MMIF-CDDFuse/train_MIF.py) thêm cờ `(base_rule, detail_rule)`
+- Update Chapter 4 ablation 2 bảng riêng: "Stage 1 — Base rule comparison" + "Stage 2 — Detail rule comparison" + "Stage 3 — Combined winner"
 
 ---
 
@@ -880,6 +1016,65 @@ Giờ **paper-faithful training** cho QM δ = -0.137 **trivial** — gần như 
 - [ ] Composite z-score cho tất cả variants → final ranking
 - [ ] Re-run winner Combined với 25 epoch (final)
 - [ ] Update `results_v2/zscore_ranking.csv` với composite z mới sau Combined
+
+### Module D — Asymmetric Fusion Rule (2-stage ablation)
+
+#### Code chuẩn bị
+- [ ] Update [train_MIF.py](../models/MMIF-CDDFuse/train_MIF.py):
+  - [ ] Thêm cờ `--load_pretrained PATH` (default `models/CDDFuse_MIF.pth`)
+  - [ ] Thêm cờ `--freeze_encoder_decoder` → set `requires_grad=False` cho E + D
+  - [ ] Thêm cờ `--phase2_only` → skip Phase I loop, chạy thẳng Phase II
+  - [ ] Optimizer chỉ chứa fusion params khi frozen
+- [ ] Tạo [models/MMIF-CDDFuse/variants/base_rules.py](../models/MMIF-CDDFuse/variants/base_rules.py) với 5 class:
+  - [ ] `L1NormFuse` (DB.2) — không có params
+  - [ ] `VisualSaliencyMapFuse` (DB.3)
+  - [ ] `LocalEnergyFuse_Base` (DB.4)
+  - [ ] `LocalEntropyFuse_Base` (DB.5)
+  - [ ] `WeightedAvgScalar` (DB.6) — 1 scalar
+- [ ] Tạo [models/MMIF-CDDFuse/variants/detail_rules.py](../models/MMIF-CDDFuse/variants/detail_rules.py) với 7 class:
+  - [ ] `SoftMaxAbsFuse` (DD.2)
+  - [ ] `SaliencyDetailGate` (DD.3)
+  - [ ] `SpatialFrequencyFuse` (DD.4)
+  - [ ] `LocalEnergyFuse_Detail` (DD.5)
+  - [ ] `SMLFuse` (DD.6)
+  - [ ] `L1NormFuse_Detail` (DD.7) — không có params
+  - [ ] `SoftPCNNFuse` (DD.8)
+- [ ] Update `VARIANT_REGISTRY`: tách thành `(base_rule, detail_rule, pixel_select, decomp_fn)` 4-tuple
+- [ ] Test: ensure `CDDFuse_MIF.pth` load đúng → eval test set cho match với baseline đã có
+
+#### Stage 1: D-Base sweep (Detail = **Sum** fixed, E/D frozen)
+- [ ] Eval DB.0 `Base-Sum` baseline (= paper, không cần train) → có sẵn từ AG-45ep run
+- [ ] Train DB.1 `Base-Gated` — Phase II 30 ep, E/D frozen, Kaggle P100
+- [ ] Train DB.2 `Base-L1Norm`
+- [ ] Train DB.3 `Base-VSM` (ưu tiên cao)
+- [ ] Train DB.4 `Base-LocalEnergy`
+- [ ] Train DB.5 `Base-LocalEntropy`
+- [ ] Train DB.6 `Base-WeightedAvg`
+- [ ] Stats so sánh với DB.0 Sum baseline ở **Base metrics** (SSIM/MI/VAR/EN/QCB)
+- [ ] Xếp hạng theo composite z trên subset Base metrics
+- [ ] **Verdict Stage 1**: chọn best Base rule
+
+#### Stage 2: D-Detail sweep (Base = **Sum** fixed, E/D frozen)
+- [ ] Eval DD.0 `Detail-Sum` baseline (= paper) → dùng chung với DB.0
+- [ ] Train DD.1 `Detail-Gated`
+- [ ] Train DD.2 `Detail-MaxAbs` (ưu tiên cao)
+- [ ] Train DD.3 `Detail-Saliency` (ưu tiên cao)
+- [ ] Train DD.4 `Detail-SF`
+- [ ] Train DD.5 `Detail-LocalEnergy`
+- [ ] Train DD.6 `Detail-SML`
+- [ ] Train DD.7 `Detail-L1Norm`
+- [ ] Train DD.8 `Detail-PCNN-soft`
+- [ ] Stats so sánh với DD.0 Sum baseline ở **Detail metrics** (QG/QSF/SF/QM/AG/NABF)
+- [ ] Xếp hạng theo composite z trên subset Detail metrics
+- [ ] **Verdict Stage 2**: chọn best Detail rule
+
+#### Stage 3: Combined Winner
+- [ ] Train `AsymAG-{BestBase}-{BestDetail}` 30 ep (E/D vẫn frozen)
+- [ ] Stats Wilcoxon + Holm vs CDDFuse Sum-Sum (paper) **VÀ** AG-45ep (Gated-Gated)
+- [ ] So sánh trên cả Base subset + Detail subset + Combined 22 metrics
+- [ ] **Verdict Stage 3**: CONFIRM / PARTIAL / REGRESS
+- [ ] (Tuỳ chọn) Nếu winner mạnh: thử train lại với E/D fine-tune để xem có vượt thêm không
+- [ ] Cập nhật Chapter 4 thesis với 3 bảng ablation (Base / Detail / Combined)
 
 ---
 

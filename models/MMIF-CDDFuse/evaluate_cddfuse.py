@@ -40,7 +40,24 @@ sys.path.insert(0, str(SCRIPT_DIR))
 
 import metric as M
 from net import Restormer_Encoder, Restormer_Decoder, BaseFeatureExtraction, DetailFeatureExtraction
-from variants.registry import build_variant
+from variants.registry import build_variant, VARIANT_REGISTRY
+from variants.registry_asymmetric import build_asym_variant, VARIANT_REGISTRY_ASYM
+
+
+def _is_asym(variant_name: str) -> bool:
+    """Check if variant thuộc registry_asymmetric (Module D)."""
+    if variant_name is None:
+        return False
+    name = variant_name[len("CDDFuse-"):] if variant_name.startswith("CDDFuse-") else variant_name
+    return name in VARIANT_REGISTRY_ASYM
+
+
+def _build_any_variant(variant_name: str):
+    """Build từ registry phù hợp (Module A/B/C hoặc Module D asym)."""
+    if _is_asym(variant_name):
+        base_rule, detail_rule, pixel_select = build_asym_variant(variant_name)
+        return base_rule, detail_rule, pixel_select, "asym"
+    return build_variant(variant_name)
 
 # ═══════════════════════════════════════════════════════════════════════
 #  Load Model
@@ -54,10 +71,11 @@ class CDDFuseModel(nn.Module):
         self.base_fuse = BaseFeatureExtraction(dim=64, num_heads=8).to(device)
         self.detail_fuse = DetailFeatureExtraction(num_layers=1).to(device)
         self.variant_name = variant
+        self.is_asym = _is_asym(variant)
         if variant:
-            gated_b, gated_d, _, _ = build_variant(variant)
-            self.gated_b = gated_b.to(device)
-            self.gated_d = gated_d.to(device)
+            module_b, module_d, _, _ = _build_any_variant(variant)
+            self.gated_b = module_b.to(device)
+            self.gated_d = module_d.to(device)
         else:
             self.gated_b = None
             self.gated_d = None
@@ -81,10 +99,24 @@ class CDDFuseModel(nn.Module):
         self.base_fuse.load_state_dict(fix_state_dict(checkpoint['BaseFuseLayer']))
         self.detail_fuse.load_state_dict(fix_state_dict(checkpoint['DetailFuseLayer']))
         if self.gated_b is not None:
-            if 'GatedB' not in checkpoint or 'GatedD' not in checkpoint:
-                raise KeyError(f"Variant '{self.variant_name}' requires GatedB/GatedD in ckpt {ckpt_path}")
-            self.gated_b.load_state_dict(fix_state_dict(checkpoint['GatedB']))
-            self.gated_d.load_state_dict(fix_state_dict(checkpoint['GatedD']))
+            if self.is_asym:
+                # Module D — asymmetric: keys 'BaseRule' / 'DetailRule' (skip nếu rule không có params)
+                has_base_params = any(True for _ in self.gated_b.parameters())
+                has_detail_params = any(True for _ in self.gated_d.parameters())
+                if has_base_params:
+                    if 'BaseRule' not in checkpoint:
+                        raise KeyError(f"Variant '{self.variant_name}' yêu cầu 'BaseRule' trong ckpt {ckpt_path}")
+                    self.gated_b.load_state_dict(fix_state_dict(checkpoint['BaseRule']))
+                if has_detail_params:
+                    if 'DetailRule' not in checkpoint:
+                        raise KeyError(f"Variant '{self.variant_name}' yêu cầu 'DetailRule' trong ckpt {ckpt_path}")
+                    self.gated_d.load_state_dict(fix_state_dict(checkpoint['DetailRule']))
+            else:
+                # Module A/B/C — symmetric: keys 'GatedB' / 'GatedD'
+                if 'GatedB' not in checkpoint or 'GatedD' not in checkpoint:
+                    raise KeyError(f"Variant '{self.variant_name}' requires GatedB/GatedD in ckpt {ckpt_path}")
+                self.gated_b.load_state_dict(fix_state_dict(checkpoint['GatedB']))
+                self.gated_d.load_state_dict(fix_state_dict(checkpoint['GatedD']))
 
         self.encoder.eval()
         self.decoder.eval()
