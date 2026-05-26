@@ -4,7 +4,18 @@ Mỗi class thay phép `+` trong:
     f_F_B = base_fuse(rule(f_V_B, f_I_B))
 
 Convention: forward(a, b) -> tensor cùng shape a.
-Init phải đảm bảo epoch-0 ≈ baseline (sum/average) để load pretrained E/D về có hành vi ổn định.
+
+QUAN TRỌNG — Sum-preserving formulation:
+    Paper gốc dùng `f_F = a + b` → magnitude ~ 2× của 1 modality.
+    Weighted average `w·a + (1-w)·b` chỉ có magnitude ~ 1× → mất 50% scale.
+    Vì E/D FROZEN trong Module D, LayerNorm γ của BaseFuseLayer pretrained
+    được calibrate cho 2× magnitude → input 0.5× sẽ phá distribution.
+
+    Giải pháp: nhân 2 vào weighted average:
+        out = 2 * (w·a + (1-w)·b)
+    Khi w=0.5 (init): out = a + b = paper baseline ✓
+    Khi w=1: out = 2a (1 modality dominant, magnitude bằng sum của 1 modality nhân 2)
+    Khi w=0: out = 2b
 
 Các rule này tập trung vào BASE component (low-freq, structural). Mục tiêu: bảo toàn
 cấu trúc giải phẫu chung 2 modality, tránh artifact biên.
@@ -44,7 +55,7 @@ class L1NormBaseFuse(nn.Module):
         norm_a = a.abs().sum(dim=1, keepdim=True)
         norm_b = b.abs().sum(dim=1, keepdim=True)
         w_a = norm_a / (norm_a + norm_b + self.eps)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)  # ×2 để match paper sum magnitude
 
 
 # ---------- DB.3: Visual Saliency Map weighted ----------
@@ -74,7 +85,7 @@ class VisualSaliencyMapFuse(nn.Module):
         s_a = self.saliency_conv(a).abs()  # [B, 1, H, W]
         s_b = self.saliency_conv(b).abs()
         w_a = s_a / (s_a + s_b + 1e-8)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)
 
 
 # ---------- DB.4: Local Energy weighted ----------
@@ -104,7 +115,7 @@ class LocalEnergyBaseFuse(nn.Module):
         e_a = self._local_energy(a)
         e_b = self._local_energy(b)
         w_a = e_a / (e_a + e_b + 1e-8)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)
 
 
 # ---------- DB.5: Local Entropy weighted ----------
@@ -138,7 +149,7 @@ class LocalEntropyBaseFuse(nn.Module):
         v_a = self._local_var(a)
         v_b = self._local_var(b)
         w_a = v_a / (v_a + v_b + 1e-8)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)
 
 
 # ---------- DB.6: Learnable scalar weighted average ----------
@@ -157,4 +168,4 @@ class WeightedAvgScalarFuse(nn.Module):
 
     def forward(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         alpha = torch.sigmoid(self.logit)
-        return alpha * a + (1.0 - alpha) * b
+        return 2.0 * (alpha * a + (1.0 - alpha) * b)

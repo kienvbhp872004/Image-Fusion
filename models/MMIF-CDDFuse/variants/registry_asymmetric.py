@@ -43,7 +43,7 @@ PIXEL_SELECT = "saliency"
 VARIANT_REGISTRY_ASYM: Dict[str, AsymVariant] = {
     # ==================== Stage 1: D-Base sweep (Detail = Sum) ====================
     "AsymD-DB0-BaseSum":         (lambda: IdentitySum(),               lambda: IdentitySum(), PIXEL_SELECT),
-    "AsymD-DB1-BaseGated":       (lambda: GatedFuseLayer(64),          lambda: IdentitySum(), PIXEL_SELECT),
+    "AsymD-DB1-BaseGated":       (lambda: GatedFuseLayer(64, scale=2.0), lambda: IdentitySum(), PIXEL_SELECT),
     "AsymD-DB2-BaseL1Norm":      (lambda: L1NormBaseFuse(),            lambda: IdentitySum(), PIXEL_SELECT),
     "AsymD-DB3-BaseVSM":         (lambda: VisualSaliencyMapFuse(64),   lambda: IdentitySum(), PIXEL_SELECT),
     "AsymD-DB4-BaseLocalEnergy": (lambda: LocalEnergyBaseFuse(),       lambda: IdentitySum(), PIXEL_SELECT),
@@ -52,7 +52,7 @@ VARIANT_REGISTRY_ASYM: Dict[str, AsymVariant] = {
 
     # ==================== Stage 2: D-Detail sweep (Base = Sum) ====================
     "AsymD-DD0-DetailSum":         (lambda: IdentitySum(), lambda: IdentitySum(),                 PIXEL_SELECT),  # = DB0
-    "AsymD-DD1-DetailGated":       (lambda: IdentitySum(), lambda: GatedFuseLayer(64),            PIXEL_SELECT),
+    "AsymD-DD1-DetailGated":       (lambda: IdentitySum(), lambda: GatedFuseLayer(64, scale=2.0), PIXEL_SELECT),
     "AsymD-DD2-DetailMaxAbs":      (lambda: IdentitySum(), lambda: SoftMaxAbsFuse(64, 0.1),       PIXEL_SELECT),
     "AsymD-DD3-DetailSaliency":    (lambda: IdentitySum(), lambda: SaliencyDetailGate(64),        PIXEL_SELECT),
     "AsymD-DD4-DetailSF":          (lambda: IdentitySum(), lambda: SpatialFrequencyFuse(64),      PIXEL_SELECT),

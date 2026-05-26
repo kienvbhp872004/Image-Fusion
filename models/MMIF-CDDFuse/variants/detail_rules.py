@@ -4,7 +4,16 @@ Mỗi class thay phép `+` trong:
     f_F_D = detail_fuse(rule(f_V_D, f_I_D))
 
 Convention: forward(a, b) -> tensor cùng shape a.
-Init phải đảm bảo epoch-0 ≈ baseline để load pretrained E/D ổn định.
+
+QUAN TRỌNG — Sum-preserving formulation:
+    Paper gốc dùng `f_F = a + b` → magnitude ~ 2× của 1 modality.
+    Weighted average `w·a + (1-w)·b` chỉ có magnitude ~ 1× → mất 50% scale.
+    Vì E/D FROZEN trong Module D, DetailFuseLayer (INN) pretrained được calibrate
+    cho 2× magnitude → input 0.5× sẽ phá distribution.
+
+    Giải pháp: nhân 2 vào weighted average:
+        out = 2 * (w·a + (1-w)·b)
+    Khi w=0.5 (init): out = a + b = paper baseline ✓
 
 Các rule này tập trung vào DETAIL component (high-freq, texture). Mục tiêu: chọn
 tín hiệu mạnh nhất từ mỗi modality (texture mô mềm MRI, rim xương CT, ...).
@@ -54,7 +63,7 @@ class SoftMaxAbsFuse(nn.Module):
         diff = a.abs() - b.abs()
         score = self.score(diff)  # [B, C, H, W]
         w_a = torch.sigmoid(score / self.tau)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)
 
 
 # ---------- DD.3: Saliency-guided detail gate ----------
@@ -95,7 +104,7 @@ class SaliencyDetailGate(nn.Module):
         g_b = self._grad_mag(b)
         score = self.refine(g_a - g_b)
         w_a = torch.sigmoid(score)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)
 
 
 # ---------- DD.4: Spatial Frequency weighted ----------
@@ -135,7 +144,7 @@ class SpatialFrequencyFuse(nn.Module):
         sf_b = self._sf(b)
         score = self.refine(sf_a - sf_b)
         w_a = torch.sigmoid(score)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)
 
 
 # ---------- DD.5: Local Energy weighted (giống Base nhưng tính per-channel) ----------
@@ -159,7 +168,7 @@ class LocalEnergyDetailFuse(nn.Module):
         e_a = F.avg_pool2d(a * a, self.window, stride=1, padding=self.pad)
         e_b = F.avg_pool2d(b * b, self.window, stride=1, padding=self.pad)
         w_a = e_a / (e_a + e_b + 1e-8)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)
 
 
 # ---------- DD.6: Sum-Modified-Laplacian ----------
@@ -199,7 +208,7 @@ class SMLFuse(nn.Module):
         s_b = self._ml(b)
         score = self.refine(s_a - s_b)
         w_a = torch.sigmoid(score)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)
 
 
 # ---------- DD.7: L1-norm weighted (Detail version, per-channel) ----------
@@ -218,7 +227,7 @@ class L1NormDetailFuse(nn.Module):
 
     def forward(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
         w_a = a.abs() / (a.abs() + b.abs() + self.eps)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)
 
 
 # ---------- DD.8: Soft PCNN ----------
@@ -271,4 +280,4 @@ class SoftPCNNFuse(nn.Module):
         fa = self._fire_freq(a)
         fb = self._fire_freq(b)
         w_a = fa / (fa + fb + 1e-8)
-        return w_a * a + (1.0 - w_a) * b
+        return 2.0 * (w_a * a + (1.0 - w_a) * b)

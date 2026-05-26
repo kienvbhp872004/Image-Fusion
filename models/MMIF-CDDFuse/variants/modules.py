@@ -25,22 +25,29 @@ class GatedFuseLayer(nn.Module):
     Soft per-channel × per-spatial gate thay cho A + B.
 
         g     = sigmoid(Conv1x1([A, B]))    # shape [B, dim, H, W]
-        out   = g * A + (1 - g) * B
+        out   = scale * (g * A + (1 - g) * B)
 
     Init: Conv weight và bias = 0  =>  g = sigmoid(0) = 0.5
-          => epoch-0: out = (A + B) / 2  ≈  scaled baseline
+          => epoch-0: out = scale * (A + B) / 2
+          Với scale=1.0 (Module A default): out = 0.5*(A+B) [0.5× của paper sum]
+          Với scale=2.0 (Module D — FROZEN E/D):  out = A+B [match paper sum]
+
+    Module A (Combined-Gated-Saliency, AG-45ep) dùng scale=1.0 (E/D fine-tune được).
+    Module D dùng scale=2.0 vì E/D frozen — phải giữ magnitude paper baseline.
+
     Tham số: dim*2*dim*1*1 + dim ≈ 8K cho dim=64.
     """
 
-    def __init__(self, dim: int = 64):
+    def __init__(self, dim: int = 64, scale: float = 1.0):
         super().__init__()
         self.gate = nn.Conv2d(in_channels=dim * 2, out_channels=dim, kernel_size=1, bias=True)
         nn.init.zeros_(self.gate.weight)
         nn.init.zeros_(self.gate.bias)
+        self.scale = scale
 
     def forward(self, feat_a: torch.Tensor, feat_b: torch.Tensor) -> torch.Tensor:
         g = torch.sigmoid(self.gate(torch.cat([feat_a, feat_b], dim=1)))
-        return g * feat_a + (1.0 - g) * feat_b
+        return self.scale * (g * feat_a + (1.0 - g) * feat_b)
 
 
 class CrossAttnFuse(nn.Module):
