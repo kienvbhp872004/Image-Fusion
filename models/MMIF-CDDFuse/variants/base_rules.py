@@ -76,15 +76,16 @@ class VisualSaliencyMapFuse(nn.Module):
         super().__init__()
         pad = kernel // 2
         self.saliency_conv = nn.Conv2d(dim, 1, kernel_size=kernel, padding=pad, bias=True)
-        # Init: weight nhỏ ngẫu nhiên + bias = 0 → epoch-0 VSM ≈ 0 → w ≈ 0.5 (average baseline)
-        nn.init.normal_(self.saliency_conv.weight, std=0.01)
-        nn.init.zeros_(self.saliency_conv.bias)
+        # Init zero để epoch-0: s_a = s_b = 0, w_a = 0/(0+0+eps) = 0 → out = 2*b (chỉ b)
+        # Thêm bias=1 để s_a = s_b = 1 (sau abs), w_a = 1/(1+1+eps) ≈ 0.5 → out ≈ a+b
+        nn.init.zeros_(self.saliency_conv.weight)
+        nn.init.ones_(self.saliency_conv.bias)  # s_a, s_b = |1| = 1 at init → w_a = 0.5
 
     def forward(self, a: torch.Tensor, b: torch.Tensor) -> torch.Tensor:
-        # Local saliency (tương phản với neighbor) — dùng conv để học
         s_a = self.saliency_conv(a).abs()  # [B, 1, H, W]
         s_b = self.saliency_conv(b).abs()
-        w_a = s_a / (s_a + s_b + 1e-8)
+        # eps lớn hơn (1e-6) cho fp16 stability
+        w_a = s_a / (s_a + s_b + 1e-6)
         return 2.0 * (w_a * a + (1.0 - w_a) * b)
 
 

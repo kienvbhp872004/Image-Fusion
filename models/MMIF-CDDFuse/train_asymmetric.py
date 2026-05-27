@@ -107,7 +107,9 @@ def main():
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--seed", type=int, default=42)
     parser.add_argument("--coeff_decomp", type=float, default=2.0)  # α2/α4
-    parser.add_argument("--clip_grad_norm", type=float, default=0.01)
+    # Note: paper dùng 0.01 cho full retrain 1.2M params. Frozen E/D chỉ ~50K params
+    # trainable → 0.01 clip cực kỳ aggressive, làm loss đứng yên. Dùng 1.0 hợp lý hơn.
+    parser.add_argument("--clip_grad_norm", type=float, default=1.0)
     parser.add_argument("--optim_step", type=int, default=20)
     parser.add_argument("--optim_gamma", type=float, default=0.5)
     parser.add_argument("--freeze_ed", action="store_true", default=True,
@@ -266,6 +268,12 @@ def main():
                 loss_decomp = (cc_D ** 2) / (1.01 + cc_B)
                 fusion_loss, l_int, l_grad = criteria_fusion(src, mri, fused)
                 loss = fusion_loss + args.coeff_decomp * loss_decomp
+
+            # NaN guard — skip batch nếu loss NaN/Inf để tránh corrupt optimizer state
+            if not torch.isfinite(loss):
+                optimizer.zero_grad(set_to_none=True)
+                pbar.set_postfix(loss=f"{ep_total/max(1,n_seen):.4f}", skip="NaN")
+                continue
 
             scaler.scale(loss).backward()
             scaler.unscale_(optimizer)
