@@ -70,6 +70,14 @@ class MIFH5Dataset(Dataset):
         return torch.Tensor(src), torch.Tensor(mri)
 
 
+def fix_state_dict(state_dict: dict) -> dict:
+    """Strip 'module.' prefix khỏi keys (do CDDFuse_MIF.pth save từ DataParallel)."""
+    out = {}
+    for k, v in state_dict.items():
+        out[k[7:] if k.startswith("module.") else k] = v
+    return out
+
+
 def freeze_module(m: nn.Module) -> int:
     """Đặt requires_grad=False cho mọi param. Trả về số param đã freeze."""
     n = 0
@@ -132,19 +140,18 @@ def main():
     ckpt_path = Path(args.pretrained)
     assert ckpt_path.exists(), f"Pretrained ckpt không tồn tại: {ckpt_path}"
     ckpt = torch.load(ckpt_path, map_location=device)
-    # CDDFuse_MIF.pth dùng key convention paper:
-    encoder.load_state_dict(ckpt['DIDF_Encoder'], strict=True)
-    decoder.load_state_dict(ckpt['DIDF_Decoder'], strict=True)
-    # BaseFuseLayer / DetailFuseLayer trong pretrained là Sum baseline → load nếu có
+    # CDDFuse_MIF.pth save từ DataParallel → strip 'module.' prefix
+    encoder.load_state_dict(fix_state_dict(ckpt['DIDF_Encoder']), strict=True)
+    decoder.load_state_dict(fix_state_dict(ckpt['DIDF_Decoder']), strict=True)
     if 'BaseFuseLayer' in ckpt:
         try:
-            base_fuse.load_state_dict(ckpt['BaseFuseLayer'], strict=True)
+            base_fuse.load_state_dict(fix_state_dict(ckpt['BaseFuseLayer']), strict=True)
             print(f"[load ] BaseFuseLayer loaded from pretrained")
         except Exception as e:
             print(f"[load ] BaseFuseLayer skip: {e}")
     if 'DetailFuseLayer' in ckpt:
         try:
-            detail_fuse.load_state_dict(ckpt['DetailFuseLayer'], strict=True)
+            detail_fuse.load_state_dict(fix_state_dict(ckpt['DetailFuseLayer']), strict=True)
             print(f"[load ] DetailFuseLayer loaded from pretrained")
         except Exception as e:
             print(f"[load ] DetailFuseLayer skip: {e}")
