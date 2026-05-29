@@ -50,6 +50,8 @@ from variants.losses import FusionLossB
 from variants.registry_asymmetric import build_asym_variant, list_asym_variants
 
 os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
+# Anti-fragmentation cho P100 16GB — fix OOM sau ~3h training (hàng nghìn iter)
+os.environ.setdefault('PYTORCH_CUDA_ALLOC_CONF', 'expandable_segments:True,max_split_size_mb:128')
 
 
 # ---------- dataset (giống train_MIF.py)
@@ -235,11 +237,31 @@ def main():
     ckpt_out = out_dir / f"CDDFuse-{args.variant}_MIF_{timestamp}.pth"
     history_path = out_dir / f"CDDFuse-{args.variant}_MIF_{timestamp}_train_history.json"
 
-    torch.backends.cudnn.benchmark = True
+    # cudnn.benchmark = False để tránh memory fragmentation do algo selector switching
+    # (chậm hơn ~10% nhưng predictable memory; quan trọng cho run dài 10h+)
+    torch.backends.cudnn.benchmark = False
+    torch.backends.cudnn.deterministic = True
     scaler = torch.cuda.amp.GradScaler(enabled=(args.amp and device == "cuda"))
     if args.amp: print(f"[amp  ] fp16 enabled")
 
     history = []
+
+    def save_checkpoint(tag: str):
+        """Save incremental ckpt — chống mất công nếu OOM/crash."""
+        state = {
+            "DIDF_Encoder":    encoder.state_dict(),
+            "DIDF_Decoder":    decoder.state_dict(),
+            "BaseFuseLayer":   base_fuse.state_dict(),
+            "DetailFuseLayer": detail_fuse.state_dict(),
+            "variant":         args.variant,
+            "args":            vars(args),
+            "tag":             tag,
+        }
+        if any(True for _ in base_rule.parameters()):
+            state["BaseRule"] = base_rule.state_dict()
+        if any(True for _ in detail_rule.parameters()):
+            state["DetailRule"] = detail_rule.state_dict()
+        torch.save(state, ckpt_out)
 
     # ===================================================================
     # PHASE I — pretrain Encoder + Decoder (recon + decomp + TV)
@@ -295,6 +317,9 @@ def main():
                             "lr": lr, "dt_sec": round(dt, 1)})
             print(f"[ep {epoch+1:03d}] P1 loss={avg_loss:.4f} lr={lr:.2e} ({dt:.1f}s)")
             with open(history_path, 'w') as f: json.dump(history, f, indent=2)
+            save_checkpoint(f"p1_ep{epoch+1}")
+            if device == "cuda":
+                torch.cuda.empty_cache()
         print(f"[Phase I done] E+D pretrained on {args.num_phase1_epochs} epochs\n")
 
     # ===================================================================
@@ -381,22 +406,12 @@ def main():
         print(f"[ep {epoch+1:03d}] P2 loss={avg_loss:.4f} lr={lr:.2e} ({dt:.1f}s)")
         with open(history_path, 'w') as f:
             json.dump(history, f, indent=2)
+        save_checkpoint(f"p2_ep{epoch+1}")
+        if device == "cuda":
+            torch.cuda.empty_cache()
 
-    # ----------------- Save -----------------
-    state = {
-        "DIDF_Encoder":    encoder.state_dict(),
-        "DIDF_Decoder":    decoder.state_dict(),
-        "BaseFuseLayer":   base_fuse.state_dict(),
-        "DetailFuseLayer": detail_fuse.state_dict(),
-        "variant":         args.variant,
-        "args":            vars(args),
-    }
-    # Save rule states nếu có params
-    if any(True for _ in base_rule.parameters()):
-        state["BaseRule"] = base_rule.state_dict()
-    if any(True for _ in detail_rule.parameters()):
-        state["DetailRule"] = detail_rule.state_dict()
-    torch.save(state, ckpt_out)
+    # ----------------- Save final -----------------
+    save_checkpoint("final")
     print(f"[save ] {ckpt_out}")
     print(f"[save ] {history_path}")
 
