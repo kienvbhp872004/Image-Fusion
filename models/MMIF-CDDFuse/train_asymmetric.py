@@ -101,23 +101,36 @@ def main():
     parser.add_argument("--h5", default="data/MIF_train_imgsize_128_stride_64.h5")
     parser.add_argument("--output", default="models/")
     parser.add_argument("--num_epochs", type=int, default=30,
-                        help="Phase II epochs (Phase I bị skip)")
+                        help="Phase II epochs")
+    parser.add_argument("--num_phase1_epochs", type=int, default=0,
+                        help="Phase I epochs (default 0 = skip; >0 = full training mode)")
     parser.add_argument("--batch", type=int, default=8)
     parser.add_argument("--amp", action="store_true")
     parser.add_argument("--lr", type=float, default=1e-4)
     parser.add_argument("--seed", type=int, default=42)
+    parser.add_argument("--coeff_mse_VF", type=float, default=1.0)
+    parser.add_argument("--coeff_mse_IF", type=float, default=1.0)
     parser.add_argument("--coeff_decomp", type=float, default=2.0)  # α2/α4
-    # Note: paper dùng 0.01 cho full retrain 1.2M params. Frozen E/D chỉ ~50K params
-    # trainable → 0.01 clip cực kỳ aggressive, làm loss đứng yên. Dùng 1.0 hợp lý hơn.
-    parser.add_argument("--clip_grad_norm", type=float, default=1.0)
+    parser.add_argument("--coeff_tv", type=float, default=10.0)     # α3 (paper text)
+    parser.add_argument("--clip_grad_norm", type=float, default=1.0,
+                        help="1.0 cho Phase II-only frozen mode. Full training nên dùng 0.01 (paper).")
     parser.add_argument("--optim_step", type=int, default=20)
     parser.add_argument("--optim_gamma", type=float, default=0.5)
     parser.add_argument("--freeze_ed", action="store_true", default=True,
-                        help="Freeze Encoder + Decoder (default True cho Module D)")
+                        help="Freeze Encoder + Decoder (default True cho Phase II-only mode)")
     parser.add_argument("--unfreeze_ed", action="store_true",
-                        help="Override: cho phép fine-tune E/D (use cho ablation)")
+                        help="Override: cho phép fine-tune E/D (use cho full training mode)")
+    parser.add_argument("--from_scratch", action="store_true",
+                        help="Không load pretrained — init random E/D (cho full from-scratch mode)")
     args = parser.parse_args()
 
+    # Khi có Phase 1 → bắt buộc unfreeze E/D (Phase 1 train E/D)
+    if args.num_phase1_epochs > 0:
+        args.freeze_ed = False
+        # Phase 1 thường dùng clip nhỏ hơn cho full retrain
+        if args.clip_grad_norm == 1.0:  # user chưa override
+            args.clip_grad_norm = 0.01
+            print(f"[auto] num_phase1_epochs > 0 → clip_grad_norm=0.01 (paper full retrain)")
     if args.unfreeze_ed:
         args.freeze_ed = False
 
@@ -138,26 +151,28 @@ def main():
     base_rule   = base_rule.to(device)
     detail_rule = detail_rule.to(device)
 
-    # ----------------- Load pretrained -----------------
-    ckpt_path = Path(args.pretrained)
-    assert ckpt_path.exists(), f"Pretrained ckpt không tồn tại: {ckpt_path}"
-    ckpt = torch.load(ckpt_path, map_location=device)
-    # CDDFuse_MIF.pth save từ DataParallel → strip 'module.' prefix
-    encoder.load_state_dict(fix_state_dict(ckpt['DIDF_Encoder']), strict=True)
-    decoder.load_state_dict(fix_state_dict(ckpt['DIDF_Decoder']), strict=True)
-    if 'BaseFuseLayer' in ckpt:
-        try:
-            base_fuse.load_state_dict(fix_state_dict(ckpt['BaseFuseLayer']), strict=True)
-            print(f"[load ] BaseFuseLayer loaded from pretrained")
-        except Exception as e:
-            print(f"[load ] BaseFuseLayer skip: {e}")
-    if 'DetailFuseLayer' in ckpt:
-        try:
-            detail_fuse.load_state_dict(fix_state_dict(ckpt['DetailFuseLayer']), strict=True)
-            print(f"[load ] DetailFuseLayer loaded from pretrained")
-        except Exception as e:
-            print(f"[load ] DetailFuseLayer skip: {e}")
-    print(f"[load ] Encoder + Decoder loaded from {ckpt_path}")
+    # ----------------- Load pretrained (optional) -----------------
+    if args.from_scratch:
+        print(f"[init ] from scratch — random E/D (no pretrained)")
+    else:
+        ckpt_path = Path(args.pretrained)
+        assert ckpt_path.exists(), f"Pretrained ckpt không tồn tại: {ckpt_path}"
+        ckpt = torch.load(ckpt_path, map_location=device)
+        encoder.load_state_dict(fix_state_dict(ckpt['DIDF_Encoder']), strict=True)
+        decoder.load_state_dict(fix_state_dict(ckpt['DIDF_Decoder']), strict=True)
+        if 'BaseFuseLayer' in ckpt:
+            try:
+                base_fuse.load_state_dict(fix_state_dict(ckpt['BaseFuseLayer']), strict=True)
+                print(f"[load ] BaseFuseLayer loaded from pretrained")
+            except Exception as e:
+                print(f"[load ] BaseFuseLayer skip: {e}")
+        if 'DetailFuseLayer' in ckpt:
+            try:
+                detail_fuse.load_state_dict(fix_state_dict(ckpt['DetailFuseLayer']), strict=True)
+                print(f"[load ] DetailFuseLayer loaded from pretrained")
+            except Exception as e:
+                print(f"[load ] DetailFuseLayer skip: {e}")
+        print(f"[load ] Encoder + Decoder loaded from {ckpt_path}")
 
     # ----------------- Freeze E/D nếu cần -----------------
     if args.freeze_ed:
@@ -205,6 +220,10 @@ def main():
     # ----------------- Losses -----------------
     criteria_fusion = (Fusionloss() if pixel_select == "max"
                        else FusionLossB(pixel_select=pixel_select).to(device))
+    mse = nn.MSELoss(); l1 = nn.L1Loss()
+    ssim_loss = (kornia.losses.SSIMLoss(11, reduction='mean')
+                 if hasattr(kornia.losses, 'SSIMLoss')
+                 else kornia.losses.SSIM(11, reduction='mean'))
 
     # ----------------- Data -----------------
     loader = DataLoader(MIFH5Dataset(args.h5), batch_size=args.batch, shuffle=True,
@@ -220,8 +239,67 @@ def main():
     scaler = torch.cuda.amp.GradScaler(enabled=(args.amp and device == "cuda"))
     if args.amp: print(f"[amp  ] fp16 enabled")
 
-    # ----------------- Train loop (Phase II only) -----------------
     history = []
+
+    # ===================================================================
+    # PHASE I — pretrain Encoder + Decoder (recon + decomp + TV)
+    # Chỉ chạy khi num_phase1_epochs > 0 (full training mode)
+    # Optimizer riêng cho E + D (không train fusion modules ở Phase I)
+    # ===================================================================
+    if args.num_phase1_epochs > 0:
+        assert not args.freeze_ed, "Phase I yêu cầu E/D unfreeze"
+        opt_p1 = torch.optim.Adam(
+            list(encoder.parameters()) + list(decoder.parameters()), lr=args.lr)
+        sched_p1 = torch.optim.lr_scheduler.StepLR(
+            opt_p1, step_size=args.optim_step, gamma=args.optim_gamma)
+        scaler_p1 = torch.cuda.amp.GradScaler(enabled=(args.amp and device == "cuda"))
+        print(f"\n[Phase I] train E+D for {args.num_phase1_epochs} epochs (recon + decomp + TV)")
+        for epoch in range(args.num_phase1_epochs):
+            encoder.train(); decoder.train()
+            t0 = time.time()
+            pbar = tqdm(loader, desc=f"ep{epoch+1:03d}/{args.num_phase1_epochs} P1",
+                        dynamic_ncols=True, leave=False)
+            ep_total = 0.0; n_seen = 0
+            for src, mri in pbar:
+                src, mri = src.to(device), mri.to(device)
+                opt_p1.zero_grad(set_to_none=True)
+                with torch.cuda.amp.autocast(enabled=(args.amp and device == "cuda")):
+                    f_V_B, f_V_D, _ = encoder(src)
+                    f_I_B, f_I_D, _ = encoder(mri)
+                    src_hat, _ = decoder(src, f_V_B, f_V_D)
+                    mri_hat, _ = decoder(mri, f_I_B, f_I_D)
+                    cc_B = cc(f_V_B, f_I_B); cc_D = cc(f_V_D, f_I_D)
+                    mse_V = 5 * ssim_loss(src, src_hat) + mse(src, src_hat)
+                    mse_I = 5 * ssim_loss(mri, mri_hat) + mse(mri, mri_hat)
+                    grad_loss = l1(kornia.filters.SpatialGradient()(src),
+                                   kornia.filters.SpatialGradient()(src_hat))
+                    loss_decomp = (cc_D ** 2) / (1.01 + cc_B)
+                    loss = (args.coeff_mse_VF * mse_V + args.coeff_mse_IF * mse_I
+                            + args.coeff_decomp * loss_decomp + args.coeff_tv * grad_loss)
+                if not torch.isfinite(loss):
+                    opt_p1.zero_grad(set_to_none=True)
+                    pbar.set_postfix(loss=f"{ep_total/max(1,n_seen):.4f}", skip="NaN")
+                    continue
+                scaler_p1.scale(loss).backward()
+                scaler_p1.unscale_(opt_p1)
+                for m in [encoder, decoder]:
+                    nn.utils.clip_grad_norm_(m.parameters(), args.clip_grad_norm)
+                scaler_p1.step(opt_p1); scaler_p1.update()
+                ep_total += float(loss); n_seen += 1
+                pbar.set_postfix(loss=f"{ep_total/n_seen:.4f}")
+            pbar.close(); sched_p1.step()
+            dt = time.time() - t0
+            avg_loss = ep_total / max(1, n_seen)
+            lr = opt_p1.param_groups[0]['lr']
+            history.append({"epoch": epoch + 1, "phase": 1, "loss": avg_loss,
+                            "lr": lr, "dt_sec": round(dt, 1)})
+            print(f"[ep {epoch+1:03d}] P1 loss={avg_loss:.4f} lr={lr:.2e} ({dt:.1f}s)")
+            with open(history_path, 'w') as f: json.dump(history, f, indent=2)
+        print(f"[Phase I done] E+D pretrained on {args.num_phase1_epochs} epochs\n")
+
+    # ===================================================================
+    # PHASE II — train fusion + (optional finetune E/D)
+    # ===================================================================
     for epoch in range(args.num_epochs):
         # Set train mode cho các module trainable
         for m in trainable_modules:
