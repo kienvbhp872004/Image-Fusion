@@ -61,10 +61,16 @@ VARIANT_REGISTRY_ASYM: Dict[str, AsymVariant] = {
     "AsymD-DD7-DetailL1Norm":      (lambda: IdentitySum(), lambda: L1NormDetailFuse(),            PIXEL_SELECT),
     "AsymD-DD8-DetailPCNNsoft":    (lambda: IdentitySum(), lambda: SoftPCNNFuse(64, T=10),        PIXEL_SELECT),
 
-    # ==================== Stage 3: Combined (best × best) — placeholder ====================
-    # Đặt thêm khi xác định winner Stage 1 + Stage 2
-    # Ví dụ:
-    # "AsymD-Combined-VSM-Saliency": (lambda: VisualSaliencyMapFuse(64), lambda: SaliencyDetailGate(64), PIXEL_SELECT),
+    # ==================== Stage 3: Combined (best × best) ====================
+    # Top 2 Base × Top 3 Detail = 6 combinations
+    # Top Base (Stage 1 winners): WAvg (DB.6), VSM (DB.3)
+    # Top Detail (Stage 2 winners): SML (DD.6), L1Norm (DD.7), Gated (DD.1)
+    "AsymD-Comb-WAvg-SML":    (lambda: WeightedAvgScalarFuse(),   lambda: SMLFuse(64),                   PIXEL_SELECT),
+    "AsymD-Comb-WAvg-L1Norm": (lambda: WeightedAvgScalarFuse(),   lambda: L1NormDetailFuse(),            PIXEL_SELECT),
+    "AsymD-Comb-WAvg-Gated":  (lambda: WeightedAvgScalarFuse(),   lambda: GatedFuseLayer(64, scale=2.0), PIXEL_SELECT),
+    "AsymD-Comb-VSM-SML":     (lambda: VisualSaliencyMapFuse(64), lambda: SMLFuse(64),                   PIXEL_SELECT),
+    "AsymD-Comb-VSM-L1Norm":  (lambda: VisualSaliencyMapFuse(64), lambda: L1NormDetailFuse(),            PIXEL_SELECT),
+    "AsymD-Comb-VSM-Gated":   (lambda: VisualSaliencyMapFuse(64), lambda: GatedFuseLayer(64, scale=2.0), PIXEL_SELECT),
 }
 
 
