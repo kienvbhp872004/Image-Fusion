@@ -105,28 +105,28 @@ Cấu hình chung: Adam $\mathrm{lr}=10^{-4}$, StepLR $\gamma=0{,}5$/20 epoch, b
 \toprule
 \textbf{Rank} & \textbf{Phương pháp} & \textbf{Z avg} \\
 \midrule
-1  & MM-Net-Fusion        & $+1.028$ \\
-2  & CDDFuse (pretrained paper) & $+0.926$ \\
-3  & MFS-Fusion           & $+0.688$ \\
+1  & MM-Net-Fusion~\cite{liu2024mmnet}        & $+1.028$ \\
+2  & CDDFuse~\cite{zhao2023cddfuse} (pretrained paper) & $+0.926$ \\
+3  & MFS-Fusion~\cite{chen2025mfsfusion}    & $+0.688$ \\
 4  & CM-CSAMFNet          & $+0.591$ \\
 5  & BSAFusion            & $+0.576$ \\
-6  & MMIF-INet            & $+0.440$ \\
+6  & MMIF-INet~\cite{he2025mmifiNet}        & $+0.440$ \\
 7  & LRFNet               & $+0.410$ \\
 8  & CMMDL                & $+0.185$ \\
-9  & GeSeNet              & $+0.144$ \\
-10 & MBHFuse              & $+0.076$ \\
-11 & ECINFusion           & $+0.063$ \\
-12 & DDBFusion            & $+0.040$ \\
+9  & GeSeNet~\cite{li2023gesenet}           & $+0.144$ \\
+10 & MBHFuse~\cite{sun2025mbhfuse}          & $+0.076$ \\
+11 & ECINFusion~\cite{wei2025ecinfusion}    & $+0.063$ \\
+12 & DDBFusion~\cite{zhang2025ddbfusion}    & $+0.040$ \\
 13 & AdaFuse              & $+0.027$ \\
-14 & AWFusion             & $-0.145$ \\
-15 & PSFusion             & $-0.148$ \\
+14 & AWFusion~\cite{xu2025awfusion}         & $-0.145$ \\
+15 & PSFusion~\cite{tang2023psfusion}       & $-0.148$ \\
 16 & MLFuse               & $-0.358$ \\
-17 & WaveFusion           & $-0.374$ \\
-18 & NestFuse             & $-0.535$ \\
-19 & TUFusion             & $-0.673$ \\
-20 & ITFuse               & $-0.861$ \\
-21 & MMAE                 & $-0.994$ \\
-22 & C2RF                 & $-1.105$ \\
+17 & WaveFusion~\cite{wang2025wavefusion}   & $-0.374$ \\
+18 & NestFuse~\cite{li2020nestfuse}         & $-0.535$ \\
+19 & TUFusion~\cite{zhao2024tufusion}       & $-0.673$ \\
+20 & ITFuse~\cite{tang2024itfuse}           & $-0.861$ \\
+21 & MMAE~\cite{wang2025mmae}               & $-0.994$ \\
+22 & C2RF~\cite{yan2025c2rf}               & $-1.105$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -251,13 +251,13 @@ Bảng~\ref{tab:zscore-sota-modal} trình bày Z-score của CDDFuse-AG (Ours) v
 \toprule
 \textbf{Phương pháp} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z Avg} \\
 \midrule
-NestFuse            & $-0.352$ & $-0.388$ & $-0.790$ & $-0.510$ \\
-TUFusion            & $-0.528$ & +0.160 & $-0.110$ & $-0.159$ \\
-WaveFusion          & +0.126 & $-0.017$ & +0.059 & +0.056 \\
-DDBFusion           & \textbf{+0.369} & $-0.108$ & +0.175 & +0.145 \\
-GeSeNet             & +0.089 & $-0.327$ & $-0.248$ & $-0.162$ \\
+NestFuse~\cite{li2020nestfuse}   & $-0.352$ & $-0.388$ & $-0.790$ & $-0.510$ \\
+TUFusion~\cite{zhao2024tufusion} & $-0.528$ & +0.160 & $-0.110$ & $-0.159$ \\
+WaveFusion~\cite{wang2025wavefusion} & +0.126 & $-0.017$ & +0.059 & +0.056 \\
+DDBFusion~\cite{zhang2025ddbfusion}  & \textbf{+0.369} & $-0.108$ & +0.175 & +0.145 \\
+GeSeNet~\cite{li2023gesenet}    & +0.089 & $-0.327$ & $-0.248$ & $-0.162$ \\
 \midrule
-CDDFuse             & $-0.014$ & \textbf{+0.432} & +0.440 & +0.286 \\
+CDDFuse~\cite{zhao2023cddfuse}  & $-0.014$ & \textbf{+0.432} & +0.440 & +0.286 \\
 \textbf{CDDFuse-AG (Ours)} & +0.309 & +0.248 & \textbf{+0.475} & \textbf{+0.344} \\
 \bottomrule
 \end{tabular}
@@ -292,12 +292,12 @@ Bài báo CDDFuse gốc \cite{zhao2023cddfuse} đánh giá theo 6 chỉ số: EN
 \toprule
 \textbf{Phương pháp} & \textbf{EN}$\uparrow$ & \textbf{SD}$\uparrow$ & \textbf{SF}$\uparrow$ & \textbf{MI}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{SSIM}$\uparrow$ \\
 \midrule
-NestFuse            & 4.372 & 8.300 & 29.032 & 1.908 & 0.372 & 1.362 \\
-TUFusion            & \textbf{5.856} & 7.884 & 22.549 & 1.837 & 0.352 & 0.949 \\
-WaveFusion          & 5.116 & \textbf{9.129} & 34.761 & 2.033 & 0.625 & 1.322 \\
-DDBFusion           & 4.718 & 8.124 & 25.580 & 2.043 & 0.439 & \textbf{1.476} \\
-GeSeNet             & 5.206 & 9.026 & 35.660 & 2.072 & 0.629 & 0.967 \\
-CDDFuse             & 4.638 & 8.397 & 40.317 & 2.154 & 0.618 & 1.443 \\
+NestFuse~\cite{li2020nestfuse}   & 4.372 & 8.300 & 29.032 & 1.908 & 0.372 & 1.362 \\
+TUFusion~\cite{zhao2024tufusion} & \textbf{5.856} & 7.884 & 22.549 & 1.837 & 0.352 & 0.949 \\
+WaveFusion~\cite{wang2025wavefusion} & 5.116 & \textbf{9.129} & 34.761 & 2.033 & 0.625 & 1.322 \\
+DDBFusion~\cite{zhang2025ddbfusion}  & 4.718 & 8.124 & 25.580 & 2.043 & 0.439 & \textbf{1.476} \\
+GeSeNet~\cite{li2023gesenet}    & 5.206 & 9.026 & 35.660 & 2.072 & 0.629 & 0.967 \\
+CDDFuse~\cite{zhao2023cddfuse}  & 4.638 & 8.397 & 40.317 & 2.154 & 0.618 & 1.443 \\
 \midrule
 \textbf{CDDFuse-AG (Ours)} & 4.568 & 8.400 & \textbf{41.612} & \textbf{2.211} & \textbf{0.645} & 1.410 \\
 \bottomrule
@@ -316,12 +316,12 @@ CDDFuse             & 4.638 & 8.397 & 40.317 & 2.154 & 0.618 & 1.443 \\
 \toprule
 \textbf{Phương pháp} & \textbf{EN}$\uparrow$ & \textbf{SD}$\uparrow$ & \textbf{SF}$\uparrow$ & \textbf{MI}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{SSIM}$\uparrow$ \\
 \midrule
-NestFuse            & 4.045 & 9.238 & 21.827 & 1.993 & 0.226 & 1.102 \\
-TUFusion            & 3.236 & 8.519 & 13.139 & 1.590 & 0.168 & \textbf{1.365} \\
-WaveFusion          & 3.262 & 8.615 & 16.211 & 1.574 & 0.203 & 1.361 \\
-DDBFusion           & 5.309 & 8.649 & 26.713 & 1.949 & 0.367 & 1.268 \\
-GeSeNet             & \textbf{6.048} & 9.282 & 34.563 & 2.119 & 0.738 & 1.027 \\
-CDDFuse             & 5.511 & 8.804 & 34.471 & \textbf{2.653} & 0.764 & 1.324 \\
+NestFuse~\cite{li2020nestfuse}   & 4.045 & 9.238 & 21.827 & 1.993 & 0.226 & 1.102 \\
+TUFusion~\cite{zhao2024tufusion} & 3.236 & 8.519 & 13.139 & 1.590 & 0.168 & \textbf{1.365} \\
+WaveFusion~\cite{wang2025wavefusion} & 3.262 & 8.615 & 16.211 & 1.574 & 0.203 & 1.361 \\
+DDBFusion~\cite{zhang2025ddbfusion}  & 5.309 & 8.649 & 26.713 & 1.949 & 0.367 & 1.268 \\
+GeSeNet~\cite{li2023gesenet}    & \textbf{6.048} & 9.282 & 34.563 & 2.119 & 0.738 & 1.027 \\
+CDDFuse~\cite{zhao2023cddfuse}  & 5.511 & 8.804 & 34.471 & \textbf{2.653} & 0.764 & 1.324 \\
 \midrule
 \textbf{CDDFuse-AG (Ours)} & 5.453 & \textbf{8.869} & \textbf{35.619} & 2.579 & \textbf{0.766} & 1.304 \\
 \bottomrule
@@ -340,12 +340,12 @@ CDDFuse             & 5.511 & 8.804 & 34.471 & \textbf{2.653} & 0.764 & 1.324 \\
 \toprule
 \textbf{Phương pháp} & \textbf{EN}$\uparrow$ & \textbf{SD}$\uparrow$ & \textbf{SF}$\uparrow$ & \textbf{MI}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{SSIM}$\uparrow$ \\
 \midrule
-NestFuse            & 3.640 & 7.810 & 19.523 & 1.638 & 0.343 & 1.274 \\
-TUFusion            & 4.013 & 7.087 & 12.721 & 1.764 & 0.233 & 1.388 \\
-WaveFusion          & 4.206 & 7.386 & 16.043 & 1.888 & 0.465 & 1.437 \\
-DDBFusion           & 4.777 & 7.256 & 15.997 & 2.063 & 0.413 & \textbf{1.444} \\
-GeSeNet             & \textbf{5.477} & \textbf{7.915} & 22.327 & 2.297 & 0.726 & 1.042 \\
-CDDFuse             & 4.970 & 7.337 & 21.845 & 2.715 & 0.750 & 1.403 \\
+NestFuse~\cite{li2020nestfuse}   & 3.640 & 7.810 & 19.523 & 1.638 & 0.343 & 1.274 \\
+TUFusion~\cite{zhao2024tufusion} & 4.013 & 7.087 & 12.721 & 1.764 & 0.233 & 1.388 \\
+WaveFusion~\cite{wang2025wavefusion} & 4.206 & 7.386 & 16.043 & 1.888 & 0.465 & 1.437 \\
+DDBFusion~\cite{zhang2025ddbfusion}  & 4.777 & 7.256 & 15.997 & 2.063 & 0.413 & \textbf{1.444} \\
+GeSeNet~\cite{li2023gesenet}    & \textbf{5.477} & \textbf{7.915} & 22.327 & 2.297 & 0.726 & 1.042 \\
+CDDFuse~\cite{zhao2023cddfuse}  & 4.970 & 7.337 & 21.845 & 2.715 & 0.750 & 1.403 \\
 \midrule
 \textbf{CDDFuse-AG (Ours)} & 4.875 & 7.331 & \textbf{21.986} & \textbf{2.730} & \textbf{0.752} & 1.400 \\
 \bottomrule
@@ -376,12 +376,12 @@ Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt 
 \toprule
 \textbf{Phương pháp} & \textbf{SF}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{AG}$\uparrow$ & \textbf{EI}$\uparrow$ & \textbf{QM}$\uparrow$ & \textbf{QMI}$\uparrow$ \\
 \midrule
-  NestFuse & 29.032 & 0.372 & 7.539 & 74.942 & 0.0016 & 0.723 \\
-  TUFusion & 22.549 & 0.352 & 6.705 & 67.478 & 0.0010 & 0.592 \\
-  WaveFusion & 34.761 & 0.625 & 8.502 & 85.732 & 0.0046 & 0.701 \\
-  DDBFusion & 25.580 & 0.439 & 6.024 & 60.992 & 0.0024 & 0.740 \\
-  GeSeNet & 35.660 & 0.629 & 8.766 & 88.337 & 0.0086 & 0.708 \\
-  CDDFuse & 40.317 & 0.618 & 9.616 & 96.017 & 0.0046 & 0.783 \\
+  NestFuse~\cite{li2020nestfuse}   & 29.032 & 0.372 & 7.539 & 74.942 & 0.0016 & 0.723 \\
+  TUFusion~\cite{zhao2024tufusion} & 22.549 & 0.352 & 6.705 & 67.478 & 0.0010 & 0.592 \\
+  WaveFusion~\cite{wang2025wavefusion} & 34.761 & 0.625 & 8.502 & 85.732 & 0.0046 & 0.701 \\
+  DDBFusion~\cite{zhang2025ddbfusion}  & 25.580 & 0.439 & 6.024 & 60.992 & 0.0024 & 0.740 \\
+  GeSeNet~\cite{li2023gesenet}    & 35.660 & 0.629 & 8.766 & 88.337 & 0.0086 & 0.708 \\
+  CDDFuse~\cite{zhao2023cddfuse}  & 40.317 & 0.618 & 9.616 & 96.017 & 0.0046 & 0.783 \\
   \midrule
   \textbf{CDDFuse-AG (Ours)} & \textbf{41.612} & \textbf{0.645} & \textbf{9.869} & \textbf{98.289} & \textbf{0.0094} & \textbf{0.810} \\
 \bottomrule
@@ -398,12 +398,12 @@ Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt 
 \toprule
 \textbf{Phương pháp} & \textbf{SF}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{AG}$\uparrow$ & \textbf{EI}$\uparrow$ & \textbf{QM}$\uparrow$ & \textbf{QMI}$\uparrow$ \\
 \midrule
-  NestFuse & 21.827 & 0.226 & 5.759 & 59.189 & 0.0015 & 0.746 \\
-  TUFusion & 13.139 & 0.168 & 3.033 & 32.383 & 0.0012 & 0.711 \\
-  WaveFusion & 16.211 & 0.203 & 3.811 & 39.768 & 0.0013 & 0.699 \\
-  DDBFusion & 26.713 & 0.367 & 7.629 & 77.167 & 0.0017 & 0.619 \\
-  GeSeNet & 34.563 & 0.738 & 11.356 & 116.256 & 0.0158 & 0.614 \\
-  CDDFuse & 34.471 & 0.764 & 11.277 & 114.699 & 0.1230 & \textbf{0.802} \\
+  NestFuse~\cite{li2020nestfuse}   & 21.827 & 0.226 & 5.759 & 59.189 & 0.0015 & 0.746 \\
+  TUFusion~\cite{zhao2024tufusion} & 13.139 & 0.168 & 3.033 & 32.383 & 0.0012 & 0.711 \\
+  WaveFusion~\cite{wang2025wavefusion} & 16.211 & 0.203 & 3.811 & 39.768 & 0.0013 & 0.699 \\
+  DDBFusion~\cite{zhang2025ddbfusion}  & 26.713 & 0.367 & 7.629 & 77.167 & 0.0017 & 0.619 \\
+  GeSeNet~\cite{li2023gesenet}    & 34.563 & 0.738 & 11.356 & 116.256 & 0.0158 & 0.614 \\
+  CDDFuse~\cite{zhao2023cddfuse}  & 34.471 & 0.764 & 11.277 & 114.699 & 0.1230 & \textbf{0.802} \\
   \midrule
   \textbf{CDDFuse-AG (Ours)} & \textbf{35.619} & \textbf{0.765} & \textbf{11.863} & \textbf{120.521} & \textbf{0.1500} & 0.785 \\
 \bottomrule
@@ -420,12 +420,12 @@ Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt 
 \toprule
 \textbf{Phương pháp} & \textbf{SF}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{AG}$\uparrow$ & \textbf{EI}$\uparrow$ & \textbf{QM}$\uparrow$ & \textbf{QMI}$\uparrow$ \\
 \midrule
-  NestFuse & 19.523 & 0.343 & 5.029 & 50.860 & 0.0025 & 0.655 \\
-  TUFusion & 12.721 & 0.233 & 3.454 & 35.631 & 0.0017 & 0.678 \\
-  WaveFusion & 16.043 & 0.465 & 4.479 & 45.619 & 0.0038 & 0.703 \\
-  DDBFusion & 15.997 & 0.413 & 4.582 & 45.899 & 0.0030 & 0.709 \\
-  GeSeNet & \textbf{22.327} & 0.726 & \textbf{7.059} & \textbf{71.276} & 0.0356 & 0.722 \\
-  CDDFuse & 21.845 & 0.750 & 6.792 & 68.498 & 0.0788 & 0.905 \\
+  NestFuse~\cite{li2020nestfuse}   & 19.523 & 0.343 & 5.029 & 50.860 & 0.0025 & 0.655 \\
+  TUFusion~\cite{zhao2024tufusion} & 12.721 & 0.233 & 3.454 & 35.631 & 0.0017 & 0.678 \\
+  WaveFusion~\cite{wang2025wavefusion} & 16.043 & 0.465 & 4.479 & 45.619 & 0.0038 & 0.703 \\
+  DDBFusion~\cite{zhang2025ddbfusion}  & 15.997 & 0.413 & 4.582 & 45.899 & 0.0030 & 0.709 \\
+  GeSeNet~\cite{li2023gesenet}    & \textbf{22.327} & 0.726 & \textbf{7.059} & \textbf{71.276} & 0.0356 & 0.722 \\
+  CDDFuse~\cite{zhao2023cddfuse}  & 21.845 & 0.750 & 6.792 & 68.498 & 0.0788 & 0.905 \\
   \midrule
   \textbf{CDDFuse-AG (Ours)} & 21.986 & \textbf{0.752} & 6.857 & 69.054 & \textbf{0.0870} & \textbf{0.919} \\
 \bottomrule
