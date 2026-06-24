@@ -1,9 +1,9 @@
-\documentclass[conference]{IEEEtran}
-\IEEEoverridecommandlockouts
+\documentclass[12pt,a4paper]{article}
 
 \usepackage[utf8]{inputenc}
 \usepackage[T5]{fontenc}
 \usepackage[vietnamese,english]{babel}
+\usepackage[margin=2.5cm]{geometry}
 \usepackage{amsmath,amssymb}
 \usepackage{graphicx}
 \usepackage{booktabs}
@@ -16,6 +16,13 @@
 \usepackage{subcaption}
 \usepackage{array}
 \usepackage{multirow}
+\usepackage{titlesec}
+\usepackage{setspace}
+\onehalfspacing
+
+\titleformat{\section}{\large\bfseries}{\thesection.}{0.6em}{}
+\titleformat{\subsection}{\normalsize\bfseries}{\thesubsection.}{0.5em}{}
+
 \captionsetup{font=small}
 
 \graphicspath{{../report_latex/figures/}}
@@ -27,13 +34,10 @@ với quy tắc fusion bất đối xứng dựa trên\\
 Weighted Average và Sum-Modified-Laplacian}
 
 \author{
-  \IEEEauthorblockN{Đỗ Trung Kiên}
-  \IEEEauthorblockA{Trường CNTT\&TT, ĐH Bách Khoa Hà Nội\\
-  kien.dt224869@sis.hust.edu.vn}
-  \and
-  \IEEEauthorblockN{Phạm Đăng Hải}
-  \IEEEauthorblockA{Trường CNTT\&TT, ĐH Bách Khoa Hà Nội\\
-  hai.phamdang@hust.edu.vn}
+  Đỗ Trung Kiên\thanks{kien.dt224869@sis.hust.edu.vn} \quad
+  Phạm Đăng Hải\thanks{hai.phamdang@hust.edu.vn}\\[4pt]
+  \normalsize Trường Công nghệ Thông tin và Truyền thông,
+  Đại học Bách Khoa Hà Nội
 }
 
 \maketitle
@@ -67,10 +71,7 @@ Bài báo cũng trình bày phát hiện \emph{Modality-Specificity}: fusion str
 routing cho các nghiên cứu tương lai.
 \end{abstract}
 
-\begin{IEEEkeywords}
-Tổng hợp ảnh y tế đa phương thức, CDDFuse, asymmetric fusion, Weighted Average
-Scalar, Sum-Modified-Laplacian, Harvard MIF, Composite Z-score.
-\end{IEEEkeywords}
+\smallskip\noindent\textbf{Từ khóa:} Tổng hợp ảnh y tế đa phương thức, CDDFuse, asymmetric fusion, Weighted Average Scalar, Sum-Modified-Laplacian, Harvard MIF, Composite Z-score.
 
 % ============================================================
 \section{Giới thiệu}
