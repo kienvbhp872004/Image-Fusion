@@ -264,12 +264,7 @@ CDDFuse~\cite{zhao2023cddfuse}  & $-0.014$ & \textbf{+0.432} & +0.440 & +0.286 \
 \end{table}
 
 \begin{tcolorbox}[colback=blue!4!white, colframe=blue!40!black, title=Nhận xét, fonttitle=\bfseries, left=4pt, right=4pt, top=3pt, bottom=3pt]
-Kết quả xác nhận giả thuyết \emph{asymmetric fusion}: Base và Detail mang bản chất thông tin khác nhau nên cần chiến lược tổng hợp khác nhau. WeightedAvg phù hợp với Base vì thông tin tần số thấp của hai modality có tương quan cao --- cần trung bình có trọng số, không cần lựa chọn. SML phù hợp với Detail vì thông tin tần số cao mang tính bổ trợ --- tại mỗi vị trí nên ưu tiên modality có cạnh rõ hơn, không nên trung bình làm mờ cạnh.
-\begin{itemize}\itemsep0pt
-  \item \textbf{CT}: CT và MRI có cạnh đặc thù rõ ràng ở các vùng khác nhau (xương, mô mềm) nên SML có thể phân biệt nguồn nào có tần số cao hữu ích tại từng điểm ảnh một cách chính xác.
-  \item \textbf{PET}: PET dùng mã hóa màu giả --- kênh Y sau chuyển đổi YCbCr có gradient ít rõ nét hơn CT, khiến SML khó phân biệt cạnh thực sự với nhiễu màu, làm giảm lợi thế so với CT.
-  \item \textbf{SPECT}: Ảnh SPECT có vùng hoạt động trao đổi chất tương phản cao, tạo ra gradient mạnh và rõ ràng --- SML hoạt động hiệu quả, dẫn đến kết quả tốt nhất trong 3 modality.
-\end{itemize}
+CDDFuse-AG cải thiện tốt nhất trên CT-MRI vì hai modality có vùng cạnh không chồng lấp (xương vs.\ mô mềm), tạo điều kiện lý tưởng cho SML phân biệt nguồn nào mang chi tiết hữu ích tại từng điểm ảnh. Trên PET, gradient kênh Y sau chuyển đổi YCbCr kém rõ nét hơn, làm giảm lợi thế của SML. SPECT có tương phản trao đổi chất cao nên SML hoạt động hiệu quả, cho kết quả z-score tốt nhất trong 3 modality.
 \end{tcolorbox}
 
 % ================================================================
@@ -433,14 +428,7 @@ Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt 
 \end{table}
 
 \begin{tcolorbox}[colback=blue!4!white, colframe=blue!40!black, title=Nhận xét, fonttitle=\bfseries, left=4pt, right=4pt, top=3pt, bottom=3pt]
-Kết quả nhất quán với cơ chế hoạt động của từng rule:
-\begin{itemize}\itemsep2pt
-  \item \textbf{CT}: CT và MRI có vùng cạnh bổ trợ không chồng lấp (xương vs.\ mô mềm), nên SML dễ dàng xác định tại mỗi điểm ảnh modality nào mang cạnh quan trọng hơn. Kết quả là CDDFuse-AG bảo toàn cạnh từ cả hai nguồn một cách có chọn lọc thay vì trung bình làm mờ.
-  \item \textbf{PET}: CDDFuse (Sum) thắng QMI vì phép cộng trung bình giữ nguyên phân phối thông tin chung của cả hai nguồn --- SML lựa chọn chọn lọc nên một phần thông tin của nguồn không được chọn bị bỏ qua, làm giảm nhẹ thông tin chung đo bởi QMI.
-  \item \textbf{SPECT}: GeSeNet dẫn SF/AG/EI vì kiến trúc GeSeNet có cơ chế semantic-edge fusion bản địa, tối ưu hóa trực tiếp cho gradient-based metric. CDDFuse-AG dẫn Qabf/QM/QMI vì SML bảo toàn thông tin chi tiết tần số cao theo cách phù hợp hơn với các chỉ số đo thông tin.
-\end{itemize}
-\medskip
-\textbf{Trade-off:} SML nhạy với tất cả gradient mạnh, bao gồm cả artifact từ mã hóa màu giả của PET. Điều này làm tăng nhẹ NABF (nhiễu cạnh giả) trên PET --- là cái giá phải trả khi dùng rule không tham số thay vì rule học được có thể phân biệt cạnh thật với nhiễu.
+CDDFuse-AG dẫn đầu SF, Qabf, AG, EI, QM, QMI --- đây đều là chỉ số nhóm biên/chi tiết --- vì SML lựa chọn theo vị trí modality có cạnh sắc nét hơn thay vì trung bình làm mờ. Lợi thế lớn nhất trên CT-MRI (cạnh xương và mô mềm không chồng lấp); giảm nhẹ trên PET do gradient kênh Y ít rõ nét sau chuyển đổi YCbCr, đồng thời làm tăng nhẹ NABF vì SML nhạy cảm với cả artifact màu giả.
 \end{tcolorbox}
 
 % ── Visual comparison ─────────────────────────────────────────────────────────
