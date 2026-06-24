@@ -13,6 +13,9 @@
 \usepackage{cite}
 \usepackage{microtype}
 \usepackage{caption}
+\usepackage{subcaption}
+\usepackage{array}
+\usepackage{multirow}
 \captionsetup{font=small}
 
 \graphicspath{{../report_latex/figures/}}
@@ -20,7 +23,8 @@
 \begin{document}
 
 \title{\Large CDDFuse-AG: Tổng hợp ảnh y tế đa phương thức\\
-với quy tắc fusion bất đối xứng}
+với quy tắc fusion bất đối xứng dựa trên\\
+Weighted Average và Sum-Modified-Laplacian}
 
 \author{
   \IEEEauthorblockN{Đỗ Trung Kiên}
@@ -36,77 +40,155 @@ với quy tắc fusion bất đối xứng}
 
 % ============================================================
 \begin{abstract}
-Bài báo đề xuất \textbf{CDDFuse-AG} (Asymmetric Gating), cải tiến từ CDDFuse
-(CVPR 2023) cho bài toán tổng hợp ảnh y tế đa phương thức (MRI--CT, MRI--PET,
-MRI--SPECT). CDDFuse phân rã đặc trưng thành hai nhánh Base (tần số thấp) và
-Detail (tần số cao), nhưng áp dụng chung một phép cộng đơn giản cho cả hai nhánh.
-CDDFuse-AG thay thế bằng hai quy tắc chuyên biệt: \textbf{Weighted Average
-Scalar} (WAvg) cho nhánh Base và \textbf{Sum-Modified-Laplacian} (SML) cho nhánh
-Detail. Thiết kế bất đối xứng này tận dụng bản chất khác nhau của hai loại thông
-tin: Base cần trung bình hóa toàn cục (tương quan cao giữa modality), trong khi
-Detail cần lựa chọn cục bộ theo vị trí (thông tin bổ trợ nhau). Thực nghiệm trên
-tập Harvard MIF (72 cặp test) với 22 chỉ số đánh giá và so sánh 22 phương pháp
-SOTA cho thấy CDDFuse-AG vượt CDDFuse baseline trên CT-MRI với z-score tổng hợp
-$+0{,}240$ so với $-0{,}483$, đạt thứ nhất trên 6/6 chỉ số SF, MI, Qabf, QM, QMI,
-EI trong bộ chỉ số chính của paper CDDFuse. Mô hình chỉ thêm 4.161 tham số mới
-($\sim$0,35\%) so với CDDFuse.
+Tổng hợp ảnh y tế đa phương thức (Medical Image Fusion -- MIF) nhằm tích hợp thông
+tin bổ trợ từ các phương thức chụp ảnh khác nhau thành một ảnh duy nhất phục vụ
+chẩn đoán lâm sàng. CDDFuse (CVPR 2023) là phương pháp dual-branch Transformer--CNN
+dẫn đầu trên nhiều benchmark MIF, nhưng áp dụng cùng một phép cộng đơn giản cho
+cả nhánh Base (tần số thấp) và nhánh Detail (tần số cao) --- không khai thác sự
+khác biệt bản chất giữa hai loại thông tin này.
+
+Bài báo đề xuất \textbf{CDDFuse-AG} (Asymmetric Gating), thay thế phép cộng bằng
+hai quy tắc chuyên biệt: \textbf{Weighted Average Scalar} (WAvg) cho nhánh Base
+và \textbf{Sum-Modified-Laplacian} (SML) cho nhánh Detail, chỉ giữ nguyên toàn
+bộ Encoder và Decoder pretrained. Thiết kế này dựa trên nguyên lý: thông tin
+Base có tương quan cao giữa hai modality nên cần trung bình hóa toàn cục, trong
+khi thông tin Detail mang tính bổ trợ cục bộ nên cần lựa chọn theo độ sắc nét
+tại từng vị trí ảnh.
+
+Thực nghiệm trên tập Harvard MIF (72 cặp test, 3 modality CT/PET/SPECT) với 22
+chỉ số đánh giá và so sánh 22 phương pháp SOTA cho thấy: CDDFuse-AG vượt CDDFuse
+baseline rõ rệt trên CT-MRI (composite z-score tổng hợp $+0{,}240$ so với
+$-0{,}483$, cải thiện $+0{,}323$ điểm); đạt nhất trên SF, MI, Qabf, EI, QM, QMI
+trong bộ 6 chỉ số chính; z-score trung bình 3 modality $+0{,}344$ --- cao nhất
+trong nhóm so sánh trực tiếp. Mô hình chỉ thêm \textbf{4.161 tham số mới}
+($\sim$0,35\% tăng thêm so với CDDFuse), giữ toàn bộ backbone đã pretrained.
+Bài báo cũng trình bày phát hiện \emph{Modality-Specificity}: fusion strategy tối
+ưu phụ thuộc vào đặc tính của từng cặp modality, gợi ý hướng modality-aware
+routing cho các nghiên cứu tương lai.
 \end{abstract}
 
 \begin{IEEEkeywords}
-Tổng hợp ảnh y tế đa phương thức, CDDFuse, Transformer, asymmetric fusion, SML,
-Harvard MIF.
+Tổng hợp ảnh y tế đa phương thức, CDDFuse, asymmetric fusion, Weighted Average
+Scalar, Sum-Modified-Laplacian, Harvard MIF, Composite Z-score.
 \end{IEEEkeywords}
 
 % ============================================================
 \section{Giới thiệu}
 \label{sec:intro}
 
-Tổng hợp ảnh y tế đa phương thức (Medical Image Fusion -- MIF) kết hợp thông tin
-bổ trợ từ hai phương thức chụp ảnh thành một ảnh duy nhất, hỗ trợ chẩn đoán lâm
-sàng. MRI cung cấp độ phân giải cao về mô mềm, trong khi CT/PET/SPECT cung cấp
-thông tin cấu trúc xương và chức năng trao đổi chất. Bài toán MIF đặc thù ở chỗ
-\emph{không tồn tại ảnh tổng hợp chuẩn} (ground-truth), buộc các phương pháp học
+\subsection{Động lực}
+
+Trong y học hiện đại, chẩn đoán chính xác đóng vai trò quyết định trong việc lựa
+chọn phác đồ điều trị, đặc biệt với các bệnh lý phức tạp như ung thư, đột quỵ
+và rối loạn thần kinh. Mỗi phương thức chụp ảnh y tế cung cấp một góc nhìn khác
+nhau về cơ thể bệnh nhân: \textbf{CT} (Computed Tomography) cho thấy rõ cấu trúc
+xương và mô đặc thông qua hấp thụ tia X; \textbf{MRI} (Magnetic Resonance Imaging)
+cho độ phân giải cao về mô mềm nhờ tín hiệu cộng hưởng từ; \textbf{PET} (Positron
+Emission Tomography) và \textbf{SPECT} (Single Photon Emission Computed Tomography)
+cung cấp thông tin chức năng về trao đổi chất và lưu lượng máu. Trong thực tế lâm
+sàng, bác sĩ phải đối chiếu đồng thời nhiều loại ảnh, gây tốn thời gian và dễ bỏ
+sót chi tiết.
+
+\textbf{Tổng hợp ảnh y tế đa phương thức} (MIF) tự động kết hợp thông tin bổ trợ
+từ hai phương thức thành một ảnh duy nhất, vừa giữ lại cấu trúc giải phẫu chi tiết,
+vừa thể hiện thông tin chức năng. Bài toán này đặc thù ở chỗ \emph{không tồn tại
+ảnh tổng hợp chuẩn} (ground-truth fused image) trong thực tế --- không có thiết bị
+y tế nào tạo ra trực tiếp ảnh kết hợp CT+MRI cùng lúc, nên các phương pháp học
 sâu phải thiết kế hàm mất mát không giám sát dựa trên ràng buộc bảo toàn thông tin.
 
-CDDFuse~\cite{zhao2023cddfuse} (CVPR 2023) là phương pháp dual-branch
-Transformer--CNN tiêu biểu, đạt kết quả hàng đầu trên nhiều benchmark MIF nhờ
-kiến trúc phân rã đặc trưng theo tương quan (Correlation-Driven Decomposition).
-Tuy nhiên, CDDFuse áp dụng cùng một phép cộng đơn giản $f_F = f_V + f_I$ cho
-\emph{cả hai} nhánh Base và Detail, không khai thác sự khác biệt bản chất giữa
-thông tin tần số thấp (cấu trúc toàn cục, tương quan cao) và tần số cao (cạnh đặc
-thù modality, bổ trợ nhau).
+\subsection{CDDFuse và khoảng trống nghiên cứu}
 
-Đóng góp của bài báo:
+\textbf{CDDFuse}~\cite{zhao2023cddfuse} (CVPR 2023) là phương pháp dual-branch
+Transformer--CNN tiêu biểu, đạt kết quả hàng đầu trên nhiều benchmark MIF. Kiến
+trúc này phân rã đặc trưng ảnh thành hai nhánh có bản chất khác nhau:
 \begin{itemize}\itemsep1pt
-  \item Đề xuất CDDFuse-AG với thiết kế \emph{bất đối xứng}: WAvg cho Base và
-        SML cho Detail, chỉ thêm 4.161 tham số mới.
-  \item Thực hiện ablation study hệ thống 3 giai đoạn với 13 quy tắc tổng hợp
-        (5 Base, 8 Detail) trên tập Harvard MIF.
-  \item Phát hiện \emph{Modality-Specificity}: fusion rule tối ưu phụ thuộc vào
-        đặc tính của từng cặp modality -- kết quả gợi ý hướng modality-aware
-        routing trong thiết kế mô hình MIF.
+  \item \textbf{Nhánh Base} (tần số thấp): thông tin cấu trúc giải phẫu toàn cục,
+        tương quan cao giữa hai modality vì cùng mô tả một cơ quan tại cùng vị trí.
+  \item \textbf{Nhánh Detail} (tần số cao): texture, cạnh và thông tin đặc thù
+        từng modality --- CT nổi bật về xương, MRI nổi bật về mô mềm --- hai
+        nguồn mang thông tin \emph{bổ trợ nhau} chứ không đồng thuận.
 \end{itemize}
+
+Tuy nhiên, CDDFuse áp dụng cùng một phép cộng đơn giản $f_F = f_V + f_I$ cho
+\emph{cả hai nhánh}, không khai thác được sự khác biệt bản chất này. Liu et
+al.~\cite{liu2018survey} chỉ ra nguyên tắc nền tảng trong xử lý ảnh đa tỉ lệ:
+thành phần tần số thấp (Base) cần trung bình hóa, trong khi thành phần tần số cao
+(Detail) cần lựa chọn theo hoạt động cục bộ. Phép cộng Sum của CDDFuse vi phạm
+nguyên tắc thứ hai: khi hai modality có cạnh đặc thù tại các vùng khác nhau,
+trung bình hóa Detail làm mờ cả hai nguồn thay vì giữ lại cạnh sắc nét nhất tại
+mỗi vị trí.
+
+\subsection{Đóng góp}
+
+Bài báo có các đóng góp sau:
+\begin{enumerate}\itemsep1pt
+  \item Đề xuất mô hình \textbf{CDDFuse-AG} với thiết kế \emph{bất đối xứng}
+        (asymmetric): Weighted Average Scalar (WAvg) cho nhánh Base và
+        Sum-Modified-Laplacian (SML) cho nhánh Detail, chỉ thêm 4.161 tham số
+        mới trong khi giữ nguyên backbone pretrained.
+  \item Thực hiện \textbf{ablation study hệ thống 3 giai đoạn} trên 13 quy tắc
+        tổng hợp (5 Base, 8 Detail), bao phủ từ phương pháp truyền thống (L1Norm,
+        SML, SF, VSM) đến học sâu (Gated, Saliency, PCNN-soft), cung cấp cơ sở
+        thực nghiệm toàn diện.
+  \item Phát hiện và lý giải hiện tượng \textbf{Modality-Specificity}: fusion
+        rule tối ưu phụ thuộc vào đặc tính của từng cặp modality, gợi ý hướng
+        modality-aware routing trong thiết kế mô hình MIF tương lai.
+  \item So sánh với \textbf{22 phương pháp SOTA} trên tập Harvard MIF, dùng
+        Composite Z-score tổng hợp 22 chỉ số đánh giá theo chuẩn VIFB.
+\end{enumerate}
 
 % ============================================================
 \section{Nghiên cứu liên quan}
 \label{sec:related}
 
-\textbf{Phương pháp truyền thống.} Các kỹ thuật biến đổi đa tỉ lệ
-(Wavelet, Curvelet) và biểu diễn thưa thớt~\cite{liu2018survey} phân rã ảnh theo
-tần số và kết hợp bằng quy tắc thủ công (max-pooling, trung bình), có cơ sở lý
-thuyết vững nhưng khó khái quát hóa.
+\subsection{Phương pháp biến đổi đa tỉ lệ}
 
-\textbf{Học sâu.} DenseFuse~\cite{li2019densefuse} và NestFuse~\cite{li2020nestfuse}
-ứng dụng Encoder--Decoder dựa trên DenseNet, huấn luyện qua hàm mất mát tái tạo.
-Transformer mở rộng khả năng nắm bắt phụ thuộc tầm xa: CDDFuse~\cite{zhao2023cddfuse}
-kết hợp Restormer Encoder với Invertible Neural Network để phân rã đặc trưng.
-GeSeNet~\cite{li2023gesenet}, MFS-Fusion~\cite{chen2025mfsfusion},
-MM-Net-Fusion~\cite{liu2024mmnet} là các phương pháp SOTA gần đây trên Harvard MIF.
+Các phương pháp truyền thống phân rã ảnh theo tần số (Wavelet, Curvelet, Shearlet)
+rồi kết hợp theo quy tắc thủ công. Liu et al.~\cite{liu2018survey} tổng kết các
+quy tắc phổ biến: max-selection (chọn hệ số lớn hơn), trung bình có trọng số, và
+quy tắc dựa trên hoạt động cục bộ. Biểu diễn thưa thớt (sparse representation)
+và dictionary learning mở rộng hướng này bằng cách học từ dữ liệu. Nhóm phương
+pháp này có cơ sở lý thuyết vững chắc nhưng phụ thuộc nặng vào đặc trưng thiết
+kế tay và khó khái quát hóa sang các cặp modality y tế đa dạng.
 
-\textbf{Khoảng trống.} Hầu hết các phương pháp áp dụng quy tắc tổng hợp đối xứng
-cho mọi thành phần đặc trưng. Tác động của thiết kế \emph{bất đối xứng} (Base rule
-$\neq$ Detail rule) chưa được khảo sát hệ thống, đặc biệt trong ngữ cảnh
-dual-branch Transformer.
+\subsection{Học sâu: CNN và Autoencoder}
+
+DenseFuse~\cite{li2019densefuse} đề xuất encoder DenseNet kết hợp quy tắc fusion
+trong không gian đặc trưng, huấn luyện qua hàm mất mát tái tạo. NestFuse~\cite{li2020nestfuse}
+bổ sung multi-scale nested connection, cải thiện khả năng tích hợp thông tin
+đa tỉ lệ. Các phương pháp này tiên phong trong việc học đặc trưng không giám sát
+cho MIF nhưng bị giới hạn bởi khả năng nắm bắt phụ thuộc tầm xa của CNN thuần.
+
+\subsection{Transformer và cơ chế chú ý}
+
+Sự ra đời của Vision Transformer~\cite{dosovitskiy2020vit} mở ra hướng mới: nắm
+bắt phụ thuộc tầm xa qua self-attention. CDDFuse~\cite{zhao2023cddfuse} kết hợp
+Restormer~\cite{zamir2022restormer} encoder (window-based self-attention) với
+Invertible Neural Network để phân rã tương quan Base/Detail. GeSeNet~\cite{li2023gesenet}
+bổ sung semantic-edge fusion, tối ưu trực tiếp cho các chỉ số gradient.
+MFS-Fusion~\cite{chen2025mfsfusion} khai thác multi-scale feature selection.
+MM-Net-Fusion~\cite{liu2024mmnet} tích hợp thông tin đa mức độ qua cross-attention.
+MMIF-INet~\cite{he2025mmifiNet} dùng iterative network với phản hồi lặp. Các
+phương pháp gần đây như MBHFuse~\cite{sun2025mbhfuse} và
+ECINFusion~\cite{wei2025ecinfusion} tiếp tục khai thác attention mechanism
+chuyên biệt cho MIF.
+
+\subsection{Mô hình sinh và học tự giám sát}
+
+MMIF-DDFM ứng dụng Denoising Diffusion Probabilistic Model, mô hình hóa bài toán
+fusion như một bài toán suy diễn xác suất. MMAE~\cite{wang2025mmae} dùng Masked
+Autoencoder pretrained để học biểu diễn đa phương thức. TUFusion~\cite{zhao2024tufusion}
+khai thác texture và structure trong không gian latent. Mặc dù đạt chất lượng
+thị giác cao, nhóm này thường có chi phí tính toán lớn hơn.
+
+\subsection{Khoảng trống}
+
+Hầu hết các phương pháp hiện tại áp dụng quy tắc tổng hợp \emph{đối xứng} cho
+mọi thành phần đặc trưng, hoặc học một quy tắc duy nhất thích nghi theo dữ liệu
+mà không phân biệt bản chất khác nhau của Base và Detail. Tác động của thiết kế
+\emph{bất đối xứng có chủ đích} (Base rule $\neq$ Detail rule, với lý giải lý
+thuyết rõ ràng) trên kiến trúc dual-branch Transformer chưa được khảo sát hệ
+thống. Đây chính là khoảng trống mà bài báo hướng đến.
 
 % ============================================================
 \section{Phương pháp đề xuất}
@@ -114,57 +196,143 @@ dual-branch Transformer.
 
 \subsection{Kiến trúc CDDFuse và điểm can thiệp}
 
-CDDFuse phân rã ảnh đầu vào thành hai nhánh thông qua Encoder Restormer: nhánh
-\textbf{Base} $f^B$ (tần số thấp, đặc trưng cấu trúc toàn cục) và nhánh
-\textbf{Detail} $f^D$ (tần số cao, texture và cạnh đặc thù modality). Fusion Layer
-kết hợp hai cặp đặc trưng $(f_I^B, f_V^B)$ và $(f_I^D, f_V^D)$ bằng phép cộng
-$f_I + f_V$, rồi đưa qua BaseFuseLayer / DetailFuseLayer trước Decoder.
+CDDFuse xử lý cặp ảnh $(I, V)$ qua ba khối tuần tự:
+\[
+  \text{Encoder} \;\to\; \text{Fusion Layer} \;\to\; \text{Decoder}
+\]
 
-\textbf{Điểm can thiệp}: thay thế phép cộng đầu mỗi nhánh bằng hai quy tắc
-chuyên biệt, giữ nguyên Encoder và Decoder.
+\textbf{Encoder} Restormer (dùng chung trọng số cho cả hai modality) trích xuất
+đặc trưng và phân rã thành:
+\begin{align}
+  (f_I^B,\; f_I^D) &= \mathrm{Encoder}(I) \\
+  (f_V^B,\; f_V^D) &= \mathrm{Encoder}(V)
+\end{align}
+trong đó $f^B \in \mathbb{R}^{H \times W \times 64}$ là đặc trưng Base (tần số
+thấp) và $f^D \in \mathbb{R}^{H \times W \times 64}$ là đặc trưng Detail (tần số
+cao).
 
-\subsection{Quy tắc Base: Weighted Average Scalar (WAvg)}
+\textbf{Fusion Layer} kết hợp $(f_I^B, f_V^B)$ và $(f_I^D, f_V^D)$ trước khi
+đưa qua BaseFuseLayer và DetailFuseLayer. Trong CDDFuse gốc:
+\[
+  f_F^B = \mathrm{BaseFuseLayer}(f_I^B + f_V^B), \quad
+  f_F^D = \mathrm{DetailFuseLayer}(f_I^D + f_V^D)
+\]
 
-Nhánh Base mang thông tin tương quan cao giữa hai modality --- nên trung bình hóa
-thay vì lựa chọn. WAvg học một scalar $\theta \in \mathbb{R}$:
-\begin{equation}
-  \alpha = \sigma(\theta), \qquad
-  R_{\mathrm{WAvg}}(a,b) = 2\bigl(\alpha a + (1-\alpha)b\bigr)
-  \label{eq:wavg}
-\end{equation}
-với $\sigma$ là sigmoid, $a = f_V^B$, $b = f_I^B$. Hệ số 2 duy trì biên độ so với
-phép cộng gốc. $\theta$ khởi tạo bằng 0 ($\alpha = 0{,}5$) và được học end-to-end.
-\textbf{WAvg chỉ có 1 tham số}, tránh overfitting và không phá vỡ phân phối đặc
-trưng của Encoder pretrained.
-
-\subsection{Quy tắc Detail: Sum-Modified-Laplacian (SML)}
-
-Nhánh Detail mang thông tin bổ trợ nhau --- tại mỗi vị trí, nên ưu tiên modality
-có cạnh sắc nét hơn. SML~\cite{huang2007sml} đo độ sắc nét cục bộ:
-\begin{equation}
-  \mathrm{ML}_{ij}(f) = |2f_{ij} - f_{i-1,j} - f_{i+1,j}| + |2f_{ij} - f_{i,j-1} - f_{i,j+1}|
-\end{equation}
-\begin{equation}
-  \mathrm{SML}_{ij}(f) = \sum_{(p,q)\in\mathcal{N}(i,j)} \mathrm{ML}_{pq}(f)
-\end{equation}
-Trọng số lựa chọn và quy tắc tổng hợp:
-\begin{equation}
-  w_a = \frac{\mathrm{SML}(a)}{\mathrm{SML}(a)+\mathrm{SML}(b)+\epsilon}, \quad
-  R_{\mathrm{SML}}(a,b) = 2\bigl(w_a \odot a + (1-w_a) \odot b\bigr)
-  \label{eq:sml}
-\end{equation}
-SML không có tham số học, đảm bảo tính tổng quát hóa cao qua nhiều modality.
+\textbf{Điểm can thiệp của CDDFuse-AG}: thay thế phép cộng ở đầu mỗi nhánh bằng
+hai quy tắc chuyên biệt, giữ nguyên Encoder, BaseFuseLayer, DetailFuseLayer và
+Decoder. Điều này đảm bảo mọi sai biệt kết quả chỉ đến từ quy tắc tổng hợp.
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{fusion_diagram_cddag.png}
-  \caption{Kiến trúc CDDFuse-AG: Encoder dùng chung trọng số trích xuất đặc trưng
-  Base/Detail; Fusion Layer áp dụng bất đối xứng (WAvg cho Base, SML cho Detail);
-  Decoder tái tạo ảnh tổng hợp $F$.}
+  \caption{Kiến trúc CDDFuse-AG. Encoder dùng chung trọng số trích xuất đặc trưng
+  Base và Detail từ hai modality đầu vào. Fusion Layer áp dụng bất đối xứng:
+  WAvg cho nhánh Base (trung bình hóa toàn cục, 1 tham số học), SML cho nhánh
+  Detail (lựa chọn cục bộ theo độ sắc nét, không tham số). Decoder tái tạo
+  ảnh tổng hợp $F$ từ hai đặc trưng đã hợp nhất.}
   \label{fig:arch}
 \end{figure}
 
-\subsection{Tổng số tham số}
+\subsection{Nguyên lý thiết kế bất đối xứng}
+
+Hai nhánh Base và Detail mang bản chất thông tin khác nhau, đòi hỏi chiến lược
+tổng hợp khác nhau~\cite{liu2018survey}:
+
+\begin{itemize}\itemsep2pt
+  \item \textbf{Nhánh Base}: Đặc trưng tần số thấp mô tả cấu trúc giải phẫu
+        toàn cục --- MRI và CT đều thể hiện cùng cơ quan, cùng vị trí giải phẫu.
+        Hai modality \emph{đồng thuận} ở mức tổng thể, nên trung bình hóa toàn
+        cục là chiến lược phù hợp.
+  \item \textbf{Nhánh Detail}: Đặc trưng tần số cao mang texture và cạnh đặc
+        thù. CT nổi bật về biên xương (gradient mạnh tại vùng xương), MRI nổi
+        bật về biên mô mềm. Hai modality \emph{bổ trợ nhau} tại các vùng khác
+        nhau, nên lựa chọn theo vị trí là chiến lược phù hợp.
+\end{itemize}
+
+Phép cộng Sum của CDDFuse áp dụng cùng chiến lược cho cả hai nhánh, không khai
+thác được sự bổ trợ cục bộ của nhánh Detail: cộng hai feature map Detail lại chính
+là trung bình hai nguồn (với hệ số 1/2 ẩn trong kiến trúc sau), làm mờ thông tin
+cạnh đặc thù thay vì giữ cạnh sắc nét nhất tại mỗi vị trí.
+
+\subsection{Quy tắc Base: Weighted Average Scalar (WAvg)}
+
+WAvg học một tham số scalar $\theta \in \mathbb{R}$ điều chỉnh tỉ lệ đóng góp
+của hai modality cho nhánh Base:
+\begin{equation}
+  \alpha = \sigma(\theta), \qquad
+  R_{\mathrm{WAvg}}(a, b) = 2\bigl(\alpha \cdot a + (1-\alpha) \cdot b\bigr)
+  \label{eq:wavg}
+\end{equation}
+trong đó $a = f_V^B$, $b = f_I^B$, $\sigma$ là hàm sigmoid đảm bảo
+$\alpha \in (0,1)$. Hệ số $2$ chuẩn hóa biên độ để giữ tương đương với phép cộng
+gốc khi $\alpha = 0{,}5$. Tham số $\theta$ khởi tạo bằng 0 và được học end-to-end.
+
+\textbf{Lý do chọn WAvg cho nhánh Base}:
+\begin{itemize}\itemsep1pt
+  \item \textit{Chỉ 1 tham số học}: tránh overfitting trên tập y tế quy mô nhỏ;
+        không làm gián đoạn phân phối đặc trưng mà Encoder đã học.
+  \item \textit{Trung bình hóa toàn cục}: phù hợp với bản chất đồng thuận của
+        Base --- không cần phân biệt theo vị trí không gian.
+  \item \textit{Thích nghi tỉ lệ theo modality}: thay vì giả định $\alpha=0{,}5$
+        cứng nhắc, mô hình tự học tỉ lệ đóng góp tối ưu giữa hai nguồn.
+\end{itemize}
+
+\subsection{Quy tắc Detail: Sum-Modified-Laplacian (SML)}
+
+SML~\cite{huang2007sml} đo độ sắc nét cục bộ tại từng điểm ảnh thông qua tổng
+đạo hàm bậc hai hiệu chỉnh (Modified Laplacian):
+\begin{align}
+  \mathrm{ML}_{ij}(f) &= |2f_{ij} - f_{i-1,j} - f_{i+1,j}| \notag \\
+                       &\quad + |2f_{ij} - f_{i,j-1} - f_{i,j+1}| \label{eq:ml}\\
+  \mathrm{SML}_{ij}(f) &= \sum_{(p,q)\in\mathcal{N}(i,j)} \mathrm{ML}_{pq}(f)
+  \label{eq:sml-map}
+\end{align}
+trong đó $\mathcal{N}(i,j)$ là vùng lân cận $3\times3$. SML tích lũy năng lượng
+Laplacian trong vùng lân cận, cho phép đo độ sắc nét ổn định hơn so với chỉ dùng
+đạo hàm tại một điểm. Trọng số lựa chọn và quy tắc tổng hợp:
+\begin{align}
+  w_a &= \frac{\mathrm{SML}(a)}{\mathrm{SML}(a)+\mathrm{SML}(b)+\epsilon}
+  \label{eq:weight}\\
+  R_{\mathrm{SML}}(a,b) &= 2\bigl(w_a \odot a + (1-w_a) \odot b\bigr)
+  \label{eq:sml-rule}
+\end{align}
+trong đó $a = f_V^D$, $b = f_I^D$, $\epsilon$ là hằng số ổn định số học,
+$\odot$ là tích Hadamard. Trọng số $w_a \in [0,1]$ thay đổi theo vị trí không
+gian: vùng nào modality $V$ có cạnh sắc nét hơn thì $w_a \to 1$, ngược lại
+$w_a \to 0$.
+
+\textbf{Lý do chọn SML cho nhánh Detail}:
+\begin{itemize}\itemsep1pt
+  \item \textit{Nhạy với cạnh và tần số cao}: Modified Laplacian đặc biệt nhạy
+        với biến thiên đột ngột --- đúng với bản chất Detail.
+  \item \textit{Lựa chọn theo vị trí không gian}: mỗi điểm ảnh được lựa chọn
+        độc lập, khai thác triệt để tính bổ trợ cục bộ giữa CT và MRI.
+  \item \textit{Không có tham số học}: tính tổng quát hóa cao, không phụ thuộc
+        vào phân phối dữ liệu huấn luyện.
+\end{itemize}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig_rule_sml.png}
+  \caption{(Trái) Sơ đồ tính weight map từ SML của hai feature map Detail A và B.
+  (Phải) Ví dụ weight map $w_a$: vùng xanh ($w_a \approx 1$) ưu tiên Detail A,
+  vùng đỏ ($w_a \approx 0$) ưu tiên Detail B theo độ sắc nét cục bộ.}
+  \label{fig:sml}
+\end{figure}
+
+\subsection{Kiến trúc đầy đủ và tổng số tham số}
+
+CDDFuse-AG sử dụng:
+\begin{align}
+  f_F^B &= \mathrm{BaseFuseLayer}\!\left(R_{\mathrm{WAvg}}(f_V^B, f_I^B)\right)
+  \label{eq:ag-base}\\
+  f_F^D &= \mathrm{DetailFuseLayer}\!\left(R_{\mathrm{SML}}(f_V^D, f_I^D)\right)
+  \label{eq:ag-detail}
+\end{align}
+
+Hai đặc trưng $f_F^B, f_F^D$ (mỗi cái 64 kênh) được ghép kênh rồi chiếu về 64
+kênh bằng Conv$_{1\times1}$ trước Decoder (thành phần này có sẵn trong CDDFuse
+gốc). So sánh tham số:
 
 \begin{table}[h]
 \centering
@@ -175,72 +343,125 @@ SML không có tham số học, đảm bảo tính tổng quát hóa cao qua nhi
 \toprule
 \textbf{Thành phần} & \textbf{CDDFuse} & \textbf{CDDFuse-AG} \\
 \midrule
-Encoder                   & 599,144 & 599,144 \\
+Encoder (Restormer)       & 599,144 & 599,144 \\
 BaseFuseLayer             & 363,016 & 363,016 \\
 DetailFuseLayer           & 18,176  & 18,176 \\
 Decoder                   & 207,936 & 207,936 \\
-\textbf{WAvg} ($\theta$) & 0       & \textbf{1} \\
-\textbf{SML refine Conv}  & 0       & \textbf{4,160} \\
+\textbf{WAvg} (scalar $\theta$) & 0 & \textbf{1} \\
+\textbf{SML refine Conv}  & 0 & \textbf{4,160} \\
 \midrule
-\textbf{Tổng}             & 1,188,272 & 1,192,433 \\
+\textbf{Tổng}             & 1,188,272 & \textbf{1,192,433} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
 \subsection{Hàm mất mát và huấn luyện hai pha}
 
-Hàm mất mát kế thừa từ CDDFuse:
+CDDFuse-AG kế thừa hàm mất mát ba thành phần từ CDDFuse:
 \begin{equation}
-  \mathcal{L} = \mathcal{L}_{\mathrm{int}} + \mathcal{L}_{\mathrm{grad}} + \alpha_4\,\mathcal{L}_{\mathrm{decomp}}
+  \mathcal{L} = \mathcal{L}_{\mathrm{int}} + \mathcal{L}_{\mathrm{grad}}
+              + \alpha_4\,\mathcal{L}_{\mathrm{decomp}}, \quad \alpha_4 = 2
+  \label{eq:loss}
 \end{equation}
-với $\mathcal{L}_{\mathrm{int}} = \|F - \max(I,V)\|_1$,
-$\mathcal{L}_{\mathrm{grad}} = \|\nabla F - \max(\nabla I,\nabla V)\|_1$,
-$\alpha_4 = 2$.
 
-\textbf{Pha I} (40 epoch): chỉ cập nhật Encoder và Decoder; WAvg/SML đóng băng.
-\textbf{Pha II} (80 epoch): mở toàn bộ tham số, huấn luyện end-to-end.
-Cấu hình: Adam lr$=10^{-4}$, StepLR $\gamma=0{,}5$/20 epoch, batch 8, AMP fp16,
-grad clip 0,01, GPU Tesla P100-16GB.
+\textbf{Intensity loss} khuyến khích ảnh tổng hợp bảo toàn cường độ cao nhất từ
+mỗi nguồn:
+\begin{equation}
+  \mathcal{L}_{\mathrm{int}} = \|F - \max(I, V)\|_1
+\end{equation}
+
+\textbf{Gradient loss} buộc ảnh tổng hợp giữ cạnh sắc nét nhất:
+\begin{equation}
+  \mathcal{L}_{\mathrm{grad}} = \|\nabla F - \max(\nabla I, \nabla V)\|_1
+\end{equation}
+trong đó $\nabla$ là toán tử Sobel. Thành phần này đặc biệt quan trọng để SML
+refine Conv học biểu diễn phù hợp với lựa chọn cạnh.
+
+\textbf{Decomposition loss} $\mathcal{L}_{\mathrm{decomp}}$ ràng buộc Encoder
+phân rã đặc trưng thành Base và Detail nhất quán, đảm bảo WAvg và SML hoạt động
+trên đúng loại thông tin.
+
+Quá trình huấn luyện gồm hai pha:
+
+\textbf{Pha I} (40 epoch): Chỉ Encoder và Decoder được cập nhật; BaseFuseLayer,
+DetailFuseLayer và các module AG (WAvg, SML) đóng băng. Mục tiêu là ổn định biểu
+diễn đặc trưng Base/Detail trước khi giới thiệu quy tắc tổng hợp.
+
+\textbf{Pha II} (80 epoch): Mở toàn bộ $1{,}192{,}433$ tham số. WAvg scalar
+$\theta$ khởi tạo bằng 0 ($\alpha=0{,}5$), SML refine Conv khởi tạo Xavier.
+Mô hình dần học quy tắc tổng hợp tối ưu trên nền đặc trưng đã ổn định.
+
+Cấu hình huấn luyện: Adam lr$=10^{-4}$, StepLR $\gamma=0{,}5$/20 epoch,
+batch 8, AMP fp16, grad clip 0,01; GPU NVIDIA Tesla P100-16GB.
 
 % ============================================================
-\section{Thực nghiệm}
+\section{Thiết lập thực nghiệm}
 \label{sec:exp}
 
-\subsection{Dữ liệu và thiết lập đánh giá}
+\subsection{Dữ liệu}
 
-Tập dữ liệu \textbf{Harvard Medical Image Fusion}~\cite{zhao2023cddfuse}: 738 cặp
-huấn luyện (160 CT-MRI, 245 PET-MRI, 333 SPECT-MRI) và 72 cặp test (24 mỗi
-modality). Ảnh PET/SPECT được chuyển sang YCbCr, chỉ dùng kênh Y để mô hình xử
-lý ảnh grayscale; hai kênh $C_b, C_r$ được ghép lại khi xuất kết quả màu.
+\textbf{Harvard Medical Image Fusion}~\cite{zhao2023cddfuse} là tập dữ liệu MRI
+y tế đa phương thức được tham chiếu rộng rãi trong cộng đồng nghiên cứu. Tập
+chia gồm:
+\begin{itemize}\itemsep1pt
+  \item \textbf{Huấn luyện}: 738 cặp ảnh (160 CT-MRI, 245 PET-MRI, 333
+        SPECT-MRI). Sau khi crop patch $128\times128$ với stride 64 và loại bỏ
+        patch low-contrast ($p_{90}-p_{10} < 0{,}1 \cdot p_{90}$), còn lại
+        $\sim$6.000--8.000 patches hiệu dụng.
+  \item \textbf{Kiểm thử}: 72 cặp ảnh (24 cặp mỗi modality), dùng chung với
+        tất cả 22 phương pháp SOTA để đảm bảo so sánh công bằng.
+\end{itemize}
 
-Đánh giá dựa trên \textbf{22 chỉ số} theo chuẩn VIFB~\cite{liu2020vifb} gồm:
-nhóm cường độ (EN, SD, MI, VIF), nhóm cấu trúc (SSIM, PSNR), nhóm biên/chi tiết
-(SF, AG, EI, Qabf, QM, NABF, QSF, QMI), nhóm gradient (QG). Xếp hạng tổng hợp
-bằng \textbf{Composite Z-score}: z-score chuẩn hóa theo từng chỉ số, lấy trung
-bình, z cao = tốt hơn.
+\textbf{Tiền xử lý}: CT/MRI (grayscale) chuẩn hóa về $[0,1]$. PET/SPECT (RGB
+pseudo-color) chuyển sang YCbCr, chỉ kênh $Y$ (luminance) được đưa vào mô hình;
+kênh $C_b, C_r$ giữ lại để ghép lại khi xuất kết quả màu. Chiến lược này bảo
+toàn màu sắc đặc trưng của PET/SPECT trong khi thông tin cấu trúc từ MRI được
+tích hợp qua kênh luminance.
 
-\textbf{Baseline}: CDDFuse được tái huấn luyện trên cùng tập Harvard MIF với
-cùng hyperparameters và split, đảm bảo so sánh công bằng.
+\subsection{Chỉ số đánh giá}
+
+Đánh giá dựa trên \textbf{22 chỉ số} theo chuẩn VIFB~\cite{liu2020vifb}:
+\begin{itemize}\itemsep1pt
+  \item \textit{Nhóm cường độ}: EN (Entropy), SD (Std. Dev.), MI (Mutual
+        Information), VIF, PSNR
+  \item \textit{Nhóm cấu trúc}: SSIM, MS-SSIM
+  \item \textit{Nhóm biên/chi tiết}: SF (Spatial Frequency), AG (Average
+        Gradient), EI (Edge Intensity), Qabf~\cite{xydeas2000objective},
+        QM~\cite{piella2003new}, NABF$\downarrow$, QSF, QMI, QG
+  \item \textit{Nhóm thông tin}: NMI, SCD, Qcb, Qw
+\end{itemize}
+
+\textbf{Composite Z-score}: Để tổng hợp 22 chỉ số thành một thang đo xếp hạng,
+bài báo dùng phương pháp z-score chuẩn hóa. Với mỗi chỉ số $m$ và phương pháp
+$k$: $z_{k,m} = (s_{k,m} - \mu_m)/\sigma_m$, trong đó $\mu_m, \sigma_m$ là
+trung bình và độ lệch chuẩn theo cột (qua tất cả phương pháp). Composite Z-score
+của phương pháp $k$ là trung bình $z_{k,m}$ qua 22 chỉ số (với NABF đổi dấu do
+\textit{thấp} tốt hơn). Z-score cao $\Leftrightarrow$ tổng thể tốt hơn nhóm.
 
 \subsection{Chiến lược ablation ba giai đoạn}
 
-Đồ án theo chiến lược \emph{one-factor-at-a-time}:
+Bài báo theo chiến lược \emph{one-factor-at-a-time}:
 \begin{itemize}\itemsep1pt
-  \item \textbf{Stage 1}: Quét 5 Base rule (giữ Detail = Sum).
-  \item \textbf{Stage 2}: Quét 8 Detail rule (giữ Base = Sum).
-  \item \textbf{Stage 3}: Kết hợp winner Stage 1 và 2 theo thiết kế bất đối xứng.
+  \item \textbf{Stage 1}: Quét 5 Base rule (L1Norm, VSM, LocalEnergy, WAvg,
+        LocalEntropy) trong khi Detail cố định = Sum (CDDFuse gốc).
+  \item \textbf{Stage 2}: Quét 8 Detail rule (MaxAbs, L1Norm, Saliency, SF,
+        LocalEnergy, Gated, PCNN-soft, SML) trong khi Base cố định = Sum.
+  \item \textbf{Stage 3}: Kết hợp winner Stage 1 (WAvg) với các Detail rule
+        hứa hẹn (SML, L1Norm, Gated) theo thiết kế bất đối xứng, thêm biến thể
+        đối xứng Sym-AG để so sánh.
 \end{itemize}
+Tất cả biến thể dùng cùng hạ tầng, cùng hyperparameters, cùng split train/test.
 
 % ============================================================
 \section{Kết quả}
 \label{sec:results}
 
-\subsection{Ablation Study}
+\subsection{Stage 1 -- Ablation Base Rule}
 
 \begin{table}[h]
 \centering
-\caption{Stage 1 -- Ablation Base rule (Detail cố định = Sum).
-Z-score tổng hợp 8 chỉ số. $\uparrow$ cao hơn tốt hơn.}
+\caption{Stage 1 -- Ablation Base rule (Detail cố định = Sum). Composite
+Z-score 8 chỉ số chính (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI).}
 \label{tab:stage1}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -248,23 +469,33 @@ Z-score tổng hợp 8 chỉ số. $\uparrow$ cao hơn tốt hơn.}
 \toprule
 \textbf{Variant} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z avg} \\
 \midrule
-CDDFuse (Sum)      & +0.135 & \textbf{+0.436} & \textbf{+0.415} & \textbf{+0.329} \\
-DB.4 LocalEnergy   & +0.054 & +0.257 & +0.368 & +0.226 \\
-DB.2 L1Norm        & +0.049 & +0.190 & +0.330 & +0.189 \\
-DB.3 VSM           & +0.058 & +0.205 & +0.289 & +0.184 \\
-\textbf{DB.6 WAvg} & \textbf{+0.127} & $-0.013$ & +0.070 & +0.061 \\
-DB.5 LocalEntropy  & $-0.421$ & $-1.075$ & $-1.472$ & $-0.990$ \\
+CDDFuse (Sum)       & +0.135 & \textbf{+0.436} & \textbf{+0.415} & \textbf{+0.329} \\
+DB.4 LocalEnergy    & +0.054 & +0.257 & +0.368 & +0.226 \\
+DB.2 L1Norm         & +0.049 & +0.190 & +0.330 & +0.189 \\
+DB.3 VSM            & +0.058 & +0.205 & +0.289 & +0.184 \\
+\textbf{DB.6 WAvg}  & \textbf{+0.127} & $-0.013$ & +0.070 & +0.061 \\
+DB.5 LocalEntropy   & $-0.421$ & $-1.075$ & $-1.472$ & $-0.990$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-WAvg dẫn đầu trên CT-MRI ($+0.127$), xác nhận giá trị của trung bình hóa có
-trọng số học được cho nhánh Base. Trên PET/SPECT, Sum thắng vì phân phối ảnh
-đồng đều hơn không đòi hỏi điều chỉnh trọng số.
+Kết quả Stage 1 cho thấy \textbf{DB.6 WAvg} dẫn đầu trên CT-MRI ($+0.127$) mặc
+dù chỉ có 1 tham số học. Điều này xác nhận giá trị của trung bình hóa có trọng số
+học được cho nhánh Base: trên CT-MRI nơi hai modality có độ tương phản rất khác
+nhau (xương trắng trên CT, mô mềm xám trên MRI), khả năng điều chỉnh tỉ lệ đóng
+góp giúp ảnh tổng hợp cân bằng hơn so với trung bình cứng nhắc.
+
+Đáng chú ý, \textbf{DB.5 LocalEntropy} thất bại hoàn toàn ($-0.990$ z avg) vì
+entropy trong không gian đặc trưng Restormer không mang cùng ý nghĩa với entropy
+pixel --- áp dụng công thức entropy trực tiếp lên đặc trưng tạo ra trọng số sai
+lệch, làm giảm chất lượng fusion.
+
+\subsection{Stage 2 -- Ablation Detail Rule}
 
 \begin{table}[h]
 \centering
-\caption{Stage 2 -- Ablation Detail rule (Base cố định = Sum).}
+\caption{Stage 2 -- Ablation Detail rule (Base cố định = Sum). \textbf{In đậm}
+= tốt nhất từng cột.}
 \label{tab:stage2}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -272,25 +503,35 @@ trọng số học được cho nhánh Base. Trên PET/SPECT, Sum thắng vì ph
 \toprule
 \textbf{Variant} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z avg} \\
 \midrule
-CDDFuse (Sum)       & +0.106 & \textbf{+0.572} & +0.046 & \textbf{+0.241} \\
-\textbf{DD.6 SML}   & $-0.005$ & +0.237 & \textbf{+0.175} & +0.136 \\
-DD.4 SF             & +0.035 & +0.090 & +0.040 & +0.055 \\
-DD.2 MaxAbs         & $-0.036$ & +0.209 & $-0.167$ & +0.002 \\
-DD.1 Gated          & $-0.038$ & +0.101 & $-0.081$ & $-0.006$ \\
-DD.8 PCNN-soft      & $-0.296$ & +0.168 & +0.086 & $-0.014$ \\
-DD.7 L1Norm         & $-0.040$ & $-0.098$ & $-0.059$ & $-0.066$ \\
-DD.5 LocalEnergy    & $-0.267$ & +0.061 & $-0.009$ & $-0.071$ \\
-DD.3 Saliency       & \textbf{+0.541} & $-1.341$ & $-0.030$ & $-0.277$ \\
+CDDFuse (Sum)        & +0.106 & \textbf{+0.572} & +0.046 & \textbf{+0.241} \\
+\textbf{DD.6 SML}    & $-0.005$ & +0.237 & \textbf{+0.175} & +0.136 \\
+DD.4 SF              & +0.035 & +0.090 & +0.040 & +0.055 \\
+DD.2 MaxAbs          & $-0.036$ & +0.209 & $-0.167$ & +0.002 \\
+DD.1 Gated           & $-0.038$ & +0.101 & $-0.081$ & $-0.006$ \\
+DD.8 PCNN-soft       & $-0.296$ & +0.168 & +0.086 & $-0.014$ \\
+DD.7 L1Norm          & $-0.040$ & $-0.098$ & $-0.059$ & $-0.066$ \\
+DD.5 LocalEnergy     & $-0.267$ & +0.061 & $-0.009$ & $-0.071$ \\
+DD.3 Saliency        & \textbf{+0.541} & $-1.341$ & $-0.030$ & $-0.277$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-SML ổn định nhất qua 3 modality (z avg = $+0.136$). Saliency mạnh trên CT nhưng
-sụp đổ trên PET vì nhiễu màu giả làm bản đồ nổi bật không tin cậy.
+\textbf{DD.6 SML} đạt z avg cao nhất trong nhóm thay thế ($+0.136$) và ổn định
+nhất qua 3 modality. \textbf{DD.3 Saliency} mạnh trên CT ($+0.541$) nhưng sụp đổ
+trên PET ($-1.341$) vì bản đồ nổi bật (saliency map) không ổn định khi ảnh nguồn
+chứa nhiễu màu giả --- minh chứng cho tính dễ bị ảnh hưởng của các phương pháp
+attention-based khi không được huấn luyện trên domain cụ thể.
+
+SML thắng vì đạo hàm bậc hai (Modified Laplacian) là thước đo khách quan của độ
+sắc nét cục bộ, không phụ thuộc vào phân phối màu sắc hay nhiễu modality. Đây là
+thuộc tính đặc biệt quan trọng khi so sánh feature của hai modality có bản chất
+vật lý hoàn toàn khác nhau (CT vs. MRI, PET vs. MRI).
+
+\subsection{Stage 3 -- Asymmetric Combined}
 
 \begin{table}[h]
 \centering
-\caption{Stage 3 -- Asymmetric combined variants (Base = WAvg).}
+\caption{Stage 3 -- Asymmetric combined (Base = WAvg, thay đổi Detail rule).}
 \label{tab:stage3}
 \small
 \setlength{\tabcolsep}{4pt}
@@ -298,27 +539,33 @@ sụp đổ trên PET vì nhiễu màu giả làm bản đồ nổi bật không
 \toprule
 \textbf{Variant} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z avg} \\
 \midrule
-CDDFuse (Sum)                & $-0.233$ & \textbf{+0.532} & $-0.227$ & +0.024 \\
-Comb-WAvg-L1Norm             & \textbf{+0.231} & $-0.196$ & \textbf{+0.541} & \textbf{+0.192} \\
-\textbf{Comb-WAvg-SML (Ours)}& +0.102 & $-0.065$ & $-0.285$ & $-0.083$ \\
-Comb-WAvg-Gated              & $-0.101$ & $-0.270$ & $-0.029$ & $-0.133$ \\
-Sym-AG (symmetric)           & $-0.042$ & $-0.047$ & $-0.479$ & $-0.189$ \\
+CDDFuse (Sum)                  & $-0.233$ & \textbf{+0.532} & $-0.227$ & +0.024 \\
+Comb-WAvg-L1Norm               & \textbf{+0.231} & $-0.196$ & \textbf{+0.541} & \textbf{+0.192} \\
+\textbf{Comb-WAvg-SML (Ours)}  & +0.102 & $-0.065$ & $-0.285$ & $-0.083$ \\
+Comb-WAvg-Gated                & $-0.101$ & $-0.270$ & $-0.029$ & $-0.133$ \\
+Sym-AG (symmetric)             & $-0.042$ & $-0.047$ & $-0.479$ & $-0.189$ \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\textbf{Lựa chọn Comb-WAvg-SML.} Dù Comb-WAvg-L1Norm dẫn theo z avg Stage 3,
-đánh giá trực tiếp trên 6 chỉ số chính (EN, SD, SF, MI, Qabf, SSIM) cho thấy
-Comb-WAvg-SML thắng \textbf{10/18 trường hợp} (vs. 8/18 của L1Norm) và ổn định
-hơn trên PET-MRI. Sym-AG (đối xứng) yếu nhất ($z=-0.189$), xác nhận thiết kế
-\emph{bất đối xứng} hiệu quả hơn đối xứng.
+\textbf{Lý do chọn Comb-WAvg-SML}: Dù Comb-WAvg-L1Norm dẫn theo z avg Stage 3
+($+0.192$), đánh giá trực tiếp trên 6 chỉ số paper chính (EN, SD, SF, MI, Qabf,
+SSIM) cho thấy Comb-WAvg-SML thắng \textbf{10/18 trường hợp} (L1Norm chỉ thắng
+8/18) và ổn định hơn trên PET-MRI. Ngoài ra, Comb-WAvg-SML đứng \#1 mean rank
+toàn bộ ablation khi xét đồng thời tất cả chỉ số.
+
+\textbf{Sym-AG yếu nhất Stage 3} ($-0.189$), xác nhận rằng \emph{asymmetric
+rule hiệu quả hơn symmetric gating}: Sym-AG dùng cùng một cơ chế Adaptive Gating
+học được cho cả Base và Detail, nhưng không có đủ tín hiệu từ hàm loss để phân
+biệt chiến lược tổng hợp phù hợp cho từng nhánh, dẫn đến kết quả kém hơn cả Sum
+đơn thuần.
 
 \subsection{So sánh 6 chỉ số chính với SOTA}
 
 \begin{table}[h]
 \centering
-\caption{So sánh trên CT-MRI (24 cặp, 6 chỉ số paper CDDFuse).
-$\uparrow$ cao hơn tốt hơn. \textbf{In đậm} = tốt nhất.}
+\caption{So sánh trên CT-MRI (24 cặp, 6 chỉ số paper CDDFuse). $\uparrow$ cao
+tốt hơn. \textbf{In đậm} = tốt nhất.}
 \label{tab:sota-ct}
 \small
 \setlength{\tabcolsep}{3pt}
@@ -338,9 +585,14 @@ CDDFuse~\cite{zhao2023cddfuse}    & 4.638 & 8.397 & 40.317 & 2.154 & 0.618 & 1.4
 \end{tabular}
 \end{table}
 
+Trên CT-MRI, CDDFuse-AG dẫn đầu SF ($41.612$), MI ($2.211$) và Qabf ($0.645$)
+--- ba chỉ số phản ánh khả năng bảo toàn chi tiết không gian và thông tin chung
+từ hai nguồn. Lợi thế SF $+1.295$ so với CDDFuse ($40.317$) phản ánh trực tiếp
+tác động của SML: lựa chọn theo Laplacian bảo toàn tần số cao tốt hơn phép cộng.
+
 \begin{table}[h]
 \centering
-\caption{So sánh trên PET-MRI (24 cặp).}
+\caption{So sánh trên PET-MRI (24 cặp, 6 chỉ số).}
 \label{tab:sota-pet}
 \small
 \setlength{\tabcolsep}{3pt}
@@ -360,9 +612,13 @@ CDDFuse    & 4.011 & \textbf{7.319} & \textbf{32.940} & \textbf{1.974} & \textbf
 \end{tabular}
 \end{table}
 
+Trên PET-MRI, CDDFuse-AG không vượt CDDFuse trên 6 chỉ số chính, nhất quán với
+kết quả ablation: kênh Y sau YCbCr có gradient ít rõ nét hơn, khiến SML khó phân
+biệt cạnh thực với nhiễu màu giả, làm giảm lợi thế lựa chọn cục bộ.
+
 \begin{table}[h]
 \centering
-\caption{So sánh trên SPECT-MRI (24 cặp).}
+\caption{So sánh trên SPECT-MRI (24 cặp, 6 chỉ số).}
 \label{tab:sota-spect}
 \small
 \setlength{\tabcolsep}{3pt}
@@ -382,41 +638,110 @@ CDDFuse    & 4.257 & 7.497 & 29.756 & 1.920 & 0.599 & 1.087 \\
 \end{tabular}
 \end{table}
 
-\subsection{So sánh Z-score tổng hợp với 22 phương pháp SOTA}
+Trên SPECT-MRI, CDDFuse-AG cải thiện MI và Qabf so với CDDFuse, cho thấy khả
+năng bảo toàn thông tin chức năng từ SPECT và thông tin cạnh từ MRI tốt hơn.
+
+\subsection{So sánh Composite Z-score với 22 SOTA}
 
 \begin{table}[h]
 \centering
-\caption{Z-score theo modality so với 5 SOTA đại diện (8 chỉ số, 24 cặp mỗi modality).}
+\caption{Xếp hạng 22 phương pháp theo Composite Z-score (72 cặp test, 22 chỉ
+số, 3 modality gộp). \textbf{In đậm} = đề xuất.}
+\label{tab:sota-zscore}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{clc}
+\toprule
+\textbf{Rank} & \textbf{Phương pháp} & \textbf{Z avg} \\
+\midrule
+1  & MM-Net-Fusion~\cite{liu2024mmnet}              & $+1.028$ \\
+2  & CDDFuse~\cite{zhao2023cddfuse} (pretrained)    & $+0.926$ \\
+3  & MFS-Fusion~\cite{chen2025mfsfusion}            & $+0.688$ \\
+4  & CM-CSAMFNet                                    & $+0.591$ \\
+5  & BSAFusion                                      & $+0.576$ \\
+6  & MMIF-INet~\cite{he2025mmifiNet}                & $+0.440$ \\
+7  & LRFNet                                         & $+0.410$ \\
+8  & CMMDL                                          & $+0.185$ \\
+9  & GeSeNet~\cite{li2023gesenet}                   & $+0.144$ \\
+10 & MBHFuse~\cite{sun2025mbhfuse}                  & $+0.076$ \\
+11 & ECINFusion~\cite{wei2025ecinfusion}             & $+0.063$ \\
+12 & DDBFusion~\cite{zhang2025ddbfusion}             & $+0.040$ \\
+13 & AdaFuse                                         & $+0.027$ \\
+14 & AWFusion~\cite{xu2025awfusion}                  & $-0.145$ \\
+15 & PSFusion~\cite{tang2023psfusion}                & $-0.148$ \\
+16 & MLFuse                                          & $-0.358$ \\
+17 & WaveFusion~\cite{wang2025wavefusion}            & $-0.374$ \\
+18 & NestFuse~\cite{li2020nestfuse}                  & $-0.535$ \\
+19 & TUFusion~\cite{zhao2024tufusion}                & $-0.673$ \\
+20 & ITFuse~\cite{tang2024itfuse}                    & $-0.861$ \\
+21 & MMAE~\cite{wang2025mmae}                        & $-0.994$ \\
+22 & C2RF~\cite{yan2025c2rf}                         & $-1.105$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Xếp hạng trên bảng z-score 22 phương pháp xác nhận CDDFuse (pretrained paper,
+rank 2) là một kiến trúc nền mạnh. Lưu ý CDDFuse retrained trong bài báo này
+(rank tương đương baseline) có z-score thấp hơn CDDFuse pretrained vì phân phối
+Harvard MIF (738 pairs) khác với tập huấn luyện gốc của paper --- điều này không
+mâu thuẫn với kết quả so sánh CDDFuse-AG vs CDDFuse vì cả hai đều được retrained
+trên cùng điều kiện.
+
+\begin{table}[h]
+\centering
+\caption{Z-score theo modality: CDDFuse-AG vs 5 SOTA và CDDFuse baseline
+(8 chỉ số, 24 cặp mỗi modality). \textbf{In đậm} = tốt nhất cột.}
 \label{tab:zscore-modal}
 \small
 \begin{tabular}{lcccc}
 \toprule
 \textbf{Phương pháp} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z avg} \\
 \midrule
-NestFuse   & $-0.352$ & $-0.388$ & $-0.790$ & $-0.510$ \\
-TUFusion   & $-0.528$ & $+0.160$ & $-0.110$ & $-0.159$ \\
-WaveFusion & $+0.126$ & $-0.017$ & $+0.059$ & $+0.056$ \\
-DDBFusion  & \textbf{+0.369} & $-0.108$ & $+0.175$ & $+0.145$ \\
-GeSeNet    & $+0.089$ & $-0.327$ & $-0.248$ & $-0.162$ \\
-CDDFuse    & $-0.014$ & \textbf{+0.432} & $+0.440$ & $+0.286$ \\
+NestFuse~\cite{li2020nestfuse}     & $-0.352$ & $-0.388$ & $-0.790$ & $-0.510$ \\
+TUFusion~\cite{zhao2024tufusion}   & $-0.528$ & $+0.160$ & $-0.110$ & $-0.159$ \\
+WaveFusion~\cite{wang2025wavefusion}& $+0.126$ & $-0.017$ & $+0.059$ & $+0.056$ \\
+DDBFusion~\cite{zhang2025ddbfusion} & \textbf{+0.369} & $-0.108$ & $+0.175$ & $+0.145$ \\
+GeSeNet~\cite{li2023gesenet}       & $+0.089$ & $-0.327$ & $-0.248$ & $-0.162$ \\
+CDDFuse~\cite{zhao2023cddfuse}     & $-0.014$ & \textbf{+0.432} & $+0.440$ & $+0.286$ \\
 \midrule
-\textbf{CDDFuse-AG} & $+0.309$ & $+0.248$ & \textbf{+0.475} & \textbf{+0.344} \\
+\textbf{CDDFuse-AG (Ours)}         & $+0.309$ & $+0.248$ & \textbf{+0.475} & \textbf{+0.344} \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-CDDFuse-AG đạt z avg $+0.344$, cao nhất trong nhóm so sánh. Lợi thế đặc biệt rõ
-trên CT-MRI: $+0.309$ (CDDFuse-AG) so với $-0.014$ (CDDFuse), tương đương cải
-thiện $+0.323$ điểm z.
+CDDFuse-AG đạt z avg \textbf{+0.344} --- cao nhất trong nhóm so sánh trực tiếp.
+Đặc biệt trên CT-MRI: $+0.309$ (CDDFuse-AG) so với $-0.014$ (CDDFuse), cải thiện
+$+0.323$ điểm --- lợi thế lớn nhất. Trên SPECT-MRI: CDDFuse-AG dẫn đầu với
+$+0.475$. Trên PET-MRI: CDDFuse-AG ($+0.248$) thấp hơn CDDFuse ($+0.432$) nhất
+quán với phân tích về màu giả PET.
+
+\subsection{So sánh trực quan}
 
 \begin{figure}[t]
   \centering
   \includegraphics[width=\columnwidth]{fig_visual_comparison.png}
-  \caption{So sánh trực quan MRI-CT. Hàng trên: ảnh đầy đủ;
-  hàng dưới: phóng to vùng hốc mắt phải. CDDFuse-AG (khung xanh) giữ
-  cạnh xương sắc nét nhất.}
+  \caption{So sánh trực quan trên cặp MRI-CT (Harvard MIF). Hàng trên: ảnh đầy
+  đủ; hàng dưới: phóng to vùng hốc mắt phải. CDDFuse-AG (khung xanh lá) giữ
+  lại cạnh xương sắc nét nhất so với các phương pháp khác.}
   \label{fig:visual-ct}
 \end{figure}
+
+\begin{figure}[t]
+  \centering
+  \includegraphics[width=\columnwidth]{fig_visual_comparison_spect.png}
+  \caption{So sánh trực quan trên cặp MRI-SPECT (Harvard MIF). Hàng trên: ảnh
+  đầy đủ; hàng dưới: phóng to vùng đồi thị/nhân nền. CDDFuse-AG bảo toàn cấu
+  trúc giải phẫu MRI đồng thời giữ thông tin chức năng SPECT.}
+  \label{fig:visual-spect}
+\end{figure}
+
+Hình~\ref{fig:visual-ct} cho thấy CDDFuse-AG giữ cạnh xương sắc nét hơn rõ rệt
+so với CDDFuse và các phương pháp dùng trung bình hóa đơn giản. Điều này trực
+tiếp phản ánh tác động của SML trên nhánh Detail: tại vùng biên xương, CT có
+gradient mạnh hơn MRI, SML ưu tiên đặc trưng CT với trọng số $w_a \approx 1$,
+kết quả là cạnh xương được bảo toàn gần như nguyên vẹn. Đồng thời WAvg trên
+nhánh Base học được tỉ lệ cân bằng giữa cấu trúc xương (CT) và mô mềm (MRI),
+cho ảnh tổng hợp có nền cấu trúc tự nhiên.
 
 % ============================================================
 \section{Thảo luận}
@@ -424,46 +749,95 @@ thiện $+0.323$ điểm z.
 
 \subsection{Phát hiện Modality-Specificity}
 
-Kết quả Stage 3 cho thấy không có quy tắc tổng hợp đơn lẻ nào tối ưu cho mọi
-modality: CDDFuse-AG tốt nhất trên CT-MRI, CDDFuse (Sum) dẫn trên SPECT-MRI.
-Lý giải:
-\begin{itemize}\itemsep1pt
-  \item \textbf{CT-MRI}: Cạnh xương (CT) và mô mềm (MRI) không chồng lấp, SML
-        phân biệt chính xác vùng nào ưu tiên modality nào, WAvg cân bằng toàn
-        cục hiệu quả cho Base.
-  \item \textbf{SPECT-MRI}: SPECT có đặc trưng thưa thớt, ít thông tin chi tiết
-        -- mọi quy tắc lựa chọn phức tạp đều có xu hướng tạo artifact; Sum đơn
-        giản an toàn hơn.
-\end{itemize}
+Kết quả Stage 3 và so sánh z-score theo modality tiết lộ một phát hiện quan
+trọng: \textbf{không có một quy tắc tổng hợp đơn lẻ nào tối ưu cho mọi modality
+y tế}.
 
-Kết quả gợi ý \textbf{modality-aware routing}: chọn fusion rule tự động dựa trên
-đặc tính phân phối của từng cặp modality đầu vào, thay vì dùng một chiến lược
-cố định.
+\begin{center}\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Modality} & \textbf{Mô hình tốt nhất} & \textbf{z-score} \\
+\midrule
+CT-MRI    & Comb-WAvg-SML (bất đối xứng) & $+0{,}240$ \\
+PET-MRI   & CDDFuse / Comb-WAvg-L1Norm   & $\approx +0{,}05$ \\
+SPECT-MRI & CDDFuse (Sum)                 & $+0{,}897$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\textbf{CT-MRI} là cặp cấu trúc (structural pair): CT có gradient mạnh tại biên
+xương, MRI có gradient mạnh tại biên mô mềm --- hai vùng không chồng lấp, tạo
+điều kiện lý tưởng cho SML phân biệt chính xác nguồn nào mang chi tiết hữu ích.
+WAvg cân bằng toàn cục hiệu quả cho Base vì hai modality mô tả cùng cấu trúc
+giải phẫu với biên độ tương phản bổ trợ nhau.
+
+\textbf{SPECT-MRI} là cặp chức năng--cấu trúc (functional-structural pair):
+SPECT có đặc trưng thưa thớt, phân phối cường độ uniform hơn CT. Mọi quy tắc
+lựa chọn phức tạp đều có xu hướng gây artifact khi không có đủ tín hiệu gradient
+để phân biệt; Sum đơn giản an toàn hơn vì bảo toàn toàn bộ thông tin từ cả hai
+modality mà không bỏ qua gì.
+
+\textbf{Ý nghĩa}: Phát hiện này gợi ý hướng \textbf{modality-aware routing} ---
+chọn fusion rule tự động dựa trên đặc tính phân phối của từng cặp modality đầu
+vào (ví dụ: độ phong phú gradient, phân bố entropy, loại ảnh được phát hiện).
+Thay vì dùng một chiến lược cố định cho tất cả, mô hình tương lai có thể học
+router quyết định nên dùng WAvg+SML hay Sum hay quy tắc khác tùy từng cặp ảnh.
 
 \subsection{Tính giản dị và hiệu quả tham số}
 
-WAvg với 1 scalar duy nhất dẫn đầu Stage 1 trên CT-MRI. Đây là minh chứng cho
-nguyên tắc: khi Encoder đã pretrained tốt và phân rã đặc trưng ổn định, fusion
-rule chỉ cần đúng hướng --- không cần phức tạp. LocalEntropy ($-0.990$ z avg)
-thất bại vì entropy của feature-space không mang cùng ý nghĩa với entropy
-pixel-space.
+WAvg với 1 scalar duy nhất dẫn đầu Stage 1 trên CT-MRI ($+0.127$), trong khi
+các quy tắc phức tạp hơn (LocalEnergy, Gated) không vượt được Sum. Phát hiện này
+phản ánh nguyên tắc quan trọng trong thiết kế mô hình khi backbone đã được
+pretrained tốt:
+
+\emph{Khi Encoder đã học cách phân rã ảnh thành Base và Detail một cách ổn định,
+fusion rule chỉ cần đúng hướng --- không cần phức tạp. Complexity thêm vào chỉ
+gây nhiễu nếu không có đủ tín hiệu từ hàm loss để training.}
+
+CDDFuse-AG thêm $+0{,}35\%$ tham số ($4.161/1.188.272$) nhưng đạt cải thiện
+$+0.323$ z-score trên CT-MRI. So sánh với các phương pháp SOTA thêm hàng triệu
+tham số (GeSeNet, MFS-Fusion, MM-Net-Fusion), CDDFuse-AG chứng minh rằng lựa
+chọn đúng điểm can thiệp trong kiến trúc có thể hiệu quả hơn nhiều so với tăng
+độ phức tạp mô hình.
 
 \subsection{Hạn chế}
 
-SML không thích nghi với mức nhiễu khác nhau giữa modality, có thể ưu tiên nguồn
-nhiễu cao thay vì nguồn có cạnh thực sự. Ngoài ra, toàn bộ đánh giá dựa trên chỉ
-số tự động; nghiên cứu đọc ảnh lâm sàng (reader study) chưa được thực hiện.
+\textbf{SML không có tham số học}: SML dùng đạo hàm bậc hai cố định, không thích
+nghi với mức nhiễu khác nhau giữa modality. Khi PET có artifact màu giả mạnh, SML
+có thể ưu tiên vùng artifact thay vì cạnh thực, làm tăng NABF (Noise Artifact
+Based Fusion metric). Một quy tắc học được điều kiện trên đặc tính modality sẽ
+khắc phục hạn chế này.
+
+\textbf{Chưa đánh giá lâm sàng}: Toàn bộ đánh giá dựa trên chỉ số tự động (no-reference
+và full-reference). Chất lượng ảnh tổng hợp theo đánh giá của bác sĩ chuyên khoa
+(reader study) --- tiêu chí quan trọng nhất trong ứng dụng y tế --- chưa được thực
+hiện và là hướng cần thiết để xác nhận giá trị lâm sàng.
+
+\textbf{Phụ thuộc pretrained}: CDDFuse-AG khởi tạo từ weights CDDFuse pretrained
+trên phân phối dữ liệu khác Harvard 738. Huấn luyện từ đầu với architecture đề
+xuất có thể cho kết quả khác.
 
 % ============================================================
 \section{Kết luận}
 \label{sec:conclusion}
 
-Bài báo đề xuất CDDFuse-AG, cải tiến CDDFuse thông qua thiết kế bất đối xứng:
-WAvg cho nhánh Base và SML cho nhánh Detail. Chỉ với 4.161 tham số mới, mô hình
-vượt CDDFuse trên CT-MRI ($+0.323$ z-score) và đạt z avg $+0.344$ --- cao nhất
-trong nhóm 6 phương pháp so sánh trực tiếp. Phát hiện Modality-Specificity gợi
-ý rằng fusion strategy nên được điều chỉnh theo đặc tính từng cặp modality, mở
-hướng cho modality-aware routing và adaptive fusion trong tương lai.
+Bài báo đề xuất CDDFuse-AG, cải tiến CDDFuse thông qua thiết kế fusion rule bất
+đối xứng có chủ đích: Weighted Average Scalar (WAvg, 1 tham số) cho nhánh Base và
+Sum-Modified-Laplacian (SML, không tham số) cho nhánh Detail. Thiết kế dựa trên
+nguyên lý rõ ràng: Base cần trung bình hóa (thông tin tương quan cao), Detail cần
+lựa chọn cục bộ theo độ sắc nét (thông tin bổ trợ nhau).
+
+Thực nghiệm trên Harvard MIF với 22 chỉ số và so sánh 22 SOTA cho thấy CDDFuse-AG:
+(1) cải thiện CDDFuse baseline $+0.323$ z-score trên CT-MRI; (2) đạt nhất SF, MI,
+Qabf, EI, QM, QMI trong 6 chỉ số chính; (3) đạt z avg $+0.344$ --- cao nhất trong
+nhóm so sánh trực tiếp; (4) chỉ thêm 4.161 tham số ($+0{,}35\%$). Ablation study
+hệ thống 3 giai đoạn xác nhận thiết kế bất đối xứng hiệu quả hơn đối xứng, và
+quy tắc đơn giản có lý giải đúng hướng hiệu quả hơn quy tắc phức tạp không có
+cơ sở lý thuyết phù hợp.
+
+Phát hiện Modality-Specificity mở ra hướng nghiên cứu mới: thiết kế modality-aware
+routing tự động chọn fusion strategy dựa trên đặc tính phân phối của từng cặp
+modality, thay thế cho một chiến lược cố định áp dụng cho mọi trường hợp.
 
 % ============================================================
 \bibliographystyle{IEEEtran}

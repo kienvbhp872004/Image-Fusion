@@ -44,6 +44,18 @@ H.~Li, X.-J. Wu, and T.~S. Durrani, ``{NestFuse}: An infrared and visible image
   models,'' \emph{IEEE Transactions on Instrumentation and Measurement},
   vol.~69, no.~12, pp. 9645--9656, 2020.
 
+\bibitem{dosovitskiy2020vit}
+A.~Dosovitskiy, L.~Beyer, A.~Kolesnikov, D.~Weissenborn, X.~Zhai,
+  T.~Unterthiner, M.~Dehghani, M.~Minderer, G.~Heigold, S.~Gelly, J.~Uszkoreit,
+  and N.~Houlsby, ``An image is worth 16x16 words: Transformers for image
+  recognition at scale,'' in \emph{International Conference on Learning
+  Representations (ICLR)}, 2021.
+
+\bibitem{zamir2022restormer}
+S.~W. Zamir, A.~Arora, S.~Khan, M.~Hayat, F.~S. Khan, and M.-H. Yang,
+  ``Restormer: Efficient transformer for high-resolution image restoration,''
+  in \emph{CVPR}, 2022.
+
 \bibitem{li2023gesenet}
 J.~Li, J.~Liu, S.~Zhou, Q.~Zhang, and N.~K. Kasabov, ``{GeSeNet}: A general
   semantic-guided network with couple mask ensemble for medical image fusion,''
@@ -61,6 +73,34 @@ Y.~Liu, C.~Yu, J.~Cheng, Z.~J. Wang, and X.~Chen, ``{MM-Net}: A
   fusion,'' \emph{IEEE Transactions on Image Processing}, vol.~33, pp.
   2197--2212, 2024.
 
+\bibitem{he2025mmifiNet}
+D.~He, W.~Li, G.~Wang, Y.~Huang, and S.~Liu, ``{MMIF-INet}: Multimodal medical
+  image fusion by invertible network,'' \emph{Information Fusion}, vol. 114, p.
+  102666, 2025.
+
+\bibitem{sun2025mbhfuse}
+Y.~Sun, M.~Dong, M.~Yu, and L.~Zhu, ``{MBHFuse}: A multi-branch heterogeneous
+  global and local infrared and visible image fusion with differential
+  convolutional amplification features,'' \emph{Optics and Laser Technology},
+  vol. 181, p. 111666, 2025.
+
+\bibitem{wei2025ecinfusion}
+X.~Wei, Y.~Qiu, X.~Xu, J.~Xu, J.~Mei, and J.~Zhang, ``{ECINFusion}: A novel
+  explicit channel-wise interaction network for unified multi-modal medical
+  image fusion,'' \emph{IEEE Transactions on Circuits and Systems for Video
+  Technology}, vol.~35, no.~5, pp. 4011--4025, 2025.
+
+\bibitem{wang2025mmae}
+X.~Wang, L.~Fang, J.~Zhao, Z.~Pan, H.~Li, and Y.~Li, ``{MMAE}: A universal
+  image fusion method via mask attention mechanism,'' \emph{Pattern
+  Recognition}, vol. 158, p. 111041, 2025.
+
+\bibitem{zhao2024tufusion}
+Y.~Zhao, Q.~Zheng, P.~Zhu, X.~Zhang, and W.~Ma, ``{TUFusion}: A
+  transformer-based universal fusion algorithm for multimodal images,''
+  \emph{IEEE Transactions on Circuits and Systems for Video Technology},
+  vol.~34, no.~3, pp. 1712--1725, 2024.
+
 \bibitem{huang2007sml}
 W.~Huang and Z.~Jing, ``Evaluation of focus measures in multi-focus image
   fusion,'' \emph{Pattern Recognition Letters}, vol.~28, no.~4, pp. 493--500,
@@ -72,11 +112,14 @@ X.~Liu, Z.~Mei, R.~Zhan, G.~Xiang, B.~Fang, and J.~Zhang, ``{VIFB}: A visible
   Conference on Computer Vision and Pattern Recognition Workshops (CVPRW)},
   2020.
 
-\bibitem{zhao2024tufusion}
-Y.~Zhao, Q.~Zheng, P.~Zhu, X.~Zhang, and W.~Ma, ``{TUFusion}: A
-  transformer-based universal fusion algorithm for multimodal images,''
-  \emph{IEEE Transactions on Circuits and Systems for Video Technology},
-  vol.~34, no.~3, pp. 1712--1725, 2024.
+\bibitem{xydeas2000objective}
+C.~S. Xydeas and V.~Petrovic, ``Objective image fusion performance measure,''
+  \emph{Electronics Letters}, vol.~36, no.~4, pp. 308--309, 2000.
+
+\bibitem{piella2003new}
+G.~Piella and H.~Heijmans, ``A new quality metric for image fusion,''
+  \emph{Proceedings of the International Conference on Image Processing
+  (ICIP)}, vol.~3, pp. III--173, 2003.
 
 \bibitem{wang2025wavefusion}
 Q.~Wang, Z.~Li, S.~Zhang, N.~Chi, and Q.~Dai, ``{WaveFusion}: A novel wavelet
@@ -88,5 +131,26 @@ Q.~Wang, Z.~Li, S.~Zhang, N.~Chi, and Q.~Dai, ``{WaveFusion}: A novel wavelet
 Z.~Zhang, H.~Li, T.~Xu, X.-J. Wu, and J.~Kittler, ``{DDBFusion}: An unified
   image decomposition and fusion framework based on dual decomposition and
   {B\'{e}zier} curves,'' \emph{Information Fusion}, vol. 114, p. 102655, 2025.
+
+\bibitem{xu2025awfusion}
+H.~Xu, G.~Liu, M.~Ruan, L.~Huang, and Z.~Wang, ``{AWFusion}: An adaptive
+  end-to-end wave-based method for infrared and visible image fusion,''
+  \emph{Pattern Recognition}, p. 112660, 2025.
+
+\bibitem{tang2023psfusion}
+L.~Tang, H.~Zhang, H.~Xu, and J.~Ma, ``Rethinking the necessity of image fusion
+  in high-level vision tasks: A practical infrared and visible image fusion
+  network based on progressive semantic injection and scene fidelity,''
+  \emph{Information Fusion}, vol.~99, p. 101870, 2023.
+
+\bibitem{tang2024itfuse}
+W.~Tang, F.~He, and Y.~Liu, ``{ITFuse}: An interactive transformer for infrared
+  and visible image fusion,'' \emph{Pattern Recognition}, vol. 156, p. 110822,
+  2024.
+
+\bibitem{yan2025c2rf}
+Q.~Yan \emph{et~al.}, ``{C2RF}: Bridging multi-modal image registration and
+  fusion via commonality mining and contrastive learning,'' \emph{International
+  Journal of Computer Vision}, 2025.
 
 \end{thebibliography}
