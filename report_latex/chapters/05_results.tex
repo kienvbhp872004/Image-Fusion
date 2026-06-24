@@ -29,7 +29,7 @@ Seed & 42 \\
 Tập dữ liệu \emph{Harvard Medical Image Fusion} \cite{zhao2023cddfuse} đã được chia sẵn train/test:
 \begin{itemize}\itemsep0pt
     \item \textbf{Huấn luyện}: 738 cặp ảnh ($160$ CT-MRI + $245$ PET-MRI + $333$ SPECT-MRI). Sau khi crop patch $128 \times 128$ với stride $64$ và loại bỏ patch low-contrast, còn lại $\sim 6000$--$8000$ patches dùng cho training.
-    \item \textbf{Đánh giá}: 72 cặp test (24 mỗi modality CT, PET, SPECT), dùng chung với các phương pháp SOTA trong Bảng~\ref{tab:sota-raw-metrics}.
+    \item \textbf{Đánh giá}: 72 cặp test (24 mỗi modality CT, PET, SPECT), dùng chung với các phương pháp SOTA trong Bảng~\ref{tab:sota-ct}--\ref{tab:sota-spect}.
 \end{itemize}
 
 \section{Tiền xử lý dữ liệu huấn luyện}
