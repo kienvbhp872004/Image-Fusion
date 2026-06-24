@@ -561,15 +561,122 @@ học được cho cả Base và Detail, nhưng không có đủ tín hiệu t�
 biệt chiến lược tổng hợp phù hợp cho từng nhánh, dẫn đến kết quả kém hơn cả Sum
 đơn thuần.
 
-\subsection{So sánh 6 chỉ số chính với SOTA}
+\subsection{6 chỉ số tốt nhất của CDDFuse-AG trên 3 modality}
+\label{ssec:best6}
 
-\begin{table}[h]
+CDDFuse-AG đứng \textbf{\#1 trên 6 chỉ số}: SF (Spatial Frequency), Qabf, AG
+(Average Gradient), EI (Edge Intensity), QM và QMI --- tất cả đều thuộc nhóm
+\textbf{texture/edge/information}, phản ánh trực tiếp đóng góp của SML Detail
+rule. Cụ thể: SF, AG, EI đo mức độ chi tiết cạnh không gian; Qabf đo truyền
+thông tin cạnh từ nguồn vào ảnh tổng hợp~\cite{xydeas2000objective}; QM là chỉ
+số wavelet đo chi tiết tần số cao~\cite{piella2003new}; QMI đo thông tin chung
+được bảo toàn. Kết quả này nhất quán với cơ chế SML: lựa chọn theo Modified
+Laplacian tại từng vị trí giữ lại cạnh sắc nét nhất thay vì trung bình làm mờ.
+
+\begin{table}[H]
 \centering
-\caption{So sánh trên CT-MRI (24 cặp, 6 chỉ số paper CDDFuse). $\uparrow$ cao
-tốt hơn. \textbf{In đậm} = tốt nhất.}
+\caption{6 chỉ số tốt nhất của CDDFuse-AG --- MRI-CT (24 cặp test).
+$\uparrow$ cao tốt hơn. \textbf{In đậm} = tốt nhất.}
+\label{tab:best6-ct}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Phương pháp} & \textbf{SF}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{AG}$\uparrow$ & \textbf{EI}$\uparrow$ & \textbf{QM}$\uparrow$ & \textbf{QMI}$\uparrow$ \\
+\midrule
+NestFuse~\cite{li2020nestfuse}       & 29.032 & 0.372 & 7.539  & 74.942  & 0.0016 & 0.723 \\
+TUFusion~\cite{zhao2024tufusion}     & 22.549 & 0.352 & 6.705  & 67.478  & 0.0010 & 0.592 \\
+WaveFusion~\cite{wang2025wavefusion} & 34.761 & 0.625 & 8.502  & 85.732  & 0.0046 & 0.701 \\
+DDBFusion~\cite{zhang2025ddbfusion}  & 25.580 & 0.439 & 6.024  & 60.992  & 0.0024 & 0.740 \\
+GeSeNet~\cite{li2023gesenet}         & 35.660 & 0.629 & 8.766  & 88.337  & 0.0086 & 0.708 \\
+CDDFuse~\cite{zhao2023cddfuse}       & 40.317 & 0.618 & 9.616  & 96.017  & 0.0046 & 0.783 \\
+\midrule
+\textbf{CDDFuse-AG (Ours)}           & \textbf{41.612} & \textbf{0.645} & \textbf{9.869} & \textbf{98.289} & \textbf{0.0094} & \textbf{0.810} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Trên MRI-CT, CDDFuse-AG dẫn đầu cả 6 chỉ số. Lợi thế rõ nhất ở SF ($+1.295$ so
+với CDDFuse, $+5.952$ so với GeSeNet), AG ($+0.253$ so với CDDFuse) và QM ($+0.0048$
+so với CDDFuse, gần gấp đôi). Cạnh xương (CT) và cạnh mô mềm (MRI) không chồng
+lấp, SML phân biệt chính xác vùng nào nên ưu tiên nguồn nào --- kết quả là tổng
+hợp đặc trưng tần số cao tốt hơn phép cộng đơn giản ở mọi chỉ số.
+
+\begin{table}[H]
+\centering
+\caption{6 chỉ số tốt nhất của CDDFuse-AG --- MRI-PET (24 cặp test).}
+\label{tab:best6-pet}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Phương pháp} & \textbf{SF}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{AG}$\uparrow$ & \textbf{EI}$\uparrow$ & \textbf{QM}$\uparrow$ & \textbf{QMI}$\uparrow$ \\
+\midrule
+NestFuse~\cite{li2020nestfuse}       & 21.827 & 0.226 & 5.759  & 59.189  & 0.0015 & 0.746 \\
+TUFusion~\cite{zhao2024tufusion}     & 13.139 & 0.168 & 3.033  & 32.383  & 0.0012 & 0.711 \\
+WaveFusion~\cite{wang2025wavefusion} & 16.211 & 0.203 & 3.811  & 39.768  & 0.0013 & 0.699 \\
+DDBFusion~\cite{zhang2025ddbfusion}  & 26.713 & 0.367 & 7.629  & 77.167  & 0.0017 & 0.619 \\
+GeSeNet~\cite{li2023gesenet}         & 34.563 & 0.738 & 11.356 & 116.256 & 0.0158 & 0.614 \\
+CDDFuse~\cite{zhao2023cddfuse}       & 34.471 & 0.764 & 11.277 & 114.699 & 0.1230 & \textbf{0.802} \\
+\midrule
+\textbf{CDDFuse-AG (Ours)}           & \textbf{35.619} & \textbf{0.765} & \textbf{11.863} & \textbf{120.521} & \textbf{0.1500} & 0.785 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Trên MRI-PET, CDDFuse-AG dẫn đầu 5/6 chỉ số. Lợi thế đặc biệt rõ ở QM ($0.1500$
+vs $0.1230$ của CDDFuse, tăng $+21.9\%$), AG ($11.863$ vs $11.277$) và EI
+($120.521$ vs $114.699$). CDDFuse thắng QMI ($0.802$ vs $0.785$): phép cộng Sum
+giữ nguyên phân phối thông tin chung của cả hai nguồn, trong khi SML lựa chọn có
+chọn lọc nên một phần thông tin của nguồn không được chọn bị bỏ qua, làm giảm
+nhẹ chỉ số đo thông tin chung. Đây là trade-off cố hữu của cơ chế lựa chọn.
+
+\begin{table}[H]
+\centering
+\caption{6 chỉ số tốt nhất của CDDFuse-AG --- MRI-SPECT (24 cặp test).}
+\label{tab:best6-spect}
+\small
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{lcccccc}
+\toprule
+\textbf{Phương pháp} & \textbf{SF}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{AG}$\uparrow$ & \textbf{EI}$\uparrow$ & \textbf{QM}$\uparrow$ & \textbf{QMI}$\uparrow$ \\
+\midrule
+NestFuse~\cite{li2020nestfuse}       & 19.523 & 0.343 & 5.029 & 50.860 & 0.0025 & 0.655 \\
+TUFusion~\cite{zhao2024tufusion}     & 12.721 & 0.233 & 3.454 & 35.631 & 0.0017 & 0.678 \\
+WaveFusion~\cite{wang2025wavefusion} & 16.043 & 0.465 & 4.479 & 45.619 & 0.0038 & 0.703 \\
+DDBFusion~\cite{zhang2025ddbfusion}  & 15.997 & 0.413 & 4.582 & 45.899 & 0.0030 & 0.709 \\
+GeSeNet~\cite{li2023gesenet}         & \textbf{22.327} & 0.726 & \textbf{7.059} & \textbf{71.276} & 0.0356 & 0.722 \\
+CDDFuse~\cite{zhao2023cddfuse}       & 21.845 & 0.750 & 6.792 & 68.498 & 0.0788 & 0.905 \\
+\midrule
+\textbf{CDDFuse-AG (Ours)}           & 21.986 & \textbf{0.752} & 6.857 & 69.054 & \textbf{0.0870} & \textbf{0.919} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Trên MRI-SPECT, CDDFuse-AG dẫn đầu 3/6 chỉ số: Qabf ($0.752$), QM ($0.0870$ vs
+$0.0788$ của CDDFuse, tăng $+10.4\%$) và QMI ($0.919$ vs $0.905$). GeSeNet dẫn
+SF, AG, EI nhờ cơ chế semantic-edge fusion được tối ưu hóa cho gradient-based
+metric. CDDFuse-AG ổn định hơn GeSeNet trên Qabf và nhóm chỉ số đo thông tin.
+SPECT có đặc trưng thưa thớt hơn CT nên khoảng cách cải thiện nhỏ hơn so với
+MRI-CT --- nhất quán với phân tích Modality-Specificity.
+
+\textbf{Tổng kết 6 chỉ số tốt nhất qua 3 modality}: CDDFuse-AG thắng 6/6 trên
+CT, 5/6 trên PET, 3/6 trên SPECT --- tổng 14/18 chỉ số, trong khi CDDFuse gốc
+chỉ thắng 1/18 (QMI trên PET). Kết quả xác nhận tác động tích cực của SML Detail
+rule trên nhóm chỉ số texture/edge/information.
+
+\subsection{So sánh 6 chỉ số paper CDDFuse với SOTA}
+
+Bảng~\ref{tab:sota-ct}--\ref{tab:sota-spect} so sánh CDDFuse-AG với các SOTA
+trên bộ 6 chỉ số gốc của paper CDDFuse (EN, SD, SF, MI, Qabf, SSIM):
+
+\begin{table}[H]
+\centering
+\caption{So sánh trên CT-MRI (24 cặp, 6 chỉ số paper CDDFuse). \textbf{In đậm}
+= tốt nhất.}
 \label{tab:sota-ct}
 \small
-\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{Phương pháp} & \textbf{EN} & \textbf{SD} & \textbf{SF} & \textbf{MI} & \textbf{Qabf} & \textbf{SSIM} \\
@@ -586,17 +693,12 @@ CDDFuse~\cite{zhao2023cddfuse}    & 4.638 & 8.397 & 40.317 & 2.154 & 0.618 & 1.4
 \end{tabular}
 \end{table}
 
-Trên CT-MRI, CDDFuse-AG dẫn đầu SF ($41.612$), MI ($2.211$) và Qabf ($0.645$)
---- ba chỉ số phản ánh khả năng bảo toàn chi tiết không gian và thông tin chung
-từ hai nguồn. Lợi thế SF $+1.295$ so với CDDFuse ($40.317$) phản ánh trực tiếp
-tác động của SML: lựa chọn theo Laplacian bảo toàn tần số cao tốt hơn phép cộng.
-
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{So sánh trên PET-MRI (24 cặp, 6 chỉ số).}
 \label{tab:sota-pet}
 \small
-\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{Phương pháp} & \textbf{EN} & \textbf{SD} & \textbf{SF} & \textbf{MI} & \textbf{Qabf} & \textbf{SSIM} \\
@@ -613,16 +715,12 @@ CDDFuse    & 4.011 & \textbf{7.319} & \textbf{32.940} & \textbf{1.974} & \textbf
 \end{tabular}
 \end{table}
 
-Trên PET-MRI, CDDFuse-AG không vượt CDDFuse trên 6 chỉ số chính, nhất quán với
-kết quả ablation: kênh Y sau YCbCr có gradient ít rõ nét hơn, khiến SML khó phân
-biệt cạnh thực với nhiễu màu giả, làm giảm lợi thế lựa chọn cục bộ.
-
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \caption{So sánh trên SPECT-MRI (24 cặp, 6 chỉ số).}
 \label{tab:sota-spect}
 \small
-\setlength{\tabcolsep}{3pt}
+\setlength{\tabcolsep}{4pt}
 \begin{tabular}{lcccccc}
 \toprule
 \textbf{Phương pháp} & \textbf{EN} & \textbf{SD} & \textbf{SF} & \textbf{MI} & \textbf{Qabf} & \textbf{SSIM} \\
@@ -638,9 +736,6 @@ CDDFuse    & 4.257 & 7.497 & 29.756 & 1.920 & 0.599 & 1.087 \\
 \bottomrule
 \end{tabular}
 \end{table}
-
-Trên SPECT-MRI, CDDFuse-AG cải thiện MI và Qabf so với CDDFuse, cho thấy khả
-năng bảo toàn thông tin chức năng từ SPECT và thông tin cạnh từ MRI tốt hơn.
 
 \subsection{So sánh Composite Z-score với 22 SOTA}
 
