@@ -32,13 +32,13 @@
 \usepackage{titlesec}
 \usepackage{titletoc}
 
-% Chapter heading in body: "CHƯƠNG X. Tên chương"
-\titleformat{\chapter}[hang]
-  {\normalfont\large\bfseries}{CHƯƠNG \thechapter.}{0.6em}{}
-\titlespacing*{\chapter}{0pt}{-20pt}{20pt}
-\titleformat{name=\chapter,numberless}[hang]
-  {\normalfont\large\bfseries}{}{0pt}{}
-\titlespacing*{name=\chapter,numberless}{0pt}{-20pt}{20pt}
+% Chapter heading in body: centered, two lines "CHƯƠNG X" + "Tên chương"
+\titleformat{\chapter}[display]
+  {\normalfont\LARGE\bfseries\centering}{CHƯƠNG \thechapter}{0pt}{}
+\titlespacing*{\chapter}{0pt}{-10pt}{24pt}
+\titleformat{name=\chapter,numberless}[display]
+  {\normalfont\LARGE\bfseries\centering}{}{0pt}{}
+\titlespacing*{name=\chapter,numberless}{0pt}{-10pt}{24pt}
 
 % TOC: chapter entries bold with "CHƯƠNG X." prefix
 \titlecontents{chapter}
