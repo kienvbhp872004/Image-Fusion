@@ -160,7 +160,7 @@ Toàn bộ $1{,}192{,}433$ tham số được huấn luyện end-to-end. Encoder
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.97\textwidth]{figures/fusion_diagram_cddag.png}
-\caption{Kiến trúc CDDFuse-AG. Ảnh đầu vào $I$ (đỏ) và $V$ (xanh) đi qua chung một Encoder để tạo đặc trưng Base ($f_I^B, f_V^B$) và Detail ($f_I^D, f_V^D$). Fusion Layer áp dụng bất đối xứng: WAvg cho nhánh Base, SML cho nhánh Detail. Hai đầu ra $F_B$, $F_D$ được nối kênh (C) rồi đưa vào Decoder tái tạo ảnh tổng hợp $F$.}
+\caption{Kiến trúc CDDFuse-AG: Encoder dùng chung trọng số trích xuất đặc trưng Base/Detail, Fusion Layer áp dụng bất đối xứng (WAvg cho Base, SML cho Detail), Decoder tái tạo ảnh tổng hợp $F$.}
 \label{fig:cddfuse-ag-arch}
 \end{figure}
 
