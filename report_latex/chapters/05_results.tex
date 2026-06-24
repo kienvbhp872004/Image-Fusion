@@ -132,7 +132,7 @@ Cấu hình chung: Adam $\mathrm{lr}=10^{-4}$, StepLR $\gamma=0{,}5$/20 epoch, b
 \end{table}
 
 \begin{tcolorbox}[colback=blue!4!white, colframe=blue!40!black, title=Nhận xét, fonttitle=\bfseries, left=4pt, right=4pt, top=3pt, bottom=3pt]
-CDDFuse đạt thứ hạng cao nhờ kiến trúc dual-branch Transformer tách biệt thông tin tần số thấp (Base) và tần số cao (Detail) thành hai nhánh độc lập, cho phép chiến lược tổng hợp phù hợp với từng loại thông tin. Kiến trúc này phù hợp đặc biệt với dữ liệu y tế đa phương thức vì MRI và CT/PET/SPECT mang bản chất bổ trợ rõ ràng --- MRI cung cấp cấu trúc mô mềm trong khi ảnh chức năng cung cấp thông tin trao đổi chất. CDDFuse được tái huấn luyện trên đúng tập Harvard MIF của đồ án, đảm bảo phân phối dữ liệu nhất quán, xác nhận đây là nền tảng đủ mạnh để áp dụng các cải tiến.
+CDDFuse đạt thứ hạng cao nhờ kiến trúc dual-branch Transformer tách biệt tần số thấp (Base) và tần số cao (Detail), phù hợp với dữ liệu y tế đa phương thức nơi MRI cung cấp cấu trúc mô mềm còn CT/PET/SPECT cung cấp thông tin chức năng. CDDFuse được tái huấn luyện trên đúng tập Harvard MIF, phân phối dữ liệu nhất quán, xác nhận đây là nền tảng đủ mạnh để áp dụng các cải tiến.
 \end{tcolorbox}
 
 % ================================================================
@@ -264,7 +264,12 @@ CDDFuse~\cite{zhao2023cddfuse}  & $-0.014$ & \textbf{+0.432} & +0.440 & +0.286 \
 \end{table}
 
 \begin{tcolorbox}[colback=blue!4!white, colframe=blue!40!black, title=Nhận xét, fonttitle=\bfseries, left=4pt, right=4pt, top=3pt, bottom=3pt]
-CDDFuse-AG cải thiện tốt nhất trên CT-MRI vì hai modality có vùng cạnh không chồng lấp (xương vs.\ mô mềm), tạo điều kiện lý tưởng cho SML phân biệt nguồn nào mang chi tiết hữu ích tại từng điểm ảnh. Trên PET, gradient kênh Y sau chuyển đổi YCbCr kém rõ nét hơn, làm giảm lợi thế của SML. SPECT có tương phản trao đổi chất cao nên SML hoạt động hiệu quả, cho kết quả z-score tốt nhất trong 3 modality.
+Kết quả xác nhận giả thuyết \emph{asymmetric fusion}: WeightedAvg phù hợp với Base (tần số thấp, tương quan cao) và SML phù hợp với Detail (tần số cao, bổ trợ nhau --- nên lựa chọn thay vì trung bình).
+\begin{itemize}\itemsep0pt
+  \item \textbf{CT}: CT và MRI có cạnh đặc thù ở các vùng khác nhau (xương, mô mềm), SML phân biệt chính xác nguồn nào mang tần số cao hữu ích tại từng điểm ảnh.
+  \item \textbf{PET}: Kênh Y sau chuyển đổi YCbCr có gradient ít rõ nét hơn CT, khiến SML khó phân biệt cạnh thực với nhiễu màu giả, làm giảm lợi thế.
+  \item \textbf{SPECT}: Tương phản trao đổi chất cao tạo gradient mạnh và rõ ràng --- SML hoạt động hiệu quả nhất trong 3 modality.
+\end{itemize}
 \end{tcolorbox}
 
 % ================================================================
@@ -428,7 +433,13 @@ Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt 
 \end{table}
 
 \begin{tcolorbox}[colback=blue!4!white, colframe=blue!40!black, title=Nhận xét, fonttitle=\bfseries, left=4pt, right=4pt, top=3pt, bottom=3pt]
-CDDFuse-AG dẫn đầu SF, Qabf, AG, EI, QM, QMI --- đây đều là chỉ số nhóm biên/chi tiết --- vì SML lựa chọn theo vị trí modality có cạnh sắc nét hơn thay vì trung bình làm mờ. Lợi thế lớn nhất trên CT-MRI (cạnh xương và mô mềm không chồng lấp); giảm nhẹ trên PET do gradient kênh Y ít rõ nét sau chuyển đổi YCbCr, đồng thời làm tăng nhẹ NABF vì SML nhạy cảm với cả artifact màu giả.
+Kết quả nhất quán với cơ chế hoạt động của từng rule:
+\begin{itemize}\itemsep0pt
+  \item \textbf{CT}: Vùng cạnh xương (CT) và mô mềm (MRI) không chồng lấp --- SML lựa chọn có chọn lọc, bảo toàn cạnh từ cả hai nguồn thay vì trung bình làm mờ.
+  \item \textbf{PET}: CDDFuse (Sum) thắng QMI vì phép cộng giữ nguyên phân phối thông tin chung; SML lựa chọn chọn lọc làm giảm nhẹ thông tin chung đo bởi QMI.
+  \item \textbf{SPECT}: GeSeNet dẫn SF/AG/EI nhờ cơ chế semantic-edge fusion; CDDFuse-AG dẫn Qabf/QM/QMI nhờ SML bảo toàn chi tiết tần số cao phù hợp hơn với chỉ số đo thông tin.
+\end{itemize}
+\textbf{Trade-off:} SML nhạy với artifact từ mã hóa màu giả của PET, làm tăng nhẹ NABF --- cái giá của rule không tham số thay vì rule học được.
 \end{tcolorbox}
 
 % ── Visual comparison ─────────────────────────────────────────────────────────
