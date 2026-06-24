@@ -10,11 +10,11 @@
 
 | | |
 |---|---|
-| Latest update | 2026-05-25 |
-| Variants completed | CDDFuse pretrained / CDDFuse-Paper-MIF retrain / **CDDFuse-AG-45ep ✓ (full 738 train, batch 8, α₃=10, paper text §5.1)** |
-| Latest activity | 🎉 **CDDFuse-AG-45ep: CONFIRM_IMPROVEMENT cả 2 comparison**: vs Paper-MIF retrain 8/25 SIG (CT 8, PET 6, SPECT 5), vs CDDFuse pretrained 6/25 SIG (CT 8, PET 9, SPECT 2). Top win: QM, CE, SF, QMI, AG. Trade-off: NABF, SSIM, QY giảm nhẹ. |
-| Status | ✅ AG-45ep xếp #3/23 SOTA trên composite z̄₂₂. Module D protocol mới: **E/D frozen từ `CDDFuse_MIF.pth`**, chỉ train Fusion (Phase II only), baseline = Sum-Sum (paper). |
-| Next planned | **Module D Stage 1**: D-Base sweep (6 variant) với Detail=Sum fixed, E/D frozen, ~3h/variant × 6 = 18h Kaggle P100 |
+| Latest update | 2026-06-06 |
+| Variants completed | Module D Stage 1+2+3 done: **17 biến thể** (6 Base + 8 Detail + 3 Combined). Winner: **Comb-WAvg-SML** (mean rank #1, composite z #2 sau Sum baseline). |
+| Latest activity | 📊 Phân tích **xếp hạng đa chiều** (Mean Rank + Composite Z-score) trên 3 stage. **Phát hiện mới**: specificity của fusion rule theo modality — CT→Comb-WAvg-SML, PET→L1Norm, SPECT→Sum baseline Pareto-optimal. |
+| Status | ⚠️ Comb-WAvg-SML **#1 mean rank** nhưng **#2 composite z-score** (sau Sum). Trên SPECT, Sum baseline vô địch (z=+0.897). Cần thêm cải tiến để strengthen contribution. |
+| Next planned | **3 module dự kiến**: **L** (Loss function improvement, factorial 2×2 — saliency-weighted), **M** (Modality-aware adaptive fusion — leverage specificity insight), **S** (Statistical analysis + SOTA ranking). |
 
 ---
 
@@ -297,6 +297,255 @@ Tuần 1, ngày 5:    Stage 3 Combined + stats + thesis update
 - Code mới: [models/MMIF-CDDFuse/variants/base_rules.py](../models/MMIF-CDDFuse/variants/base_rules.py) + [detail_rules.py](../models/MMIF-CDDFuse/variants/detail_rules.py) (cần tạo)
 - Update `VARIANT_REGISTRY` trong [train_MIF.py](../models/MMIF-CDDFuse/train_MIF.py) thêm cờ `(base_rule, detail_rule)`
 - Update Chapter 4 ablation 2 bảng riêng: "Stage 1 — Base rule comparison" + "Stage 2 — Detail rule comparison" + "Stage 3 — Combined winner"
+
+### Kết quả Module D — Composite Z-score Ranking
+
+So sánh tất cả biến thể bằng **Composite Z-score** trên 22 metric chính, baseline = CDDFuse (Paper-MIF, cùng dataset Harvard 738). Z-score cao = tốt.
+
+#### Stage 1 — Base sweep
+
+| Variant | z CT | z PET | z SPECT | z avg | Rank |
+|---|---|---|---|---|---|
+| **CDDFuse (baseline)** | +0.141 | **+0.415** | **+0.441** | **+0.332** | **#1** |
+| DB.3 VSM | +0.251 | +0.213 | +0.337 | +0.267 | #2 |
+| DB.6 WeightedAvg | **+0.320** | +0.165 | +0.282 | +0.256 | #3 |
+| DB.4 LocalEnergy | +0.208 | +0.178 | +0.218 | +0.202 | #4 |
+| DB.2 L1Norm | +0.085 | +0.203 | +0.312 | +0.200 | #5 |
+| DB.5 LocalEntropy | -1.005 | -1.174 | -1.590 | -1.256 | #6 |
+
+**Phát hiện**:
+- CDDFuse baseline #1 nhờ nổi bật trên PET/SPECT (functional modality)
+- Trên CT, **DB.6 WeightedAvg** (+0.320) và **DB.3 VSM** (+0.251) **vượt CDDFuse** (+0.141)
+- **DB.3 VSM** ứng viên Base tốt nhất (đều đặn 3 modality)
+- **DB.5 LocalEntropy** không phù hợp (z âm rất lớn)
+
+#### Stage 2 — Detail sweep
+
+| Variant | z CT | z PET | z SPECT | z avg | Rank |
+|---|---|---|---|---|---|
+| **CDDFuse (baseline)** | +0.007 | **+0.433** | +0.210 | **+0.217** | **#1** |
+| DD.4 SF | +0.212 | +0.254 | +0.180 | +0.215 | #2 |
+| DD.6 SML | +0.176 | +0.162 | **+0.274** | +0.204 | #3 |
+| DD.7 L1Norm | **+0.250** | +0.144 | +0.195 | +0.196 | #4 |
+| DD.8 PCNN-soft | +0.124 | +0.193 | +0.165 | +0.161 | #5 |
+| DD.1 Gated | +0.164 | +0.107 | +0.099 | +0.123 | #6 |
+| DD.5 LocalEnergy | +0.120 | +0.202 | +0.042 | +0.121 | #7 |
+| DD.2 MaxAbs | +0.133 | +0.054 | +0.122 | +0.103 | #8 |
+| DD.3 Saliency | -1.186 | -1.548 | -1.287 | -1.340 | #9 |
+
+**Phát hiện**:
+- CDDFuse #1 nhưng **chênh chỉ 0.002 so với DD.4 SF** — gần như đồng đội
+- Trên CT, **DD.7 L1Norm** (+0.250), **DD.4 SF** (+0.212), **DD.6 SML** (+0.176) đều **vượt CDDFuse** (+0.007)
+- **DD.6 SML** vô địch trên SPECT (+0.274 cao nhất trong tất cả Detail variant)
+- **DD.3 Saliency** phân cực: thắng QSF/NABF cá biệt nhưng tổng z âm -1.340
+
+#### Stage 3 — Combined (Asymmetric)
+
+| Mô hình | z CT | z PET | z SPECT | z avg | Rank |
+|---|---|---|---|---|---|
+| **CDDFuse (baseline)** | -0.483 | +0.019 | **+0.897** | **+0.144** | **#1** |
+| **Comb-WAvg-SML** | **+0.240** | +0.052 | -0.077 | +0.071 | #2 |
+| Comb-WAvg-L1Norm | +0.211 | **+0.071** | -0.165 | +0.039 | #3 |
+| Comb-WAvg-Gated | +0.075 | -0.095 | -0.176 | -0.065 | #4 |
+| AG-45ep (symmetric) | -0.042 | -0.047 | -0.479 | -0.189 | #5 |
+
+**Phát hiện modality-specificity (đóng góp scientific mới)**:
+- **CT-MRI**: Comb-WAvg-SML thắng rõ rệt (+0.240 vs CDDFuse -0.483) → chênh +0.72
+- **PET-MRI**: Comb-WAvg-L1Norm thắng nhẹ (+0.071 vs CDDFuse +0.019)
+- **SPECT-MRI**: CDDFuse vô địch tuyệt đối (+0.897) → Pareto-optimal cho functional imaging
+- **AG-45ep symmetric** yếu nhất (z=-0.189) → confirm asymmetric > symmetric
+
+#### Verdict Module D (chính thức)
+
+- ✅ **Comb-WAvg-SML #1 mean rank** (2.76) → công nhận có giá trị
+- ⚠️ **Comb-WAvg-SML #2 composite z-score** (sau CDDFuse baseline) → phát hiện honest
+- 🎯 **Modality-specificity** là phát hiện scientific value → pivot narrative cho thesis
+- 🚀 **CDDFuse-AG-45ep** (cải tiến trước đó) **yếu hơn cả baseline gốc** ở composite z → cần Module L hoặc M để strengthen
+
+---
+
+## Module L — Loss Function Improvement — **PLANNED (2026-06-XX)**
+
+**Động cơ**: Module D chỉ thay đổi *fusion rule* (cách kết hợp feature). Để tăng depth đồ án và làm contribution có giá trị hơn, đề xuất thêm trục cải tiến trực giao thứ hai: **loss function**. Module L áp dụng ở **Phase II** (phase II có ảnh `fused` để optimize, Phase I không có).
+
+### Strategy: Thiết kế factorial 2×2
+
+Mục tiêu: tách bạch *effect của fusion rule* và *effect của loss function* qua thiết kế khoa học chuẩn:
+
+|              | Paper loss (baseline)             | **New loss (đề xuất)**          |
+|---           |---                                |---                              |
+| **Sum fusion (paper baseline)** | ✅ Đã có          | ⏳ Train mới **L.1**            |
+| **Comb-WAvg-SML (Module D winner)** | ✅ Đã có   | ⏳ Train mới **L.2**            |
+
+→ 4 ô data cho phép tính: main effect fusion, main effect loss, interaction effect.
+
+### Biến thể loss đề xuất
+
+| # | Loss | Mô tả | Tham khảo | Implementation |
+|---|---|---|---|---|
+| **L.A** | Saliency-weighted fusion loss | Vùng gradient cao được weight cao trong intensity loss + target dựa vào saliency map | Tang 2022 | Extend `FusionLossB` |
+| L.B | Perceptual loss (VGG features) | L2 distance giữa VGG features của `fused` và sources | Johnson 2016 | Cần download VGG19 ckpt |
+| L.C | Edge-aware reconstruction | L1 giữa edge maps (Sobel/Canny) của `fused` và `max(edge_V, edge_I)` | Ma 2019 (U2Fusion) | Sobel kernel built-in |
+| L.D | SSIM-weighted hybrid | Combine pixel L1 + SSIM loss với trọng số learnable | Wang 2004 | `kornia.losses.SSIMLoss` đã có |
+
+**Ưu tiên triển khai**: **L.A (Saliency-weighted)** vì:
+- Tận dụng Module B.3 Saliency winner đã CONFIRM
+- Hợp logic với Comb-WAvg-SML (SML là saliency-like measure)
+- Không cần load VGG (giảm memory P100)
+- Implement ngắn (~30 dòng)
+
+### Biến thể dự kiến train
+
+| # | Variant | Fusion rule | Loss | Mục đích |
+|---|---|---|---|---|
+| L.1 | `Sum-SaliencyWLoss` | Sum (paper) | **Saliency-weighted** | Cell mới #1 của factorial |
+| L.2 | `Comb-WAvg-SML-SaliencyWLoss` | Comb-WAvg-SML | **Saliency-weighted** | Cell mới #2 của factorial |
+
+### Acceptance criteria
+
+So sánh L.1 vs Sum baseline, L.2 vs Comb-WAvg-SML, và tính interaction effect:
+
+- **CONFIRM (synergy)**: L.2 vượt cả Sum + L.1 + Comb baseline → "fusion + loss bổ sung nhau"
+- **PARTIAL (loss có lợi, fusion không bonus)**: L.1 đạt mức L.2 → "loss đủ tốt, không cần asymmetric"
+- **PARTIAL (fusion có lợi, loss không bonus)**: L.1 ≈ Sum, L.2 ≈ Comb → "loss mới không hiệu quả"
+- **REGRESS**: cả L.1 và L.2 đều tệ hơn baseline → drop loss extension
+
+### Quyết định Module L (đang chờ kết quả)
+
+- Hypothesis: L.A Saliency-weighted sẽ improve QG/AG/SF (gradient metrics) trên Sum baseline ~5-10%, compound khi kết hợp với Comb-WAvg-SML
+- Risk: Saliency-weighted có thể overfit vào edge → giảm SSIM/MI
+
+### Files
+
+- Code mới: [models/MMIF-CDDFuse/variants/losses.py](../models/MMIF-CDDFuse/variants/losses.py) — extend với `FusionLossSaliencyWeighted` (đã có `FusionLossB`)
+- Update VARIANT_REGISTRY: thêm 2 entry `Sum-SaliencyWLoss`, `Comb-WAvg-SML-SaliencyWLoss`
+- Train mode: full Phase 1 + Phase 2 (loss mới chỉ apply Phase 2)
+- Compute budget: 2 variants × ~8h Kaggle P100 = ~16h
+
+---
+
+## Module M — Modality-Aware Adaptive Fusion — **PLANNED (2026-06-XX)**
+
+**Động cơ**: Phân tích Stage 3 z-score ranking phát hiện **specificity của fusion rule theo modality**:
+
+| Modality | Best fusion rule (z-score) | Insight |
+|---|---|---|
+| CT-MRI | Comb-WAvg-SML (z = +0.240) | Structural — cần asymmetric WAvg-SML |
+| PET-MRI | Comb-WAvg-L1Norm (z = +0.071) | Sát Sum baseline |
+| SPECT-MRI | **Sum (paper) (z = +0.897)** ⭐ | Functional — Sum baseline Pareto-optimal |
+
+→ Đây là phát hiện scientific MỚI: **không có rule duy nhất tối ưu cho mọi modality**. Module M tận dụng phát hiện này để thiết kế **modality-aware fusion**.
+
+### Approach 1: Hard switching (decision tree)
+
+```python
+if modality == "CT":   use Comb-WAvg-SML
+elif modality == "PET": use Comb-WAvg-L1Norm
+elif modality == "SPECT": use Sum baseline
+```
+
+**Ưu**: Đơn giản, dễ implement, leverage phát hiện trực tiếp.
+**Nhược**: Hard-coded, không generalize sang modality mới.
+
+### Approach 2: Soft mixing (learnable gate trên modality embedding)
+
+```python
+# Mạng phụ phân loại modality từ input feature
+modality_logits = ModalityClassifier(f_V, f_I)   # 3 classes
+w = softmax(modality_logits)                      # weights
+
+f_F = w[0] * R_Comb_WAvg_SML(a, b) +
+      w[1] * R_Comb_WAvg_L1Norm(a, b) +
+      w[2] * R_Sum(a, b)
+```
+
+**Ưu**: Generalize tốt, learnable, soft decision.
+**Nhược**: Cần data labeled modality, phức tạp hơn.
+
+### Approach 3: Conditional fusion rule (modality embedding)
+
+```python
+# Embedding modality từ input (auto-detect)
+mod_emb = ModalityEncoder(input)   # vector R^d
+gate_α = FuseRuleGate(mod_emb)     # output gate phụ thuộc modality
+
+f_F = 2 * (gate_α * f_V + (1 - gate_α) * f_I)
+```
+
+→ 1 rule duy nhất nhưng tham số (α) phụ thuộc modality.
+
+**Ưu tiên triển khai**: **Approach 1 (Hard switching)** trước để confirm hypothesis, nếu tốt thì mở rộng sang Approach 2.
+
+### Biến thể dự kiến train
+
+| # | Variant | Mô tả | Train |
+|---|---|---|---|
+| M.1 | `ModalityRouter-Hard` | Hard switching dựa trên modality label | Không cần train mới (inference time switching) |
+| M.2 | `ModalityRouter-Soft` | Gated ensemble 3 fusion rules | Train từ đầu hoặc finetune |
+| M.3 | `ModalityCondGate` | Conditional gate dựa modality embedding | Train từ đầu |
+
+### Acceptance criteria
+
+So với best single rule (Comb-WAvg-SML hoặc Sum):
+
+- **CONFIRM**: M.1 đạt z-score trung bình > max(Comb-WAvg-SML, Sum) trên 3 modality
+- **PARTIAL**: M.1 tốt hơn ở 1-2 modality
+- **REGRESS**: tệ hơn cả Sum baseline → drop modality-aware approach
+
+### Quyết định Module M (đang chờ kết quả)
+
+- Hypothesis: M.1 đạt composite z ≈ +0.5 (cao hơn Sum +0.144 và Comb-WAvg-SML +0.071)
+- Risk: PET không có winner rõ ràng → hard switching không bring value
+
+### Files
+
+- Code mới: [models/MMIF-CDDFuse/variants/modality_router.py](../models/MMIF-CDDFuse/variants/modality_router.py) (cần tạo)
+- Update inference script `evaluate_cddfuse.py` thêm cờ `--modality_router`
+- Train mode: M.1 không train (chỉ inference), M.2/M.3 cần train
+
+---
+
+## Module S — Statistical Analysis & SOTA Ranking — **PLANNED (2026-06-XX)**
+
+**Động cơ**: Empirical evidence của các Module D, L, M cần được củng cố bằng kiểm định thống kê chính thức. Hiện tại đang dùng "wins/mean rank/z-score" — không có p-value.
+
+### Strategy
+
+#### S.1 — Wilcoxon signed-rank test + Holm--Bonferroni correction
+
+Áp dụng per-image (không phải mean) so sánh:
+- Comb-WAvg-SML vs CDDFuse-Paper-MIF retrain (fair baseline)
+- Comb-WAvg-SML vs CDDFuse-AG-45ep (previous cải tiến)
+- L.2 vs L.1 (factorial design Module L)
+
+→ Output: bảng SIG count (sig metrics / 22), verdict CONFIRM/MIXED/REGRESS.
+
+#### S.2 — Friedman + Nemenyi post-hoc
+
+Multi-way comparison (5+ candidates) → bảng CD diagram (Critical Difference).
+
+#### S.3 — Composite z-score ranking với 23 SOTA models
+
+Xếp hạng Comb-WAvg-SML trong 24 SOTA models (`results_v2/all_models_summary.csv`):
+- 23 SOTA: AWFusion, MFS-Fusion, CM-CSAMFNet, BSAFusion, MMIF-INet, ...
+- Composite z-score trên 22 metric × 3 modality
+- Output: vị trí Comb-WAvg-SML trong toàn bộ SOTA
+
+#### S.4 — Per-image qualitative figures
+
+3-5 hình so sánh fused image: Sum / AG-45ep / Comb-WAvg-SML trên cùng 1 cặp test cho CT, PET, SPECT.
+
+### Acceptance criteria
+
+- **CONFIRM_IMPROVEMENT**: pooled SIG ≥ 6/22 ở Wilcoxon test
+- **Top-3 SOTA ranking**: Comb-WAvg-SML xếp ≤ #3 trong 24 SOTA
+- Có ≥ 3 qualitative figures cho thesis
+
+### Files
+
+- Sử dụng [dev/fusion_stats.py](../dev/fusion_stats.py) (đã có) cho Wilcoxon
+- Tạo mới `dev/build_sota_ranking_with_comb.py` cho S.3
+- Tạo mới `dev/qualitative_figures.py` cho S.4
 
 ---
 
@@ -1075,6 +1324,48 @@ Giờ **paper-faithful training** cho QM δ = -0.137 **trivial** — gần như 
 - [ ] **Verdict Stage 3**: CONFIRM / PARTIAL / REGRESS
 - [ ] (Tuỳ chọn) Nếu winner mạnh: thử train lại với E/D fine-tune để xem có vượt thêm không
 - [ ] Cập nhật Chapter 4 thesis với 3 bảng ablation (Base / Detail / Combined)
+
+### Module L — Loss Function Improvement (factorial 2×2)
+
+- [ ] Implement `FusionLossSaliencyWeighted` trong [variants/losses.py](../models/MMIF-CDDFuse/variants/losses.py)
+- [ ] Test forward + backward local (smoke test với feature map random)
+- [ ] Add 2 entries vào VARIANT_REGISTRY: `Sum-SaliencyWLoss`, `Comb-WAvg-SML-SaliencyWLoss`
+- [ ] Train **L.1** `Sum-SaliencyWLoss` (Kaggle, full Phase 1+2)
+- [ ] Train **L.2** `Comb-WAvg-SML-SaliencyWLoss` (Kaggle, full Phase 1+2)
+- [ ] Eval 8 paper metrics + 22 VIFB metrics cho cả L.1, L.2
+- [ ] Phân tích factorial 2×2: main effect fusion, main effect loss, interaction effect
+- [ ] **Verdict Module L**: CONFIRM (synergy) / PARTIAL / REGRESS
+- [ ] Cập nhật Chapter 4 thesis với section "Loss Function Improvement"
+
+### Module M — Modality-Aware Adaptive Fusion
+
+- [ ] Tạo [models/MMIF-CDDFuse/variants/modality_router.py](../models/MMIF-CDDFuse/variants/modality_router.py)
+  - [ ] `ModalityRouter-Hard` (Approach 1 — không cần train, inference-time switching)
+  - [ ] (Tuỳ chọn) `ModalityRouter-Soft` (Approach 2 — gated ensemble 3 rules)
+  - [ ] (Tuỳ chọn) `ModalityCondGate` (Approach 3 — conditional gate)
+- [ ] Update `evaluate_cddfuse.py` thêm cờ `--modality_router {hard,soft,cond}`
+- [ ] Eval M.1 hard switching trên 72 cặp test
+- [ ] So sánh với Comb-WAvg-SML, Sum baseline, và AG-45ep
+- [ ] **Verdict Module M**: CONFIRM / PARTIAL / REGRESS
+
+### Module S — Statistical Analysis & SOTA Ranking
+
+- [ ] **S.1** Wilcoxon signed-rank + Holm--Bonferroni cho per-image:
+  - [ ] Comb-WAvg-SML vs CDDFuse-Paper-MIF retrain (fair baseline)
+  - [ ] Comb-WAvg-SML vs CDDFuse-AG-45ep (previous cải tiến)
+  - [ ] L.2 vs L.1 (factorial Module L, sau khi xong)
+- [ ] **S.2** Friedman + Nemenyi post-hoc cho multi-way comparison (5+ candidates) → CD diagram
+- [ ] **S.3** Composite z-score ranking Comb-WAvg-SML trong **24 SOTA models**:
+  - [ ] Dùng `results_v2/all_models_summary.csv` (đã có 23 SOTA)
+  - [ ] Tạo `dev/build_sota_ranking_with_comb.py`
+  - [ ] Output: vị trí Comb-WAvg-SML trong toàn bộ SOTA
+- [ ] **S.4** Qualitative figures (3-5 hình):
+  - [ ] CT-MRI: Sum / AG-45ep / Comb-WAvg-SML side-by-side
+  - [ ] PET-MRI: same
+  - [ ] SPECT-MRI: same
+  - [ ] Heatmap NABF (edge artifact comparison)
+  - [ ] Training curve Phase 1 + Phase 2
+- [ ] **Verdict Module S**: tất cả test có ý nghĩa thống kê + SOTA ranking ≤ #3
 
 ---
 

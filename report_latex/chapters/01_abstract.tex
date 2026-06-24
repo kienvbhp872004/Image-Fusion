@@ -1,20 +1,25 @@
 \chapter*{Tóm tắt}
 \addcontentsline{toc}{chapter}{Tóm tắt}
 
-Tổng hợp ảnh đa phương thức y tế là quá trình kết hợp thông tin từ nhiều loại ảnh chụp khác nhau --- ví dụ CT, MRI, PET, SPECT --- thành một ảnh duy nhất giúp bác sĩ vừa quan sát được cấu trúc giải phẫu, vừa thấy được thông tin chức năng của cơ quan. Đây là một công cụ hỗ trợ chẩn đoán đã được ứng dụng rộng rãi trong khám và điều trị các bệnh lý phức tạp như ung thư, đột quỵ và bệnh thần kinh.
+Tổng hợp ảnh đa phương thức y tế là quá trình kết hợp thông tin từ nhiều loại ảnh chụp khác nhau --- ví dụ CT, MRI, PET, SPECT --- thành một ảnh duy nhất giúp bác sĩ vừa quan sát được cấu trúc giải phẫu, vừa nắm bắt được thông tin chức năng của cơ quan. Đây là công cụ hỗ trợ chẩn đoán quan trọng trong điều trị các bệnh lý phức tạp như ung thư, đột quỵ và rối loạn thần kinh.
 
-Bài toán đối mặt với nhiều thách thức: mỗi phương thức chụp có đặc tính cường độ và độ tương phản rất khác nhau, gây khó khăn cho việc giữ lại đầy đủ thông tin hữu ích của cả hai mà không tạo ra ảo ảnh ở vùng biên; dữ liệu y tế công khai có kích thước nhỏ làm cho việc huấn luyện và đánh giá tốn kém; và không có một chỉ số duy nhất phản ánh toàn diện chất lượng ảnh tổng hợp --- thường phải đánh giá đồng thời trên hàng chục chỉ số khác nhau.
+Mô hình CDDFuse \cite{zhao2023cddfuse} (CVPR 2023) là một trong những phương pháp dẫn đầu hiện tại, sử dụng kiến trúc dual-branch Transformer--CNN để phân rã đặc trưng ảnh thành thành phần \emph{Cơ sở} (Base --- tần số thấp, cấu trúc toàn cục) và \emph{Chi tiết} (Detail --- tần số cao, đặc trưng riêng từng modality). Tuy nhiên, CDDFuse áp dụng \emph{cùng một quy tắc tổng hợp} --- phép cộng đơn giản $f_F = f_V + f_I$ --- cho cả hai nhánh, không khai thác được sự khác biệt bản chất giữa Base và Detail.
 
-Trên cơ sở phương pháp SOTA \emph{CDDFuse} \cite{zhao2023cddfuse} (CVPR 2023), đồ án đề xuất mô hình \textbf{CDDFuse-AG} với hai cải tiến chính: (i) thay phép cộng đơn giản ở tầng fusion bằng cơ chế \emph{Adaptive Gating} (AG) cho phép mô hình học trọng số kết hợp đặc trưng giữa hai modality theo từng pixel và từng channel; (ii) thay quy tắc \emph{max-pixel} trong hàm mất mát bằng \emph{Saliency-guided Pixel selection} dựa trên gradient cường độ để giảm ảo ảnh biên.
+Đồ án này đề xuất chiến lược \textbf{tổng hợp bất đối xứng} (Asymmetric Fusion): thay vì dùng cùng một quy tắc cho cả hai nhánh, thiết kế \emph{quy tắc riêng biệt} phù hợp với đặc tính của từng nhánh. Thực nghiệm được tổ chức theo ba giai đoạn:
 
-Kết quả trên 72 cặp ảnh test (24 cặp mỗi modality CT, PET, SPECT), so với baseline CDDFuse được huấn luyện lại theo cùng quy trình (45 epoch / 2 pha, batch 8, $\alpha_3 = 10$ theo paper text §5.1, AMP fp16 trên GPU Tesla P100, full 738 train pairs) --- gọi là CDDFuse-Paper-MIF --- mô hình \textbf{CDDFuse-AG-45ep} cho thấy:
-\begin{itemize}\itemsep0pt
-    \item \textbf{CT}: QM \textbf{tăng $\sim 220\%$} (wavelet quality), QSF \textbf{tăng $\sim 78\%$} (sharpness), QG tăng $\sim 4\%$.
-    \item \textbf{PET}: QM \textbf{tăng $\sim 89\%$}, QMI/QG/MI cải thiện nhẹ ($+0.6\%$ -- $+1\%$).
-    \item \textbf{SPECT}: QM tăng $\sim 15\%$, QMI/QG tăng nhẹ, các metric khác tương đương.
+\begin{enumerate}\itemsep2pt
+    \item \textbf{Giai đoạn 1 --- Khảo sát quy tắc Cơ sở}: huấn luyện và đánh giá 5 quy tắc thay thế cho nhánh Base (L1-norm, Visual Saliency Map, Local Energy, Local Entropy, Weighted Average Scalar), giữ nguyên nhánh Detail theo paper gốc.
+    \item \textbf{Giai đoạn 2 --- Khảo sát quy tắc Chi tiết}: huấn luyện và đánh giá 8 quy tắc thay thế cho nhánh Detail (Spatial Frequency, SML, L1-norm, MaxAbs, Local Energy, Adaptive Gating, Saliency Gate, Soft PCNN), giữ nguyên nhánh Base theo paper gốc.
+    \item \textbf{Giai đoạn 3 --- Kết hợp bất đối xứng}: ghép các quy tắc tốt nhất từ hai giai đoạn, tạo mô hình \textbf{Comb-WAvg-SML} (Base $=$ Weighted Average Scalar, Detail $=$ Sum-Modified-Laplacian).
+\end{enumerate}
+
+Toàn bộ thực nghiệm được thực hiện trên tập dữ liệu Harvard Medical Image Fusion (738 cặp ảnh huấn luyện, 72 cặp ảnh kiểm thử trên 3 modality CT/PET/SPECT), đánh giá bằng 22 chỉ số chất lượng theo chuẩn VIFB và xếp hạng tổng hợp bằng phương pháp Composite Z-score.
+
+\textbf{Kết quả chính}:
+\begin{itemize}\itemsep2pt
+    \item Mô hình đề xuất \textbf{Comb-WAvg-SML} vượt CDDFuse rõ rệt trên CT-MRI (z-score $+0{,}240$ so với $-0{,}483$, chênh lệch $+0{,}72$), đặc biệt ở các chỉ số chất lượng biên và tần số không gian (SF, AG, EI, QG).
+    \item So sánh với APGFusion 2024 (kiến trúc phức tạp hơn: PoolFormer, ConvolutionalGLU, HFF block) cho thấy cải tiến kiến trúc không vượt rõ CDDFuse, khẳng định \emph{chiến lược fusion rule quan trọng hơn kiến trúc đơn thuần}.
 \end{itemize}
 
-Trung bình trên cả 72 cặp test (gộp 3 modality): \textbf{QM tăng $\sim 64\%$} (cải thiện mạnh nhất), QG/QSF/QMI tăng nhẹ $1$--$4\%$. Trade-off: SSIM/PSNR/EN giảm $\sim 2\%$, NABF tăng nhẹ --- phản ánh ưu tiên \emph{texture wavelet và sharpness} thay vì smoothing toàn ảnh. Sau kiểm định Wilcoxon với hiệu chỉnh Holm--Bonferroni, mô hình đạt \textbf{8/22 chỉ số có ý nghĩa trên CT, 6/22 trên PET, 5/22 trên SPECT} --- \emph{cả 3 modality đều đạt CONFIRM\_IMPROVEMENT}; pooled 8/22 SIG (CONFIRM).
-
 \bigskip
-\noindent\textbf{Từ khóa:} tổng hợp ảnh y tế, CDDFuse-AG, adaptive gating, saliency-guided pixel, ablation study, Wilcoxon.
+\noindent\textbf{Từ khóa:} tổng hợp ảnh y tế đa phương thức, CDDFuse, quy tắc tổng hợp bất đối xứng, Composite Z-score, Modality-Specificity, Harvard Medical Image Fusion.

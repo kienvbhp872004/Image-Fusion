@@ -1,249 +1,166 @@
-\section{Lý do chọn CDDFuse làm base model}
-\label{sec:why-cddfuse}
+\section{Phân tích điểm can thiệp}
+\label{sec:intervention}
 
-Việc chọn base model là quyết định nền tảng cho toàn bộ đồ án. Từ Bảng~\ref{tab:zscore-ranking}, có 22 phương pháp tổng hợp ảnh y tế gần đây được đánh giá trên cùng tập test. Đồ án chọn \textbf{CDDFuse} \cite{zhao2023cddfuse} làm base với ba lý do chính:
+Kiến trúc CDDFuse gồm ba khối tuần tự: Encoder $\to$ Fusion Layer $\to$ Decoder (Mục~\ref{ssec:cddfuse-arch}). Encoder và Decoder đã được tối ưu hóa để phân rã và tái tạo ảnh một cách ổn định. \textbf{Điểm can thiệp duy nhất} của đề xuất là \emph{Fusion Layer} --- cụ thể là phép cộng $f_I + f_V$ được dùng mặc định ở đầu mỗi nhánh trước BaseFuseLayer và DetailFuseLayer.
 
-\paragraph{Vị trí xếp hạng cao.}
-CDDFuse đạt composite z-score $+0.926$, đứng vị trí thứ 2/22 trên 22 chỉ số chất lượng tổng hợp (mọi modality), chỉ cách rank 1 (MM-Net-Fusion: $+1.029$) khoảng $0.1$. Đồng thời CDDFuse vượt rank 3 (MFS-Fusion: $+0.688$) một khoảng đáng kể $\sim 0.24$. Điều này cho thấy CDDFuse thuộc top tier SOTA, là một mô hình mạnh cần được nghiên cứu kỹ và có dư địa cải tiến.
-
-\paragraph{Kiến trúc tuyến tính, mô-đun hóa rõ ràng.}
-Kiến trúc CDDFuse (Mục~\ref{ssec:cddfuse-arch}) chia thành ba khối tuần tự: Encoder $\to$ Fusion Layer $\to$ Decoder. Mỗi khối có vai trò xác định và biên giới rõ ràng. Đặc biệt, \emph{Fusion Layer là khối đứng giữa pipeline} --- ta có thể can thiệp vào đây mà không cần thay đổi Encoder/Decoder. Điều này cho phép thử nghiệm cải tiến \emph{theo từng mô-đun} (modular ablation), giảm rủi ro thay đổi toàn cục.
-
-\paragraph{Hai điểm yếu cụ thể có thể cải thiện.}
-Từ Bảng~\ref{tab:sota-raw-metrics} và phân tích trên, CDDFuse có \textbf{NABF $= 0.024$} (chỉ thua MM-Net 240 lần) và \textbf{QSF $= 0.038$} (thấp hơn nhiều SOTA khác). Truy ngược lại kiến trúc, hai điểm yếu này đến từ:
+Phép cộng đơn giản (Sum) không phân biệt tầm quan trọng giữa hai modality và không khai thác sự bổ trợ cấu trúc khác nhau giữa nhánh Base và nhánh Detail. Đề xuất của đồ án: \textbf{thay thế phép cộng bằng các quy tắc tổng hợp chuyên biệt, khác nhau giữa nhánh Base và nhánh Detail}, giữ nguyên toàn bộ Encoder và Decoder. Điều này cho phép:
 \begin{itemize}\itemsep0pt
-    \item \textbf{Phép cộng $f_I + f_V$} trong Fusion Layer (PT \ref{eq:fuse-base}, \ref{eq:fuse-detail}) --- tạo blending tuyến tính ở mọi vị trí, dễ sinh artifact biên khi cường độ hai modality trái chiều.
-    \item \textbf{Quy tắc max-pixel} trong $L_{\mathrm{int}}^{II}$ (PT \ref{eq:lint}) --- discontinuity giữa $I_V$ và $I_I$ ở vùng biên dẫn đến target không trơn, mô hình học theo cũng có biên gắt.
+    \item So sánh công bằng: mọi sai biệt kết quả đến từ quy tắc tổng hợp, không phải từ thay đổi encoder/decoder.
+    \item Tận dụng pretrained weights của CDDFuse gốc.
+    \item Số tham số mới rất nhỏ, huấn luyện nhanh.
 \end{itemize}
-Hai điểm này là target rõ ràng, cụ thể, và có thể cải tiến độc lập với nhau. Đây là động lực để đồ án đề xuất \textbf{CDDFuse-AG} = CDDFuse + Adaptive Gating + Saliency-guided Pixel.
 
-\section{Mô hình CDDFuse-AG đề xuất}
-\label{sec:cddfuse-ag}
+% ================================================================
+\section{Nguyên lý thiết kế bất đối xứng}
+\label{sec:asymmetric-principle}
 
-Mô hình CDDFuse-AG giữ nguyên Encoder và Decoder của CDDFuse gốc, chỉ thay thế hai thành phần:
-\begin{enumerate}\itemsep0pt
-    \item \textbf{Adaptive Gating} (AG) thay phép cộng $f_I + f_V$ ở Fusion Layer.
-    \item \textbf{Saliency-guided Pixel} thay quy tắc max-pixel trong $L_{\mathrm{int}}^{II}$.
-\end{enumerate}
-Mục~\ref{sec:moduleA} và \ref{sec:moduleB} sau đây phân tích chi tiết từng cải tiến.
+CDDFuse phân rã ảnh thành hai thành phần với bản chất hoàn toàn khác nhau (Hình~\ref{fig:asymmetric-principle}):
 
-\section{Adaptive Gating --- thay phép cộng ở Fusion Layer}
-\label{sec:moduleA}
-
-\subsection{Động lực và phân tích vấn đề}
-
-Phép cộng $f_I + f_V$ trong CDDFuse gốc (PT~\ref{eq:fuse-base}, \ref{eq:fuse-detail}) là một dạng \emph{fusion tuyến tính cố định} --- mọi pixel, mọi channel đều có đóng góp 1:1 từ hai modality. Tuy nhiên, hai modality y tế có đặc tính khác nhau rõ rệt:
 \begin{itemize}\itemsep0pt
-    \item Ở vùng \emph{xương trong CT}, đặc trưng từ CT mang thông tin chính, MRI gần như không có thông tin.
-    \item Ở vùng \emph{mô não trong MRI}, đặc trưng từ MRI dày đặc còn CT phẳng.
-    \item Ở vùng \emph{khối u trong PET}, đặc trưng PET sáng mạnh trong khi MRI có nhưng kém rõ.
-\end{itemize}
-Coi đóng góp của hai modality như nhau ở mọi vị trí dẫn đến hai hệ quả tiêu cực: (1) ở vùng \emph{một modality chiếm ưu thế}, phép cộng làm \emph{loãng} thông tin từ modality đó với nhiễu từ modality kia; (2) ở vùng \emph{biên giữa hai cấu trúc}, phép cộng tạo \emph{gradient bị nhân đôi}, sinh artifact NABF cao.
-
-Giải pháp tự nhiên là cho mô hình \emph{tự học} trọng số kết hợp $w \in [0, 1]$ phụ thuộc vị trí và channel, thay vì cố định $w = 0.5$. Đây là tinh thần của \emph{gating mechanism}.
-
-\subsection{Cơ sở lý thuyết --- Gating mechanism}
-
-Khái niệm gating xuất phát từ \emph{Long Short-Term Memory} (LSTM) trong RNN, nơi các "gate" điều khiển luồng thông tin qua các bước thời gian. Trong CNN/Transformer hiện đại, gating được áp dụng dưới hai dạng phổ biến:
-
-\paragraph{Highway Networks \cite{srivastava2015highway}.}
-Srivastava et~al. đề xuất công thức:
-\begin{equation}
-y = T(x) \odot H(x) + (1 - T(x)) \odot x
-\label{eq:highway}
-\end{equation}
-trong đó $T(x) = \sigma(W_T x + b_T)$ là \emph{transform gate}, $H(x)$ là phép biến đổi muốn áp dụng. Highway cho phép \emph{học} khi nào dùng biến đổi mới $H(x)$, khi nào giữ identity $x$. Đồ án mượn \textbf{cấu trúc tổng quát soft-interpolation} $g \cdot a + (1-g) \cdot b$ và \textbf{cách khởi tạo gate ở 0.5} từ paper này.
-
-\paragraph{Gated Linear Unit (GLU) \cite{dauphin2017glu}.}
-Dauphin et~al. đề xuất:
-\begin{equation}
-\mathrm{GLU}(x) = (W_1 x + b_1) \odot \sigma(W_2 x + b_2)
-\label{eq:glu}
-\end{equation}
-áp dụng cho language modeling. Ý tưởng cốt lõi: cổng sigmoid $\sigma(\cdot)$ \emph{học theo dữ liệu} điều khiển luồng thông tin qua từng channel. Đồ án mượn \textbf{cách dùng $\sigma$ để tạo trọng số mềm $\in (0, 1)$} từ paper này.
-
-\paragraph{Kết nối với image fusion.}
-Trong context image fusion, các phương pháp gần đây như DenseFuse \cite{li2019densefuse} và U2Fusion \cite{xu2020u2fusion} đã thử nghiệm \emph{weighted fusion}: thay phép cộng đơn giản bằng cộng có trọng số $w_V f_V + w_I f_I$ với $w$ là một hằng số hoặc tính từ saliency cố định. CDDFuse-AG đi xa hơn: $w$ được \emph{học từ dữ liệu} và \emph{thay đổi theo từng pixel + channel}, không phải một con số cố định.
-
-\subsection{Công thức Adaptive Gating}
-
-Định nghĩa cơ chế Adaptive Gating cho cặp đặc trưng Base $(f_V^B, f_I^B) \in \mathbb{R}^{C \times H \times W}$:
-\begin{align}
-g^B    &= \sigma\big(W_g^B \cdot [f_V^B; f_I^B] + b_g^B\big), \label{eq:ag-gate} \\
-f_F^B  &= g^B \odot f_V^B + (1 - g^B) \odot f_I^B, \label{eq:ag-fuse}
-\end{align}
-trong đó:
-\begin{itemize}\itemsep0pt
-    \item $[f_V^B; f_I^B] \in \mathbb{R}^{2C \times H \times W}$ là phép concatenate theo channel.
-    \item $W_g^B \in \mathbb{R}^{C \times 2C \times 1 \times 1}$ là tích chập $1 \times 1$ (point-wise), giảm $2C$ kênh xuống $C$.
-    \item $\sigma$ là hàm sigmoid áp dụng element-wise.
-    \item $g^B \in (0, 1)^{C \times H \times W}$ là gate \emph{per-pixel, per-channel}, không phải scalar.
-    \item $\odot$ là tích Hadamard (element-wise).
+    \item \textbf{Nhánh Base} (tần số thấp): mang thông tin cấu trúc giải phẫu chung, tương quan cao giữa hai modality. Hai modality thường \emph{đồng thuận} ở mức độ toàn cục --- MRI và CT đều thể hiện cùng cơ quan, cùng vị trí giải phẫu.
+    \item \textbf{Nhánh Detail} (tần số cao): mang texture, cạnh và thông tin đặc thù của từng modality. CT nổi bật về cấu trúc xương cứng; MRI nổi bật về mô mềm. Hai nguồn mang thông tin \emph{bổ sung nhau} chứ không đồng thuận.
 \end{itemize}
 
-Tương tự, một AG riêng được áp dụng cho cặp Detail $(f_V^D, f_I^D)$ với tham số $W_g^D, b_g^D$.
-
-\subsection{Số tham số}
-
-Mỗi cổng AG có:
-\begin{equation}
-|\Theta_{AG}| = \underbrace{C \cdot 2C \cdot 1 \cdot 1}_{W_g} + \underbrace{C}_{b_g} = 2C^2 + C
-\end{equation}
-Với $C = 64$ (chiều embedding của CDDFuse): $|\Theta_{AG}| = 2 \cdot 64^2 + 64 = 8\,256$ params/gate. Tổng cộng hai gate (Base + Detail): $\mathbf{\approx 16.5}$\textbf{K params}, chỉ chiếm $\sim 1.4\%$ tổng số tham số của CDDFuse ($1.2$M), \emph{rất nhẹ}.
-
-\subsection{Khởi tạo --- thuộc tính ``identity tại epoch 0''}
-\label{ssec:ag-init}
-
-Một quan sát quan trọng: nếu khởi tạo $W_g^B = 0, b_g^B = 0$ thì:
-\begin{equation}
-g^B \big|_{\text{init}} = \sigma(0) = 0.5 \implies f_F^B = 0.5 \cdot f_V^B + 0.5 \cdot f_I^B = \tfrac{1}{2}(f_V^B + f_I^B)
-\end{equation}
-Như vậy, ở epoch 0 trước khi huấn luyện, CDDFuse-AG tương đương với CDDFuse gốc (chỉ sai khác hệ số $\tfrac{1}{2}$, không ảnh hưởng tính chất). Mô hình \emph{xuất phát từ baseline} và học cách tinh chỉnh từ đó. Đây là kỹ thuật khởi tạo identity (residual init) tương tự ResNet, làm cho training ổn định và không bị divergence từ epoch đầu.
-
-\subsection{Thay thế trong pipeline}
-
-Trong Pha II của CDDFuse, phương trình fusion (\ref{eq:fuse-base}, \ref{eq:fuse-detail}) được thay thế bằng:
-\begin{align}
-f_F^B &= \mathrm{BaseFuseLayer}\big(\mathrm{AG}^B(f_V^B, f_I^B)\big), \\
-f_F^D &= \mathrm{DetailFuseLayer}\big(\mathrm{AG}^D(f_V^D, f_I^D)\big),
-\end{align}
-trong đó $\mathrm{AG}^B, \mathrm{AG}^D$ là các Adaptive Gating module. BaseFuseLayer và DetailFuseLayer được giữ nguyên (không sửa kiến trúc) để tận dụng pretrained weights nếu có.
-
-\section{Saliency-guided Pixel --- thay max-rule trong hàm mất mát}
-\label{sec:moduleB}
-
-\subsection{Động lực và phân tích vấn đề}
-
-Hàm mất mát intensity của CDDFuse (PT~\ref{eq:lint}):
-\begin{equation*}
-L_{\mathrm{int}}^{II} = \|\hat{I}_F - \max(I_V, I_I)\|_F^2
-\end{equation*}
-ép mô hình tổng hợp $\hat{I}_F$ tiệm cận target $\max(I_V, I_I)$ ở từng pixel. Target này có ba vấn đề:
-
-\paragraph{1. Discontinuity ở vùng biên.}
-Hàm $\max$ là phi-tuyến và \emph{không liên tục} theo $I_V, I_I$ tại điểm $I_V = I_I$. Khi hai modality giao nhau ở vùng biên, target chuyển đột ngột từ giá trị $I_V$ sang $I_I$, tạo \emph{ridge artifact} (artifact gờ sáng) trong ảnh tổng hợp.
-
-\paragraph{2. Bias về cường độ cao.}
-Max-rule luôn chọn pixel \emph{sáng nhất}. Với ảnh y tế:
-\begin{itemize}\itemsep0pt
-    \item Vùng tổn thương sáng trong PET (nơi tế bào ung thư hoạt động mạnh) sẽ át vùng giải phẫu xung quanh từ MRI.
-    \item Vùng xương sáng trong CT sẽ át mô mềm từ MRI.
-\end{itemize}
-Hậu quả: thông tin modality "tối hơn" bị mất hoàn toàn, dù vẫn quan trọng cho chẩn đoán.
-
-\paragraph{3. Không phản ánh độ ``quan trọng'' của pixel.}
-Một vùng có cường độ cao chưa chắc đã \emph{informative}. Ví dụ vùng nền trắng của ảnh có cường độ cao nhưng không chứa cấu trúc. Max-rule thiên về cường độ, không thiên về thông tin.
-
-\subsection{Cơ sở lý thuyết --- Saliency và gradient-weighted fusion}
-
-\paragraph{Visual saliency \cite{itti1998saliency}.}
-Itti, Koch và Niebur đề xuất khái niệm \emph{saliency map} --- bản đồ độ nổi bật của từng pixel dựa trên contrast cường độ, gradient và đặc trưng địa phương. Saliency map biểu thị "vùng nào của ảnh chứa thông tin quan trọng" theo nghĩa tri giác (perceptual). Đồ án mượn \textbf{ý tưởng đo độ quan trọng của pixel bằng đặc trưng địa phương} từ paper này. Trong context của đồ án, đặc trưng địa phương được chọn là \emph{magnitude gradient} --- thước đo độ thay đổi cường độ, đại diện cho biên/texture (vùng informative).
-
-\paragraph{DenseFuse \cite{li2019densefuse}.}
-Li và Wu áp dụng saliency để tính trọng số fusion theo L1-norm của activation:
-\begin{equation}
-w_i = \frac{\sum |a_i|}{\sum |a_i| + \sum |a_j|}
-\end{equation}
-Đồ án mượn \textbf{công thức trọng số softmax theo norm} --- chia chuẩn để tổng trọng số $= 1$, đảm bảo target là một convex combination hợp lý.
-
-\paragraph{U2Fusion \cite{xu2020u2fusion}.}
-Xu et~al. sử dụng adaptive weights dựa trên \emph{độ thông tin của ảnh nguồn}, tính bằng VGG-extracted features. Đồ án mượn \textbf{tinh thần adaptive (trọng số phụ thuộc nội dung)} nhưng đơn giản hóa: thay VGG bằng Sobel gradient --- không cần extra network, không tốn GPU memory, giữ đúng spirit "vùng có cấu trúc rõ thì trọng số cao".
-
-\subsection{Công thức Saliency-guided Pixel}
-
-Tính \emph{saliency map} cho từng modality bằng Sobel gradient:
-\begin{equation}
-S_V = |\nabla I_V| = \sqrt{(\partial_x I_V)^2 + (\partial_y I_V)^2}, \quad S_I = |\nabla I_I|
-\end{equation}
-Trong implementation, $\partial_x, \partial_y$ tính bằng Sobel kernel $3 \times 3$:
-\begin{equation*}
-G_x = \frac{1}{8}\begin{bmatrix} -1 & 0 & +1 \\ -2 & 0 & +2 \\ -1 & 0 & +1 \end{bmatrix}, \quad G_y = G_x^T
-\end{equation*}
-
-Sau đó tính trọng số kết hợp theo softmax-norm:
-\begin{equation}
-w = \frac{S_V + \epsilon}{S_V + S_I + 2\epsilon}, \quad \epsilon = 10^{-6}
-\label{eq:saliency-weight}
-\end{equation}
-Target mới:
-\begin{equation}
-\mathrm{target} = w \cdot I_V + (1 - w) \cdot I_I
-\label{eq:saliency-target}
-\end{equation}
-
-Hàm mất mát intensity được thay thành:
-\begin{equation}
-L_{\mathrm{int}}^{II,\mathrm{AG}} = \|\hat{I}_F - (w \cdot I_V + (1-w) \cdot I_I)\|_F^2
-\label{eq:saliency-loss}
-\end{equation}
-
-\subsection{Lý giải toán học}
-
-\paragraph{Tính liên tục.}
-Khác với max-rule, target $w \cdot I_V + (1-w) \cdot I_I$ là \emph{tổ hợp lồi} và \emph{liên tục} theo $(I_V, I_I)$. Khi $I_V = I_I$, trọng số $w = 0.5$, target $= I_V = I_I$ (smooth qua điểm bằng nhau).
-
-\paragraph{Bảo toàn cường độ trung bình.}
-Vì $w + (1-w) = 1$, target luôn nằm trong khoảng $[\min(I_V, I_I), \max(I_V, I_I)]$, không bao giờ vượt khỏi range của hai ảnh nguồn. Không có amplification hoặc clipping.
-
-\paragraph{Bias về vùng informative.}
-Trọng số (\ref{eq:saliency-weight}) tỷ lệ thuận với $S_V$ --- vùng nào của $I_V$ có gradient cao (biên, texture), trọng số $w$ tự động cao, thiên về $I_V$. Vùng phẳng (background, không informative) của $I_V$ có gradient thấp, $w$ thấp, thiên về $I_I$. Đây chính là \emph{auto-routing thông tin} theo độ informative thay vì theo cường độ.
-
-\paragraph{Chi phí tính toán.}
-Chỉ cần convolve hai Sobel kernel lên mỗi modality, $O(HW)$ per ảnh. Không có tham số học. Không tăng VRAM. Đây là cải tiến \emph{free} về cost.
-
-\section{Kết hợp Adaptive Gating + Saliency-guided Pixel}
-\label{sec:cddfuse-ag-combined}
-
-Mô hình CDDFuse-AG kết hợp đồng thời \emph{hai cải tiến độc lập}:
-\begin{itemize}\itemsep2pt
-    \item \textbf{Adaptive Gating} can thiệp ở \emph{feature space} (sau Encoder, trước BaseFuseLayer/DetailFuseLayer) --- cải tiến \emph{kiến trúc}.
-    \item \textbf{Saliency-guided Pixel} can thiệp ở \emph{pixel space} (trong hàm mất mát Pha II) --- cải tiến \emph{supervision target}.
-\end{itemize}
-Hai cải tiến tác động lên hai cấp độ khác nhau, không xung đột với nhau và có thể tối ưu song song trong cùng một quy trình huấn luyện.
-
-Sơ đồ tổng hợp CDDFuse-AG:
+Từ sự khác biệt bản chất này, Liu et al.\ \cite{liu2018survey} đề xuất nguyên tắc:
 \begin{center}
-\fbox{\parbox{0.85\textwidth}{\centering
-$I_V, I_I \to$ Encoder $\to (f_V^B, f_V^D, f_I^B, f_I^D) \to$ \textbf{Adaptive Gating} $\to (f_F^B, f_F^D) \to$ \\
-BaseFuseLayer + DetailFuseLayer $\to$ Decoder $\to \hat{I}_F$ \\
-\quad \\
-\textbf{Loss}: $L_{II} = \|\hat{I}_F - \underbrace{(w \cdot I_V + (1-w) \cdot I_I)}_{\text{Saliency-guided Pixel}}\|_F^2 + L_{\mathrm{grad}}^{II} + \alpha_4 L_{\mathrm{decomp}}$
-}}
+\emph{``Base cần trung bình hóa (averaging) --- Detail cần lựa chọn theo hoạt động cục bộ (activity-based selection).''}
 \end{center}
 
-\section{Quy trình thí nghiệm}
-\label{sec:procedure}
+Phép cộng Sum của CDDFuse gốc áp dụng cùng một chiến lược cho cả hai nhánh, không khai thác được sự khác biệt này. Đề xuất CDDFuse-AG áp dụng \textbf{hai quy tắc khác nhau cho hai nhánh} --- thiết kế \emph{bất đối xứng} (asymmetric).
 
-\subsection{Dữ liệu}
-Sử dụng tập \emph{Harvard Medical Image Fusion} \cite{zhao2023cddfuse}, gồm các cặp ảnh đăng ký sẵn (registered) trên 3 modality:
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.96\textwidth]{figures/fig_asymmetric_principle.png}
+\caption{Nguyên lý bất đối xứng: nhánh Base (tần số thấp, đồng thuận) phù hợp với trung bình hóa WAvg; nhánh Detail (tần số cao, bổ trợ) phù hợp với lựa chọn theo độ sắc nét SML.}
+\label{fig:asymmetric-principle}
+\end{figure}
+
+% ================================================================
+\section{Quy tắc tổng hợp đề xuất}
+\label{sec:proposed-rules}
+
+\subsection{Quy tắc Base: Weighted Average Scalar (WAvg)}
+\label{ssec:rule-wavg}
+
+Nhánh Base cần trung bình hóa thông tin cấu trúc chung của hai modality. Thay vì phép cộng cố định, đề xuất dùng \textbf{trung bình có trọng số học được}:
+
+\begin{equation}
+\alpha = \sigma(\theta), \quad \theta \in \mathbb{R} \text{ (tham số học duy nhất)}
+\end{equation}
+\begin{equation}
+R_{\mathrm{WAvg}}(a, b) = 2\bigl(\alpha \cdot a + (1-\alpha) \cdot b\bigr)
+\label{eq:wavg}
+\end{equation}
+
+trong đó $a = f_V^B$, $b = f_I^B$ là đặc trưng Base của hai modality, $\sigma$ là hàm sigmoid đảm bảo $\alpha \in (0,1)$, và hệ số $2$ chuẩn hóa để giữ nguyên biên độ so với phép cộng gốc. Tham số $\theta$ khởi tạo bằng $0$ ($\alpha = 0{,}5$) và được học qua huấn luyện Phase~II.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.88\textwidth]{figures/fig_rule_wavg.png}
+\caption{Quy tắc Weighted Average (WAvg) cho nhánh Base: hai feature map Base A và B được kết hợp bằng trọng số scalar $\alpha$ học được, đảm bảo trung bình hóa toàn cục có thể điều chỉnh.}
+\label{fig:rule-wavg}
+\end{figure}
+
+\paragraph{Lý do chọn WAvg cho nhánh Base.}
 \begin{itemize}\itemsep0pt
-    \item \textbf{CT-MRI}: ảnh xương (CT) và mô não/mô mềm (MRI).
-    \item \textbf{PET-MRI}: ảnh chức năng chuyển hóa (PET) và giải phẫu (MRI).
-    \item \textbf{SPECT-MRI}: ảnh phát xạ đơn photon (SPECT) và giải phẫu (MRI).
+    \item \textbf{Chỉ 1 tham số học}: tránh overfitting và không phá vỡ phân phối đặc trưng mà Encoder đã học.
+    \item \textbf{Trung bình hóa toàn cục}: phù hợp với bản chất đồng thuận của Base --- không cần phân biệt theo vị trí không gian.
+    \item \textbf{Trọng số tối ưu cho từng modality}: thay vì giả định $\alpha = 0{,}5$ cố định, mô hình tự học tỷ lệ đóng góp tối ưu giữa hai nguồn.
 \end{itemize}
-Đồ án theo sát split của paper \cite{zhao2023cddfuse} (sect.~5.2): 130 cặp huấn luyện + 20 cặp validation + 136 cặp test (21 CT + 42 PET + 73 SPECT). Để tương thích với việc so sánh các phương pháp SOTA trong Bảng~\ref{tab:zscore-ranking}, đồ án sử dụng tập test phụ \texttt{data/reference/} (72 cặp, 24 mỗi modality) cho phần đánh giá so sánh.
 
-\subsection{Huấn luyện paper-faithful}
-\label{ssec:train-config}
+\subsection{Quy tắc Detail: Sum-Modified-Laplacian (SML)}
+\label{ssec:rule-sml}
 
-CDDFuse-AG được huấn luyện theo cấu hình paper đầy đủ:
+Nhánh Detail cần lựa chọn, tại từng vị trí không gian, modality nào cung cấp thông tin chi tiết (cạnh, texture) phong phú hơn. Đề xuất dùng \textbf{Sum-Modified-Laplacian} \cite{huang2007sml} làm thước đo độ sắc nét cục bộ:
+
+\begin{equation}
+\mathrm{ML}_{ij}(f) = |2f_{ij} - f_{i-1,j} - f_{i+1,j}| + |2f_{ij} - f_{i,j-1} - f_{i,j+1}|
+\label{eq:ml}
+\end{equation}
+\begin{equation}
+\mathrm{SML}_{ij}(f) = \sum_{(p,q) \in \mathcal{N}(i,j)} \mathrm{ML}_{pq}(f)
+\label{eq:sml}
+\end{equation}
+
+trong đó $\mathcal{N}(i,j)$ là vùng lân cận $3\times 3$ quanh pixel $(i,j)$. SML tích lũy năng lượng Laplacian hiệu chỉnh (Modified Laplacian) trong vùng lân cận, đo mức độ ``sắc nét'' hay ``hoạt động chi tiết'' tại từng điểm.
+
+Dựa trên SML, trọng số tổng hợp theo vị trí được tính:
+\begin{equation}
+w_a = \frac{\mathrm{SML}(a)}{\mathrm{SML}(a) + \mathrm{SML}(b) + \epsilon}
+\end{equation}
+\begin{equation}
+R_{\mathrm{SML}}(a, b) = 2\bigl(w_a \odot a + (1 - w_a) \odot b\bigr)
+\label{eq:sml-rule}
+\end{equation}
+
+trong đó $a = f_V^D$, $b = f_I^D$ là đặc trưng Detail, $\epsilon$ là hằng số ổn định số học, $\odot$ là phép nhân từng phần tử.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.95\textwidth]{figures/fig_rule_sml.png}
+\caption{Quy tắc SML cho nhánh Detail: (trái) sơ đồ tính weight map từ SML của hai feature map; (phải) ví dụ weight map $w_a$ --- vùng xanh lá ưu tiên Detail A, vùng đỏ ưu tiên Detail B theo độ sắc nét cục bộ.}
+\label{fig:rule-sml}
+\end{figure}
+
+\paragraph{Lý do chọn SML cho nhánh Detail.}
 \begin{itemize}\itemsep0pt
-    \item \textbf{Tổng epoch}: 120 (Pha I: 40 ep học decomposition, Pha II: 80 ep học fusion).
-    \item \textbf{Batch size}: 8 (kết hợp AMP fp16 trên Tesla P100 16GB).
-    \item \textbf{Optimizer}: 6 Adam riêng cho Encoder, Decoder, BaseFuseLayer, DetailFuseLayer, AG-Base, AG-Detail.
-    \item \textbf{Learning rate}: $10^{-4}$, StepLR $\gamma = 0.5$ mỗi 20 ep, floor $10^{-6}$.
-    \item \textbf{Gradient clipping}: $\|\cdot\|_2 \le 0.01$.
-    \item \textbf{Coefficient loss}: $\alpha_1 = 1, \alpha_2 = 2, \alpha_3 = 5, \alpha_4 = 2$ (theo code release).
-    \item \textbf{Random seed}: 42.
+    \item \textbf{Nhạy với cạnh và tần số cao}: Modified Laplacian đặc biệt nhạy với các biến thiên đột ngột --- đúng với bản chất tần số cao của nhánh Detail.
+    \item \textbf{Lựa chọn theo vị trí} (spatially adaptive): tại mỗi điểm ảnh, modality nào có cạnh sắc nét hơn sẽ được ưu tiên --- khai thác tính bổ trợ giữa MRI (mô mềm) và CT/PET/SPECT (cấu trúc đặc thù).
+    \item \textbf{Không có tham số học}: quy tắc hoàn toàn dựa trên đặc trưng đầu vào, không phụ thuộc vào khởi tạo hay dữ liệu huấn luyện --- tính tổng quát hóa cao.
 \end{itemize}
 
-\subsection{Đánh giá}
-\label{ssec:eval-procedure}
+% ================================================================
+\section{Kiến trúc CDDFuse-AG}
+\label{sec:cddfuse-ag-arch}
 
-Trên 72 cặp test, đánh giá 25 chỉ số chất lượng tổng hợp (đầy đủ trong Mục~\ref{ssec:metrics}). Để xác định mức ý nghĩa thống kê:
-\begin{itemize}\itemsep0pt
-    \item \textbf{Wilcoxon signed-rank} \cite{wilcoxon1945individual} paired-test với alternative one-sided (variant $>$ baseline), $\alpha = 0.05$.
-    \item \textbf{Cliff's delta} \cite{cliff1993dominance} đo độ lớn hiệu ứng (effect size) --- ngưỡng trivial $|\delta| < 0.147$, small $< 0.33$, medium $< 0.474$, large $\ge 0.474$.
-    \item \textbf{Holm--Bonferroni correction} \cite{holm1979simple} hiệu chỉnh sai số kiểm định nhiều lần ($K = 22$ metric per modality).
-\end{itemize}
-Một chỉ số được công nhận có cải thiện ý nghĩa khi $p_{\mathrm{adj}} < 0.05$ và Cliff's $\delta > 0.147$ (small effect trở lên).
+Mô hình đề xuất \textbf{CDDFuse-AG} (Asymmetric Gating) giữ nguyên kiến trúc CDDFuse, chỉ thay thế phép cộng ở Fusion Layer:
+
+\begin{align}
+f_F^B &= \mathrm{BaseFuseLayer}\!\left(R_{\mathrm{WAvg}}(f_V^B,\; f_I^B)\right) \label{eq:ag-base} \\
+f_F^D &= \mathrm{DetailFuseLayer}\!\left(R_{\mathrm{SML}}(f_V^D,\; f_I^D)\right) \label{eq:ag-detail}
+\end{align}
+
+\paragraph{Channel Reduction.}
+Hai đặc trưng $f_F^B$ và $f_F^D$ (mỗi cái $64$ kênh) được nối kênh rồi chiếu về $64$ kênh bằng Conv$_{1\times1}$ trước khi đưa vào Decoder:
+\begin{equation}
+f_{\mathrm{merge}} = \mathrm{Conv}_{1\times1}\!\left(\mathrm{cat}(f_F^B,\; f_F^D)\right), \quad 128\!\to\!64 \text{ kênh}
+\end{equation}
+
+\paragraph{Tổng số tham số.}
+\begin{center}
+\setlength{\tabcolsep}{8pt}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Thành phần} & \textbf{Kiến trúc} & \textbf{Số tham số} \\
+\midrule
+Encoder                         & PatchEmbed + 4$\times$TransBlock + BFE + DFE$_3$ & $599{,}144$ \\
+\quad patch\_embed              & Conv$3\!\times\!3$, $1\!\to\!64$                  & $576$ \\
+\quad encoder\_level1           & $4\times$ TransformerBlock, $\mathrm{dim}=64$     & $181{,}024$ \\
+\quad baseFeature               & BaseFeatureExtraction, $\mathrm{heads}=8$         & $363{,}016$ \\
+\quad detailFeature             & DetailFeatureExtraction, $3\times$ DetailNode     & $54{,}528$ \\
+\midrule
+BaseFuseLayer                   & BaseFeatureExtraction, $\mathrm{dim}=64$          & $363{,}016$ \\
+DetailFuseLayer                 & DetailFeatureExtraction, $1\times$ DetailNode     & $18{,}176$ \\
+\midrule
+Decoder                         & ReduceChannel + 4$\times$TransBlock + Output      & $207{,}936$ \\
+\quad reduce\_channel           & Conv$1\!\times\!1$, $128\!\to\!64$               & $8{,}192$ \\
+\quad encoder\_level2           & $4\times$ TransformerBlock, $\mathrm{dim}=64$     & $181{,}024$ \\
+\quad output                    & Conv$3\!\times\!3 \to$ LeakyReLU $\to$ Conv$3\!\times\!3$ & $18{,}720$ \\
+\midrule
+\textbf{Quy tắc WAvg} (Base)   & scalar $\theta \in \mathbb{R}$                    & \textbf{1} \\
+\textbf{Quy tắc SML} (Detail)  & refine Conv$1\!\times\!1$, $64\!\to\!64$         & $4{,}160$ \\
+\midrule
+\textbf{Tổng tham số}          &                                                   & $\mathbf{1{,}192{,}433}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+Toàn bộ $1{,}192{,}433$ tham số được huấn luyện end-to-end. Encoder được dùng chung (shared weights) cho cả hai modality đầu vào $I$ và $V$. So với CDDFuse baseline ($1{,}188{,}272$ tham số), CDDFuse-AG chỉ thêm \textbf{4{,}161 tham số} từ WAvg ($\theta$) và SML refine Conv.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.97\textwidth]{figures/fusion_diagram_cddag.png}
+\caption{Kiến trúc CDDFuse-AG. Ảnh đầu vào $I$ (đỏ) và $V$ (xanh) đi qua chung một Encoder để tạo đặc trưng Base ($f_I^B, f_V^B$) và Detail ($f_I^D, f_V^D$). Fusion Layer áp dụng bất đối xứng: WAvg cho nhánh Base, SML cho nhánh Detail. Hai đầu ra $F_B$, $F_D$ được nối kênh (C) rồi đưa vào Decoder tái tạo ảnh tổng hợp $F$.}
+\label{fig:cddfuse-ag-arch}
+\end{figure}
+

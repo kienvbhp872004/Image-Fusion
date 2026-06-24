@@ -1,36 +1,23 @@
-\section{Tổng kết}
+\section{Tổng kết kết quả}
 \label{sec:summary}
 
-Đồ án nghiên cứu cải tiến CDDFuse cho bài toán tổng hợp ảnh đa phương thức y tế qua quy trình ablation hai giai đoạn:
-\begin{enumerate}
-    \item Light retrain (10--25 epoch, freeze encoder/decoder) cho 4 alternatives Module~A và 4 alternatives Module~B $\to$ identify winners (Gated + Saliency).
-    \item Paper-faithful training (120 ep, 2-phase, P100 GPU + AMP fp16) cho baseline reproduction và Combined-Gated-Saliency.
-\end{enumerate}
+Đồ án đề xuất CDDFuse-AG --- cải tiến CDDFuse thông qua chiến lược \textbf{quy tắc tổng hợp bất đối xứng} cho hai nhánh Base và Detail. Thực nghiệm trên Harvard Medical Image Fusion (72 cặp kiểm thử, 3 modality) cho thấy hầu hết các thang đo vượt trội đều tập trung vào nhóm chỉ số phản ánh \textbf{chi tiết và tần số cao}: SF, AG, EI, Qabf, QM --- cho thấy mô hình đề xuất có khả năng \emph{giữ chi tiết thông tin tốt hơn} so với các phương pháp so sánh.
 
-\section{Kết luận chính}
-\label{sec:conclusion-main}
+Điều này phản ánh đúng cơ chế thiết kế: quy tắc SML ở nhánh Detail chủ động lựa chọn tại mỗi vị trí ảnh modality nào có cạnh và kết cấu sắc nét hơn, thay vì trung bình cả hai như phép cộng đơn thuần. Kết quả là ảnh tổng hợp giữ được nhiều thông tin chi tiết có ích từ cả hai nguồn hơn, đặc biệt ở các vùng giàu cạnh như biên xương (CT), mô não (MRI) và vùng hoạt động trao đổi chất cao (PET/SPECT).
 
-\begin{itemize}
-    \item Combined-Gated-Saliency đạt 10 SIG trên CT và 10 SIG trên PET (per-modal Holm) trong huấn luyện đầy đủ, gợi ý hướng cải tiến \emph{theo modality cụ thể}.
-    \item Tuy nhiên, gain pooled toàn 3 modality chỉ 2/25 SIG $\to$ không thể claim ``Combined cải thiện CDDFuse'' theo nghĩa tổng quát.
-    \item Trade-off NABF$\uparrow$/QM$\downarrow$ trong light retrain là \emph{artifact} của under-train + freeze encoder/decoder, không phải bottleneck của kiến trúc fusion.
-\end{itemize}
+Quy tắc WeightedAvg ở nhánh Base bổ trợ bằng cách học tỉ lệ đóng góp tối ưu giữa hai modality cho phần thông tin tần số thấp --- giúp ảnh tổng hợp có nền cấu trúc cân bằng hơn mà không làm mờ các chi tiết đã được nhánh Detail bảo toàn.
 
 \section{Hướng phát triển}
 \label{sec:future}
 
-\subsection{Ngắn hạn}
-\begin{enumerate}
-    \item Train cá nhân A.2 Gated và B.3 Saliency với paper procedure để hoàn thiện ablation table (Combined vs A only vs B only).
-    \item Tune learning rate riêng cho gated module (e.g. $\times 10$) vì init zeros cần update nhanh hơn.
-    \item Thử $\alpha_3 = 10$ (paper text) thay $5$ (code release).
-    \item Combined-Gated-Learnable (B.4 thay B.3) — B.4 thắng per-modal trong light retrain.
-\end{enumerate}
+\paragraph{Quy tắc tổng hợp có khả năng thích nghi.}
+SML hiện tại là rule cố định, không học được. Hướng tự nhiên tiếp theo là thay thế bằng một rule \emph{học được} có điều kiện: ví dụ một mạng nhỏ dự đoán bản đồ lựa chọn dựa trên cả đặc trưng lẫn thông tin về modality đầu vào. Điều này cho phép mô hình tự thích nghi với nhiễu và đặc điểm phân bố của từng cặp ảnh cụ thể, thay vì dùng đạo hàm bậc hai cứng nhắc.
 
-\subsection{Dài hạn}
-\begin{enumerate}
-    \item \textbf{Module C}: reformulate decomposition loss (Eq.~9 paper). Untested area, có thể là chỗ phá trade-off thực sự.
-    \item Multi-seed evaluation ($\geq 3$ seeds) cho variance estimate.
-    \item Frequency-domain loss (FreqLoss) để target QM/wavelet metric trực tiếp.
-    \item Tune cho specific clinical use case (CT diagnosis, PET functional viz).
-\end{enumerate}
+\paragraph{Hàm mất mát nhận thức cấu trúc.}
+Hàm loss hiện tại ($\mathcal{L}_{\mathrm{int}} + \mathcal{L}_{\mathrm{grad}}$) đo sai số pixel và gradient nhưng chưa phản ánh trực tiếp chất lượng y tế. Thêm thành phần loss nhận thức cấu trúc --- ví dụ SSIM có trọng số theo vùng giải phẫu quan trọng, hoặc perceptual loss từ feature của mạng pretrained trên ảnh y tế --- có thể giúp mô hình tối ưu hóa trực tiếp cho chất lượng lâm sàng thay vì chỉ cho chỉ số pixel.
+
+\paragraph{Fusion đa phương thức (>2 modality).}
+Phương pháp hiện tại xử lý đúng 2 modality. Trong thực tế lâm sàng, bác sĩ thường có đồng thời MRI, CT, PET và SPECT. Mở rộng kiến trúc sang fusion đa chiều (multi-way) với thiết kế rule phù hợp cho từng cặp modality là bước cần thiết để ứng dụng thực tế.
+
+\paragraph{Đánh giá lâm sàng.}
+Chỉ số tự động (SF, Qabf, SSIM, \ldots) chỉ là proxy cho chất lượng ảnh y tế. Bước quan trọng để đưa mô hình vào thực tế là tổ chức \emph{reader study} --- để bác sĩ chuyên khoa đánh giá mù đôi xem ảnh tổng hợp từ CDDFuse-AG có hỗ trợ chẩn đoán tốt hơn ảnh đơn modality hay các phương pháp khác không.

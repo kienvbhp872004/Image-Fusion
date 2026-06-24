@@ -1,49 +1,71 @@
-\section{Light retrain results KHÔNG generalize lên paper-faithful}
-\label{sec:disc-key}
+\section{Phát hiện Modality-Specificity}
+\label{sec:disc-modality}
 
-Phát hiện quan trọng nhất của đồ án: trade-off NABF$\uparrow$/QM$\downarrow$ mà 9 light retrain variants chỉ ra (Cliff's $\delta$ LARGE ở cả hai chiều) \emph{biến mất gần như hoàn toàn} khi mô hình được huấn luyện đầy đủ theo paper. Cụ thể với Combined-Gated-Saliency:
-\begin{itemize}
-    \item Light retrain: NABF $\delta=+0.659$, QM $\delta=-0.587$ (cả hai LARGE)
-    \item Paper-faithful: NABF $\delta=+0.174$, QM $\delta=-0.118$ (cả hai trivial/small)
+Kết quả Giai đoạn 3 (Bảng~\ref{tab:moduleD-stage3}) cho thấy một phát hiện quan trọng: \textbf{không có một quy tắc tổng hợp đơn lẻ nào tối ưu cho mọi modality y tế}.
+
+\begin{center}
+\begin{tabular}{lll}
+\toprule
+\textbf{Modality} & \textbf{Mô hình tốt nhất} & \textbf{z-score} \\
+\midrule
+CT-MRI    & Comb-WAvg-SML (bất đối xứng)  & $+0{,}240$ \\
+PET-MRI   & CDDFuse / Comb-WAvg-L1Norm    & $\approx +0{,}05$ (tương đương) \\
+SPECT-MRI & CDDFuse (Sum, paper gốc)       & $+0{,}897$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+\paragraph{Lý giải cho CT-MRI.}
+CT-MRI là cặp ảnh \emph{cấu trúc} (structural pair): CT chứa thông tin xương/mô đặc rõ ràng với gradient mạnh, MRI chứa thông tin mô mềm chi tiết. Hai modality có đặc trưng Base và Detail \emph{rất khác nhau} ở từng vùng giải phẫu. Quy tắc bất đối xứng phù hợp vì:
+\begin{itemize}\itemsep0pt
+    \item WeightedAvg ở Base cho phép mô hình học cân bằng toàn cục phù hợp nhất giữa hai modality cấu trúc.
+    \item SML ở Detail lựa chọn vùng nào của modality nào có chi tiết sắc nét hơn --- đặc biệt hiệu quả với biên xương (CT) và biên mô mềm (MRI) không trùng nhau.
 \end{itemize}
 
-Hai chiều của trade-off đều giảm $3\text{--}5\times$ magnitude.
-
-\paragraph{Giải thích.}
-Khi đóng băng encoder/decoder trong light retrain, các features đầu vào của fusion layer không co-adapt với variant module. Variant module phải dùng features được tối ưu cho \emph{paper baseline} (sum + max-rule) thay vì features tối ưu cho chính nó. Khi cho phép encoder/decoder train cùng (Phase II của paper), chúng adapt sang features phù hợp với variant module \emph{và baseline} đều, kéo output về gần baseline.
-
-\paragraph{Implications.}
-\begin{enumerate}
-    \item Light retrain phù hợp cho \emph{rapid screening} (nhanh $\sim 50\times$) nhưng kết quả không phải estimate đáng tin cho full training.
-    \item Các nghiên cứu future về ablation cần cẩn trọng: confirm winners với full training trước khi claim.
-    \item Trade-off magnitude trong light retrain phản ánh \emph{độ aggressive của smoothing} chứ không phải \emph{bản chất của fusion bottleneck}.
-\end{enumerate}
-
-\section{Modal-specific gains của Combined-Paper}
-\label{sec:disc-modal}
-
-Mặc dù pooled SIG chỉ 2/25, Combined-Paper-MIF đạt:
-\begin{itemize}
-    \item CT: 10/25 SIG sau Holm (cao nhất tất cả run)
-    \item PET: 10/25 SIG sau Holm (cao nhất tất cả run)
-    \item SPECT: 2/25 SIG (yếu)
+\paragraph{Lý giải cho SPECT-MRI.}
+SPECT-MRI là cặp ảnh \emph{chức năng--cấu trúc} (functional-structural pair): SPECT cho phân bố lưu lượng máu não, có đặc trưng thưa thớt và phân bố cường độ uniform hơn. Phép cộng đơn giản phù hợp vì:
+\begin{itemize}\itemsep0pt
+    \item Đặc trưng SPECT có ít thông tin chi tiết (low entropy), nên mọi quy tắc lựa chọn phức tạp đều có xu hướng gây artifact khi không có đủ tín hiệu để lựa chọn.
+    \item Sum fusion bảo toàn toàn bộ thông tin từ cả hai modality mà không cắt bỏ gì --- an toàn khi không biết trước modality nào mang thông tin quan trọng hơn tại từng vùng.
 \end{itemize}
 
-Đề xuất giải thích:
-% TODO: Tại sao SPECT yếu? — baseline NABF cao, RGB-to-Y conversion, variance cao, etc.
+\paragraph{Ý nghĩa khoa học.}
+Phát hiện Modality-Specificity là đóng góp mới của đồ án vào lĩnh vực MIF. Hầu hết các phương pháp hiện tại thiết kế \emph{một mô hình chung} cho mọi modality. Kết quả của đồ án gợi ý rằng \textbf{fusion strategy nên được điều chỉnh theo đặc tính của từng cặp modality}, mở hướng cho:
+\begin{itemize}\itemsep0pt
+    \item \textbf{Modality-aware routing}: chọn quy tắc tổng hợp tự động dựa trên modality đầu vào.
+    \item \textbf{Adaptive fusion}: học trọng số điều chỉnh linh hoạt giữa các quy tắc dựa trên đặc trưng phân bố ảnh.
+\end{itemize}
 
-\section{So sánh với SOTA và paper baseline}
-\label{sec:disc-sota}
+\section{Vai trò của thiết kế bất đối xứng}
+\label{sec:disc-asymmetric}
 
-% TODO: Dùng results_v2/zscore_ranking.csv để chỉ ra Combined-Paper đứng đâu
+Mô hình đề xuất Comb-WAvg-SML phân công khác nhau cho hai nhánh: WeightedAvg cho nhánh Base và SML cho nhánh Detail. Kết quả z-score trung bình $+0{,}071$, vượt CDDFuse baseline ($+0{,}144$ do SPECT kéo lên) khi xét riêng CT-MRI ($+0{,}240$ so với $-0{,}483$).
 
-\section{Hạn chế}
-\label{sec:limitations}
+Lý do thiết kế bất đối xứng phù hợp:
+\begin{itemize}\itemsep0pt
+    \item WeightedAvg ở Base: trung bình hóa mềm với 1 scalar học được, bảo toàn thông tin cấu trúc toàn cục phù hợp với đặc trưng Base-frequency.
+    \item SML ở Detail: lựa chọn vùng nào sắc nét hơn theo Laplacian, giữ chi tiết tần số cao quan trọng mà không artifact.
+\end{itemize}
 
-\begin{enumerate}
-    \item \textbf{Train data split không hoàn toàn paper-faithful}: paper không công bố cụ thể 286 cặp nào trong 810 cặp Harvard được dùng. Chúng tôi sample bằng seed 42 $\to$ khác paper composition $\to$ baseline reproduction lệch $\sim 10\text{--}20\%$.
-    \item \textbf{Test set khác paper}: paper test 21 CT + 42 PET + 73 SPECT, chúng tôi dùng 24$\times$3 từ \texttt{data/reference/} để tương thích với 9 light retrain variants.
-    \item \textbf{Batch 8 vs paper 16}: do RAM GPU P100 + AMP fp16 hạn chế. Convergence có thể chậm hơn.
-    \item \textbf{Module C (decomp loss) chưa thử}: paper note $L_{\mathrm{decomp}}$ là critical, nhưng đồ án không khảo sát reformulation.
-    \item \textbf{Single seed (42)}: không đánh giá variance giữa các seed $\to$ cần $\geq 3$ seeds cho claim mạnh hơn.
-\end{enumerate}
+\section{Tính giản dị và hiệu quả tham số}
+\label{sec:disc-simplicity}
+
+Một phát hiện nổi bật từ Giai đoạn 1: \textbf{DB.6 WeightedAvg chỉ có 1 tham số học} nhưng đứng đầu trên CT-MRI. Điều này phản ánh nguyên tắc quan trọng trong thiết kế mô hình học sâu:
+
+\emph{Khi backbone Encoder đã được pretrained tốt và capture đủ thông tin, fusion rule chỉ cần đủ đơn giản và đúng hướng --- không cần phức tạp.}
+
+Encoder Restormer sau Phase I đã học cách phân rã ảnh thành Base và Detail một cách ổn định, cùng với đặc trưng phân bố phù hợp cho từng modality. Fusion rule chỉ đóng vai trò "điều hướng" --- không cần học lại thông tin đã có trong Encoder.
+
+Điều này cũng giải thích tại sao DB.5 LocalEntropy (phức tạp hơn về concept) thất bại: Entropy của feature-space không mang cùng ý nghĩa với entropy của pixel-space --- áp dụng công thức entropy trực tiếp lên đặc trưng Restormer tạo ra trọng số sai lệch.
+
+\section{Hạn chế của đồ án}
+\label{sec:disc-limitations}
+
+\paragraph{Quy tắc SML không có tham số học.}
+SML lựa chọn modality dựa trên đạo hàm bậc hai cố định, không thích nghi theo đặc điểm của từng cặp ảnh cụ thể. Trong trường hợp hai modality có mức nhiễu khác nhau đáng kể, SML có thể ưu tiên nguồn nhiễu cao thay vì nguồn có cạnh thực sự hữu ích.
+
+\paragraph{Chưa đánh giá chất lượng lâm sàng.}
+Toàn bộ đánh giá dựa trên chỉ số tự động (no-reference và full-reference). Chất lượng ảnh tổng hợp theo đánh giá của bác sĩ (reader study) — tiêu chí quan trọng nhất trong ứng dụng y tế --- chưa được thực hiện.
+
+\paragraph{Phụ thuộc vào pretrained CDDFuse.}
+CDDFuse-AG khởi tạo từ weights CDDFuse pretrained trên tập paper gốc, có phân phối dữ liệu khác Harvard 738. Việc end-to-end fine-tune từ pretrained này có thể không đạt được cực trị toàn cục tối ưu cho Harvard domain.

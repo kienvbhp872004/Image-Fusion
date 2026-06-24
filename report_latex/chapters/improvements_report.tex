@@ -1,0 +1,98 @@
+\documentclass[12pt,a4paper]{article}
+% XeLaTeX với fontspec — hỗ trợ đầy đủ ký tự Việt Unicode
+\usepackage{fontspec}
+\setmainfont{Latin Modern Roman}
+\usepackage{polyglossia}
+\setdefaultlanguage{vietnamese}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\geometry{margin=2.5cm}
+
+\title{Báo cáo huấn luyện các quy tắc tổng hợp\\Cơ sở và Chi tiết cho CDDFuse}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section{Huấn luyện các quy tắc tổng hợp thành phần Cơ sở}
+
+Khảo sát 5 quy tắc tổng hợp thành phần Cơ sở (Base): L1-norm weighted, Visual Saliency Map (VSM), Local Energy, Local Entropy, và Weighted Average Scalar. Mỗi quy tắc được huấn luyện trên 738 cặp ảnh y tế Harvard, đánh giá trên 72 cặp ảnh test (24 cặp cho mỗi modality CT/PET/SPECT) với bộ 22 chỉ số chất lượng. Kết quả được so sánh với CDDFuse baseline bằng phương pháp \textbf{Composite Z-score}: với mỗi metric $\times$ modality, giá trị chuẩn hóa $z = (x - \mu) / \sigma$ (đảo dấu cho chỉ số ``thấp tốt''); Composite z-score là trung bình các z-scores. Giá trị cao = tốt.
+
+\begin{table}[h]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\caption{Kết quả huấn luyện các quy tắc tổng hợp Cơ sở --- Composite Z-score so sánh với CDDFuse baseline.}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Variant} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z avg} & \textbf{Rank} \\
+\midrule
+CDDFuse (baseline)       & $+0.141$ & $+0.415$ & $+0.441$ & $\mathbf{+0.332}$ & \textbf{\#1} \\
+DB.3 VSM                 & $+0.251$ & $+0.213$ & $+0.337$ & $\underline{+0.267}$ & \underline{\#2} \\
+DB.6 WeightedAvg         & $+0.320$ & $+0.165$ & $+0.282$ & $+0.256$ & \#3 \\
+DB.4 LocalEnergy         & $+0.208$ & $+0.178$ & $+0.218$ & $+0.202$ & \#4 \\
+DB.2 L1Norm              & $+0.085$ & $+0.203$ & $+0.312$ & $+0.200$ & \#5 \\
+DB.5 LocalEntropy        & $-1.005$ & $-1.174$ & $-1.590$ & $-1.256$ & \#6 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Quan sát}:
+\begin{itemize}\itemsep0pt
+    \item CDDFuse baseline đứng \#1 với composite z-score cao $+0.332$, nhờ điểm cao nổi bật trên PET ($+0.415$) và SPECT ($+0.441$).
+    \item Tuy nhiên, trên modality CT, các quy tắc đề xuất \emph{vượt CDDFuse}: \textbf{DB.6 WeightedAvg} đạt $+0.320$ và \textbf{DB.3 VSM} đạt $+0.251$ (so với CDDFuse $+0.141$).
+    \item \textbf{DB.3 VSM} đứng \#2 với cải thiện đều đặn trên cả 3 modality --- ứng viên Base tiềm năng cho thiết kế bất đối xứng (asymmetric).
+    \item \textbf{DB.6 WeightedAvg} đạt z-score cao nhất trên CT ($+0.320$) trong khi chỉ sử dụng 1 tham số học --- chứng minh quy tắc tối giản hiệu quả với encoder pretrained mạnh.
+    \item \textbf{DB.5 LocalEntropy} có composite z âm rất lớn ($-1.256$) trên tất cả 3 modality --- quy tắc này không phù hợp khi áp dụng vào kiến trúc CDDFuse.
+\end{itemize}
+
+\section{Huấn luyện các quy tắc tổng hợp thành phần Chi tiết}
+
+Khảo sát 8 quy tắc tổng hợp thành phần Chi tiết (Detail): Adaptive Gating, Soft Choose-Max-Abs, Saliency-guided gate, Spatial Frequency (SF), Local Energy per-channel, Sum-Modified-Laplacian (SML), L1-norm per-channel, và Soft PCNN. Cùng giao thức huấn luyện và đánh giá như mục trước.
+
+\begin{table}[h]
+\centering
+\small
+\setlength{\tabcolsep}{5pt}
+\caption{Kết quả huấn luyện các quy tắc tổng hợp Chi tiết --- Composite Z-score so sánh với CDDFuse baseline.}
+\begin{tabular}{lrrrrr}
+\toprule
+\textbf{Variant} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z avg} & \textbf{Rank} \\
+\midrule
+CDDFuse (baseline)       & $+0.007$ & $+0.433$ & $+0.210$ & $\mathbf{+0.217}$ & \textbf{\#1} \\
+DD.4 SF                  & $+0.212$ & $+0.254$ & $+0.180$ & $\underline{+0.215}$ & \underline{\#2} \\
+DD.6 SML                 & $+0.176$ & $+0.162$ & $+0.274$ & $+0.204$ & \#3 \\
+DD.7 L1Norm              & $+0.250$ & $+0.144$ & $+0.195$ & $+0.196$ & \#4 \\
+DD.8 PCNN-soft           & $+0.124$ & $+0.193$ & $+0.165$ & $+0.161$ & \#5 \\
+DD.1 Gated               & $+0.164$ & $+0.107$ & $+0.099$ & $+0.123$ & \#6 \\
+DD.5 LocalEnergy         & $+0.120$ & $+0.202$ & $+0.042$ & $+0.121$ & \#7 \\
+DD.2 MaxAbs              & $+0.133$ & $+0.054$ & $+0.122$ & $+0.103$ & \#8 \\
+DD.3 Saliency            & $-1.186$ & $-1.548$ & $-1.287$ & $-1.340$ & \#9 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Quan sát}:
+\begin{itemize}\itemsep0pt
+    \item CDDFuse baseline đứng \#1 ($+0.217$), nhưng \textbf{chênh lệch chỉ $0.002$ so với DD.4 SF} ($+0.215$) --- các quy tắc activity-based đạt mức cạnh tranh với phép cộng đơn giản.
+    \item Trên modality CT, ba quy tắc \emph{vượt CDDFuse} một cách rõ rệt: \textbf{DD.7 L1Norm} ($+0.250$), \textbf{DD.4 SF} ($+0.212$), \textbf{DD.6 SML} ($+0.176$).
+    \item \textbf{DD.6 SML} đạt z-score cao nhất trên SPECT ($+0.274$) trong tất cả các quy tắc Detail --- ứng viên Detail tốt nhất cho fusion ảnh functional (PET/SPECT).
+    \item \textbf{DD.3 Saliency} có pattern phân cực mạnh: thắng nổi bật ở các chỉ số QSF/NABF cá biệt nhưng composite z trung bình $-1.340$ do thua nặng ở các chỉ số khác (QG, QM, AG, SF). Saliency-guided gradient cứng dẫn đến hi-pass output quá mức.
+    \item Đáng chú ý, \textbf{CDDFuse-AG-45ep} (cải tiến đối xứng Gated trước đó) trong vai trò là một biến thể Detail rule cũng chỉ đứng \#5--\#6 ở composite z --- xác nhận thiết kế Gated symmetric không phải là tối ưu.
+\end{itemize}
+
+\section{Hướng tiếp theo}
+
+Từ hai bảng trên, hai ứng viên có triển vọng nhất:
+\begin{itemize}\itemsep0pt
+    \item \textbf{Base}: DB.6 WeightedAvg (rank \#3 trung bình, tốt nhất trên CT) hoặc DB.3 VSM (rank \#2 trung bình).
+    \item \textbf{Detail}: DD.6 SML (tốt nhất trên SPECT, rank \#3 trung bình) hoặc DD.4 SF (rank \#2 trung bình).
+\end{itemize}
+
+Các tổ hợp Combined (Base $\times$ Detail) sẽ được khảo sát trong giai đoạn tiếp theo.
+
+\end{document}

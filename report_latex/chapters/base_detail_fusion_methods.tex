@@ -1,0 +1,400 @@
+\documentclass[12pt,a4paper]{article}
+\usepackage[utf8]{inputenc}
+\usepackage[T5]{fontenc}
+\usepackage[vietnamese]{babel}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{tcolorbox}
+\geometry{margin=2.5cm}
+
+\title{Các phương pháp tổng hợp thành phần Cơ sở và Chi tiết\\trong bài toán Image Fusion}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Bối cảnh}
+
+Trong các kiến trúc image fusion dựa trên phân rã đa tầng (multi-scale decomposition --- MSD) hoặc dựa trên học sâu (như CDDFuse \cite{zhao2023cddfuse}), ảnh nguồn được tách thành hai thành phần:
+\begin{itemize}\itemsep0pt
+    \item \textbf{Thành phần cơ sở} (\emph{base / low-frequency}, ký hiệu $f^B$) --- biểu diễn cấu trúc tổng thể, tương phản chậm, ít thay đổi giữa các modality.
+    \item \textbf{Thành phần chi tiết} (\emph{detail / high-frequency}, ký hiệu $f^D$) --- biểu diễn texture, biên, đặc trưng riêng từng modality.
+\end{itemize}
+
+Gọi $a = f^B_V$ (hoặc $f^D_V$) là feature từ modality VIS/MRI và $b = f^B_I$ (hoặc $f^D_I$) là feature từ modality IR/CT/PET/SPECT. Mỗi thành phần được tổng hợp bằng một \emph{fusion rule} $R(a, b)$. Theo Liu et al.\ \cite{liu2017survey}, quy trình MSD-based fusion gồm 3 bước:
+\begin{enumerate}\itemsep0pt
+    \item Phân rã: $I \to \{f^B, f^D\}$
+    \item Áp dụng fusion rule: $f^B_F = R_B(f^B_V, f^B_I)$ và $f^D_F = R_D(f^D_V, f^D_I)$
+    \item Tổng hợp ngược: $\{f^B_F, f^D_F\} \to I_F$
+\end{enumerate}
+
+Tài liệu này liệt kê các phương pháp $R_B$ và $R_D$ phổ biến, kèm công thức chi tiết và phương pháp mà CDDFuse \cite{zhao2023cddfuse} sử dụng.
+
+\begin{tcolorbox}[colback=blue!5,colframe=blue!50,title=\textbf{Phương pháp CDDFuse gốc sử dụng}]
+CDDFuse \cite{zhao2023cddfuse} dùng \textbf{phép cộng đơn giản} (đồng nhất với \emph{trung bình} sau LayerNorm) cho \textbf{cả Base và Detail}:
+\[
+f^B_F = \mathrm{BaseFuseLayer}(f^B_V + f^B_I), \quad
+f^D_F = \mathrm{DetailFuseLayer}(f^D_V + f^D_I)
+\]
+Trong đó \texttt{BaseFuseLayer} là một khối Transformer (LayerNorm + Attention + MLP) và \texttt{DetailFuseLayer} là một khối INN (Invertible Neural Network). Phép cộng ở đây tận dụng \textbf{shared encoder} (cùng tham số cho cả hai modality, nên channel cùng ngữ nghĩa) và \textbf{decomposition loss} (ép Base tương quan cao, Detail tương quan thấp) để hoạt động đúng.
+\end{tcolorbox}
+
+\section{Phương pháp tổng hợp thành phần Cơ sở}
+\label{sec:base-fusion}
+
+Mục tiêu: bảo toàn cấu trúc giải phẫu chung, tránh artifact biên. Vì base là vùng tương quan cao giữa các modality, các phương pháp thiên về \emph{trung bình có trọng số}.
+
+\subsection{Trung bình / Phép cộng (Average / Sum)}
+
+Công thức:
+\begin{equation}
+R(a, b) = \frac{1}{2}(a + b) \quad \text{hoặc} \quad R(a, b) = a + b
+\end{equation}
+
+Là baseline đơn giản nhất, không có tham số. Phép cộng và trung bình chỉ khác nhau 1 hệ số 2, sẽ bị hấp thụ bởi LayerNorm/learnable scale ở khối refinement phía sau \cite{burt1983laplacian}.
+
+\textbf{$\Rightarrow$ CDDFuse \cite{zhao2023cddfuse} sử dụng phương pháp này.}
+
+\subsection{Phương pháp Max (Choose-max)}
+
+Công thức:
+\begin{equation}
+R(a, b) = \begin{cases} a, & \text{nếu } |a| > |b| \\ b, & \text{ngược lại} \end{cases}
+\end{equation}
+
+Phổ biến cho high-frequency hơn, hiếm khi dùng cho base \cite{li1995wavelet}. Có thể gây artifact biên do "nhảy" giữa hai modality.
+
+\subsection{L1-norm weighted average}
+
+Activity measure: $A(a)_{i,j} = \|a_{i,j}\|_1 = \sum_c |a_c(i,j)|$ (tổng L1 theo channel). Trọng số:
+\begin{equation}
+w_a(i,j) = \frac{A(a)_{i,j}}{A(a)_{i,j} + A(b)_{i,j} + \epsilon}, \quad
+R(a, b) = w_a \cdot a + (1 - w_a) \cdot b
+\end{equation}
+
+Trọng số tỉ lệ với độ "tích cực" của feature. Modality nào có magnitude lớn hơn ở pixel đó sẽ chiếm tỉ trọng cao hơn. Sử dụng trong DenseFuse \cite{li2018densefuse}.
+
+\subsection{Visual Saliency Map (VSM) weighted}
+
+Bản đồ độ nổi bật tại pixel $p$:
+\begin{equation}
+S(I)_p = \sum_{q \in N(p)} |I_p - I_q| \cdot w(I_q)
+\end{equation}
+
+Trong đó $N(p)$ là cửa sổ lân cận của $p$, $w(I_q)$ là trọng số (thường histogram-based). Trọng số fusion:
+\begin{equation}
+w_a = \frac{S(a)}{S(a) + S(b) + \epsilon}, \quad R(a, b) = w_a \cdot a + (1 - w_a) \cdot b
+\end{equation}
+
+Vùng tương phản cao (mạch máu, khối u, biên xương) được ưu tiên. Phổ biến trong fusion y tế \cite{wang2008vsm, li2013guided}.
+
+\subsection{Local Energy weighted}
+
+Năng lượng cục bộ:
+\begin{equation}
+E(a)_p = \sum_{q \in N(p)} a_q^2
+\end{equation}
+
+Trọng số tỉ lệ với năng lượng:
+\begin{equation}
+w_a = \frac{E(a)}{E(a) + E(b) + \epsilon}, \quad R(a, b) = w_a \cdot a + (1 - w_a) \cdot b
+\end{equation}
+
+Đo công suất tín hiệu trong cửa sổ $N(p)$ kích thước $W \times W$ (thường $W = 3$ hoặc $5$). Sử dụng trong nhiều sơ đồ NSCT/NSST \cite{liu2017survey}.
+
+\subsection{Local Variance / Entropy weighted}
+
+Phương sai cục bộ:
+\begin{equation}
+\sigma^2_a(p) = \frac{1}{|N(p)|} \sum_{q \in N(p)} (a_q - \mu_a(p))^2, \quad \mu_a(p) = \frac{1}{|N(p)|} \sum_{q \in N(p)} a_q
+\end{equation}
+
+Entropy cục bộ (với phân phối $p_k$ của bins trong cửa sổ):
+\begin{equation}
+H_a(p) = -\sum_{k} p_k(a, N(p)) \log p_k(a, N(p))
+\end{equation}
+
+Trọng số: $w_a = \sigma^2_a / (\sigma^2_a + \sigma^2_b + \epsilon)$ hoặc tương tự với entropy. Đo mức "động" / "phong phú thông tin" \cite{liu2017survey}.
+
+\subsection{Sparse Representation}
+
+Học dictionary $D \in \mathbb{R}^{n \times K}$; biểu diễn thưa của patch $a$ và $b$:
+\begin{equation}
+\alpha_a = \arg\min_{\alpha} \|\alpha\|_1 \text{ s.t. } \|a - D\alpha\|_2 \le \delta
+\end{equation}
+
+Fuse sparse code (ví dụ: $\alpha_F = \alpha_a + \alpha_b$ hoặc max-rule), rồi tái tạo:
+\begin{equation}
+R(a, b) = D \cdot \alpha_F
+\end{equation}
+
+Có cơ sở lý thuyết tốt, sparse code có ý nghĩa ngữ nghĩa rõ ràng \cite{yang2010spfusion}. Nhược điểm: optimization L1 chậm, cần dictionary chất lượng.
+
+\subsection{Adaptive Gating (Optimization-based)}
+
+Gate học end-to-end qua loss:
+\begin{equation}
+g = \sigma\big(\mathrm{Conv}_{1\times 1}([a; b])\big) \in [0, 1]^{H \times W \times C}, \quad
+R(a, b) = g \odot a + (1 - g) \odot b
+\end{equation}
+
+Trong đó $[a; b]$ là concat theo channel, $\sigma$ là sigmoid, $\odot$ là phép nhân Hadamard (per-pixel, per-channel). Trọng số $g$ học theo từng pixel + từng channel \cite{prabhakar2017deepfuse, ma2019fusiongan}.
+
+\textbf{Đây là phương pháp đồ án đề xuất (CDDFuse-AG --- Adaptive Gating).}
+
+\subsection{Pretrained Deep Features}
+
+Trích đặc trưng từ VGG19 \cite{liu2017vggfuse} hoặc ResNet \cite{li2018resnetfuse}:
+\begin{equation}
+\phi(a) = \mathrm{VGG19}_{\text{relu1\_1}}(a), \quad \phi(b) = \mathrm{VGG19}_{\text{relu1\_1}}(b)
+\end{equation}
+
+Tính activity từ activation map (thường L1-norm hoặc L2-norm):
+\begin{equation}
+A_a = \|\phi(a)\|_1, \quad w_a = \frac{A_a}{A_a + A_b + \epsilon}
+\end{equation}
+
+Tận dụng kiến thức từ ImageNet để đánh giá độ quan trọng vùng ảnh (\emph{transfer learning}).
+
+\subsection{Bảng tổng hợp}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Các phương pháp tổng hợp thành phần cơ sở.}
+\label{tab:base-methods}
+\begin{tabular}{l p{7.5cm} l}
+\toprule
+\textbf{Phương pháp} & \textbf{Công thức / Ý tưởng} & \textbf{Tham khảo} \\
+\midrule
+\textbf{Sum (paper CDDFuse)} & $R(a,b) = a + b$ --- không tham số & \cite{burt1983laplacian, zhao2023cddfuse} \\
+Average & $R(a,b) = (a+b)/2$ --- tương đương Sum sau LayerNorm & \cite{burt1983laplacian} \\
+L1-norm    & $w_a = \|a\|_1 / (\|a\|_1 + \|b\|_1)$ & \cite{li2018densefuse} \\
+VSM        & $w_a \propto \sum_{N} |I_p - I_q| w(I_q)$ & \cite{wang2008vsm,li2013guided} \\
+Local Energy & $w_a \propto \sum_N a^2$ --- công suất cục bộ & \cite{liu2017survey} \\
+Local Var/Entropy & $w_a \propto \sigma^2_a$ hoặc $H_a$ & \cite{liu2017survey} \\
+Sparse Rep. & Fuse trên sparse code $\alpha = \arg\min \|\alpha\|_1$ s.t. $\|a - D\alpha\|_2 \le \delta$ & \cite{yang2010spfusion} \\
+Adaptive Gating & $g = \sigma(\mathrm{Conv}_{1\times 1}([a;b]))$ học qua loss & \cite{prabhakar2017deepfuse} \\
+Pretrained DL & $\phi = \mathrm{VGG19}(\cdot)$, $w_a \propto \|\phi(a)\|_1$ & \cite{liu2017vggfuse,li2018resnetfuse} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Phương pháp tổng hợp thành phần Chi tiết}
+\label{sec:detail-fusion}
+
+Mục tiêu: giữ lại tín hiệu mạnh nhất từ mỗi modality (texture mô mềm MRI, rim xương CT). Vì detail là vùng tương quan thấp (mỗi modality mang đặc trưng riêng), các phương pháp thiên về \emph{lựa chọn} (selection) hoặc \emph{kích hoạt} (activity-based).
+
+\begin{tcolorbox}[colback=blue!5,colframe=blue!50,title=\textbf{CDDFuse dùng cho Detail}]
+CDDFuse cũng dùng \textbf{phép cộng} cho Detail: $f^D_F = \mathrm{DetailFuseLayer}(f^D_V + f^D_I)$, với \texttt{DetailFuseLayer} là khối INN. Đây là \emph{lựa chọn không chuẩn} so với truyền thống (truyền thống thường dùng max-abs cho detail). Lý do CDDFuse vẫn dùng được: decomposition loss ép $cc_D \approx 0$ (Detail của hai modality không tương quan), nên phép cộng = phép \emph{tổng hợp bổ trợ} (mỗi modality đóng góp phần riêng) chứ không phải pha loãng.
+\end{tcolorbox}
+
+\subsection{Choose-max-abs (truyền thống)}
+
+\begin{equation}
+R(a, b) = \begin{cases} a, & \text{nếu } |a| > |b| \\ b, & \text{ngược lại} \end{cases}
+\end{equation}
+
+Quy tắc cổ điển nhất cho high-frequency \cite{li1995wavelet}. Chọn hệ số có biên độ lớn nhất, giả định "lớn hơn $=$ chứa thông tin nhiều hơn".
+
+\textbf{Soft version} (differentiable):
+\begin{equation}
+w_a = \sigma\left(\frac{|a| - |b|}{\tau}\right), \quad R(a, b) = w_a \cdot a + (1 - w_a) \cdot b
+\end{equation}
+với $\tau$ là tham số nhiệt; khi $\tau \to 0$ tiến tới hard max-abs.
+
+\subsection{Spatial Frequency (SF)}
+
+Row Frequency và Column Frequency:
+\begin{equation}
+RF(a)_p = a_p - a_{p-1}, \quad CF(a)_p = a_p - a_{p-W}
+\end{equation}
+\begin{equation}
+SF(a)_p = \sqrt{RF(a)_p^2 + CF(a)_p^2}
+\end{equation}
+
+Trọng số:
+\begin{equation}
+w_a(p) = \frac{SF(a)_p}{SF(a)_p + SF(b)_p + \epsilon}
+\end{equation}
+
+Đo "độ động" của texture. Phổ biến trong multi-focus fusion \cite{eskicioglu1995sf}.
+
+\subsection{Sum-Modified-Laplacian (SML)}
+
+Modified Laplacian tại pixel $p$:
+\begin{equation}
+ML(a)_p = |2a_p - a_{p-1} - a_{p+1}| + |2a_p - a_{p-W} - a_{p+W}|
+\end{equation}
+
+Sum-Modified-Laplacian trong cửa sổ $N(p)$:
+\begin{equation}
+SML(a)_p = \sum_{q \in N(p)} ML(a)_q
+\end{equation}
+
+Trọng số: $w_a = SML(a) / (SML(a) + SML(b) + \epsilon)$. Đo độ sắc nét (sharpness) \cite{huang2007sml}.
+
+\subsection{Local Energy/Variance per-channel}
+
+Tương tự thành phần cơ sở (Mục \ref{sec:base-fusion}), nhưng tính \emph{per-channel} (giữ tính chọn lọc cao của detail):
+\begin{equation}
+E_c(a)_p = \sum_{q \in N(p)} a_c(q)^2, \quad w_a(c, p) = \frac{E_c(a)_p}{E_c(a)_p + E_c(b)_p + \epsilon}
+\end{equation}
+
+\subsection{Pulse-Coupled Neural Network (PCNN)}
+
+Mạng neural gai \cite{eckhorn1990pcnn} mô phỏng vỏ não thị giác mèo. Mỗi pixel là 1 neuron với 5 thành phần:
+
+\textbf{Feeding input:} $F_{ij}[n] = a_{ij}$
+
+\textbf{Linking input:} $L_{ij}[n] = V_L \sum_{kl \in N(ij)} W_{ijkl} Y_{kl}[n-1]$
+
+\textbf{Internal activity:} $U_{ij}[n] = F_{ij}(1 + \beta L_{ij})$
+
+\textbf{Dynamic threshold:} $\theta_{ij}[n] = \theta_{ij}[n-1] e^{-\alpha_\theta} + V_\theta Y_{ij}[n-1]$
+
+\textbf{Pulse output:}
+\begin{equation}
+Y_{ij}[n] = \begin{cases} 1, & U_{ij} > \theta_{ij} \\ 0, & \text{ngược lại} \end{cases}
+\end{equation}
+
+Chạy $T$ vòng lặp ($T \sim 100$--$200$), đếm \emph{fire frequency}:
+\begin{equation}
+\mathrm{Fire}(a)_{ij} = \sum_{n=1}^{T} Y_{ij}[n]
+\end{equation}
+
+Trọng số fusion:
+\begin{equation}
+w_a = \frac{\mathrm{Fire}(a)}{\mathrm{Fire}(a) + \mathrm{Fire}(b) + \epsilon}
+\end{equation}
+
+\textbf{Biến thể quan trọng:}
+\begin{itemize}\itemsep0pt
+    \item \textbf{PA-PCNN} (Parameter-Adaptive PCNN) \cite{yin2019papcnn}: tham số $\beta, \alpha_\theta, V_\theta$ tự thiết lập từ đặc trưng ảnh, không cần tune thủ công.
+    \item \textbf{Dual-Channel PCNN (DC-PCNN)} \cite{wang2014dcpcnn}: hai PCNN ghép đôi cho hai modality, link 2 chiều.
+\end{itemize}
+
+\subsection{Saliency-guided gate}
+
+Tính bản đồ gradient (Sobel hoặc tương tự):
+\begin{equation}
+G(a)_p = \sqrt{(\partial_x a)^2 + (\partial_y a)^2}\Big|_p
+\end{equation}
+
+Trọng số:
+\begin{equation}
+w_a = \frac{G(a)}{G(a) + G(b) + \epsilon}, \quad R(a, b) = w_a \cdot a + (1 - w_a) \cdot b
+\end{equation}
+
+Đồng bộ với supervision signal nếu loss function cũng dựa trên saliency (như Saliency-guided Pixel loss) \cite{liu2016saliency}.
+
+\subsection{Sparse coefficient max}
+
+Tương tự thành phần cơ sở; với detail thường dùng max-rule trên sparse code:
+\begin{equation}
+\alpha_F(k) = \begin{cases} \alpha_a(k), & \text{nếu } |\alpha_a(k)| > |\alpha_b(k)| \\ \alpha_b(k), & \text{ngược lại} \end{cases}
+\end{equation}
+\cite{yang2010spfusion}.
+
+\subsection{Adaptive Gating}
+
+Giống Mục \ref{sec:base-fusion}, áp dụng cho detail với gate học riêng:
+\begin{equation}
+g_D = \sigma\big(\mathrm{Conv}_{1\times 1}([a_D; b_D])\big), \quad R(a_D, b_D) = g_D \odot a_D + (1 - g_D) \odot b_D
+\end{equation}
+
+\subsection{Bảng tổng hợp}
+
+\begin{table}[h]
+\centering
+\small
+\caption{Các phương pháp tổng hợp thành phần chi tiết.}
+\label{tab:detail-methods}
+\begin{tabular}{l p{7.5cm} l}
+\toprule
+\textbf{Phương pháp} & \textbf{Công thức / Ý tưởng} & \textbf{Tham khảo} \\
+\midrule
+\textbf{Sum (paper CDDFuse)} & $R(a,b) = a + b$ qua INN block & \cite{zhao2023cddfuse} \\
+Choose-max-abs & $a$ nếu $|a|>|b|$, ngược lại $b$ & \cite{li1995wavelet} \\
+Spatial Frequency & $w_a \propto \sqrt{RF^2 + CF^2}$ & \cite{eskicioglu1995sf} \\
+SML & $w_a \propto \sum_N |2a_p - a_{p-1} - a_{p+1}| + |2a_p - a_{p-W} - a_{p+W}|$ & \cite{huang2007sml} \\
+Local Energy/Var & $w_a \propto \sum_N a_c^2$ per-channel & \cite{liu2017survey} \\
+PCNN / PA-PCNN & $w_a \propto \sum_{n=1}^T Y[n]$ (fire frequency) & \cite{eckhorn1990pcnn,yin2019papcnn} \\
+Saliency-guided & $w_a \propto \sqrt{(\partial_x a)^2 + (\partial_y a)^2}$ & \cite{liu2016saliency} \\
+Sparse Rep. & $\alpha_F = $ max-rule trên sparse code & \cite{yang2010spfusion} \\
+Adaptive Gating & $g_D = \sigma(\mathrm{Conv}([a;b]))$ học qua loss & \cite{prabhakar2017deepfuse} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Nhận xét chung}
+
+\begin{itemize}\itemsep0pt
+    \item \textbf{Base vs Detail dùng rule khác nhau}: Liu et al.\ \cite{liu2017survey} khẳng định base thường dùng \emph{trung bình / weighted average}, detail thường dùng \emph{max-abs} hoặc \emph{activity-based}.
+    \item \textbf{CDDFuse \cite{zhao2023cddfuse} là ngoại lệ}: dùng \emph{phép cộng đơn giản cho cả hai}. Sự thành công của thiết kế này dựa trên shared encoder + decomposition loss (ép Base correlated, Detail uncorrelated), khiến phép cộng hoạt động đúng mà không cần rule phức tạp.
+    \item \textbf{Xu hướng hiện đại}: Adaptive Gating (PP6) và Pretrained DL (PP7) đang chiếm ưu thế nhờ khả năng học theo dữ liệu, kết hợp với transfer learning từ ImageNet hoặc checkpoint pretrained.
+    \item \textbf{Trade-off}: Rule rigid (max, average) đơn giản, không cần train, nhưng kém linh hoạt. Rule học được (gating, deep features) mạnh hơn nhưng đòi hỏi dataset, compute, và training stability.
+\end{itemize}
+
+\begin{thebibliography}{99}
+
+\bibitem{zhao2023cddfuse}
+Zhao Z., Bai H., Zhang J., Zhang Y., Xu S., Lin Z., Timofte R., Van Gool L., \emph{CDDFuse: Correlation-Driven Dual-Branch Feature Decomposition for Multi-Modality Image Fusion}. CVPR 2023.
+
+\bibitem{liu2017survey}
+Liu Y., Chen X., Wang Z., Wang Z.J., Ward R.K., Wang X., \emph{Deep learning for pixel-level image fusion: Recent advances and future prospects}. Information Fusion, 2018.
+
+\bibitem{burt1983laplacian}
+Burt P.J., Adelson E.H., \emph{The Laplacian Pyramid as a Compact Image Code}. IEEE Trans. Communications, 1983.
+
+\bibitem{li1995wavelet}
+Li H., Manjunath B.S., Mitra S.K., \emph{Multisensor image fusion using the wavelet transform}. Graphical Models and Image Processing, 1995.
+
+\bibitem{li2018densefuse}
+Li H., Wu X.J., \emph{DenseFuse: A fusion approach to infrared and visible images}. IEEE Trans. Image Processing, 2018.
+
+\bibitem{wang2008vsm}
+Wang Z., Liu B., \emph{A novel image fusion method based on visual saliency map}. Optical Engineering, 2008.
+
+\bibitem{li2013guided}
+Li S., Kang X., Hu J., \emph{Image fusion with guided filtering}. IEEE Trans. Image Processing, 2013.
+
+\bibitem{yang2010spfusion}
+Yang B., Li S., \emph{Multifocus image fusion and restoration with sparse representation}. IEEE Trans. Instrumentation and Measurement, 2010.
+
+\bibitem{prabhakar2017deepfuse}
+Prabhakar K.R., Srikar V.S., Babu R.V., \emph{DeepFuse: A Deep Unsupervised Approach for Exposure Fusion with Extreme Exposure Image Pairs}. ICCV 2017.
+
+\bibitem{ma2019fusiongan}
+Ma J., Yu W., Liang P., Li C., Jiang J., \emph{FusionGAN: A generative adversarial network for infrared and visible image fusion}. Information Fusion, 2019.
+
+\bibitem{liu2017vggfuse}
+Li H., Wu X.J., Kittler J., \emph{Infrared and Visible Image Fusion using a Deep Learning Framework}. ICPR 2018.
+
+\bibitem{li2018resnetfuse}
+Li H., Wu X.J., Durrani T.S., \emph{Infrared and visible image fusion with ResNet and zero-phase component analysis}. Infrared Physics \& Technology, 2019.
+
+\bibitem{eskicioglu1995sf}
+Eskicioglu A.M., Fisher P.S., \emph{Image quality measures and their performance}. IEEE Trans. Communications, 1995.
+
+\bibitem{huang2007sml}
+Huang W., Jing Z., \emph{Evaluation of focus measures in multi-focus image fusion}. Pattern Recognition Letters, 2007.
+
+\bibitem{eckhorn1990pcnn}
+Eckhorn R., Reitboeck H.J., Arndt M., Dicke P., \emph{Feature Linking via Synchronization among Distributed Assemblies: Simulations of Results from Cat Visual Cortex}. Neural Computation, 1990.
+
+\bibitem{yin2019papcnn}
+Yin M., Liu X., Liu Y., Chen X., \emph{Medical Image Fusion With Parameter-Adaptive Pulse Coupled Neural Network in Nonsubsampled Shearlet Transform Domain}. IEEE Trans. Instrumentation and Measurement, 2019.
+
+\bibitem{wang2014dcpcnn}
+Wang Z., Ma Y., \emph{Medical image fusion using m-PCNN}. Information Fusion, 2008.
+
+\bibitem{liu2016saliency}
+Liu Y., Chen X., Peng H., Wang Z., \emph{Multi-focus image fusion with a deep convolutional neural network}. Information Fusion, 2017.
+
+\end{thebibliography}
+
+\end{document}

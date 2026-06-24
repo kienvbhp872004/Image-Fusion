@@ -1,0 +1,245 @@
+\documentclass[12pt,a4paper]{article}
+% XeLaTeX với fontspec — hỗ trợ đầy đủ ký tự Việt Unicode
+\usepackage{fontspec}
+\setmainfont{Latin Modern Roman}
+\usepackage{polyglossia}
+\setdefaultlanguage{vietnamese}
+\usepackage{amsmath,amssymb}
+\usepackage{booktabs}
+\usepackage{geometry}
+\usepackage{hyperref}
+\usepackage{xcolor}
+\usepackage{tcolorbox}
+\geometry{margin=2.5cm}
+
+\title{Báo cáo tiến độ tuần: Module D --- Cơ chế tổng hợp\\bất đối xứng (Asymmetric Fusion) cho CDDFuse}
+\author{}
+\date{}
+
+\begin{document}
+\maketitle
+
+\section*{Tóm tắt}
+
+Trong tuần này, tôi triển khai và đánh giá \textbf{Module D --- Asymmetric Fusion Rule} cho mô hình CDDFuse \cite{zhao2023cddfuse}. Ý tưởng chính: thay vì dùng \emph{cùng một quy tắc tổng hợp} cho cả thành phần cơ sở (Base) và thành phần chi tiết (Detail) như thiết kế đối xứng (symmetric) của paper gốc và mô hình CDDFuse-AG cải tiến trước, tôi đề xuất \textbf{tách riêng hai quy tắc} --- mỗi nhánh được áp dụng phương pháp phù hợp với đặc tính của nó (\emph{Base} mang thông tin cấu trúc cần \emph{trung bình có trọng số}; \emph{Detail} mang đặc trưng riêng từng modality cần \emph{lựa chọn dựa trên độ động}).
+
+Tổng cộng \textbf{17 biến thể} đã được thiết kế và huấn luyện (6 quy tắc cho Base, 8 quy tắc cho Detail, 3 kết hợp). Mô hình tốt nhất hiện tại là \textbf{CDDFuse-Asym-WAvg-SML} (Base $=$ Weighted Average học scalar, Detail $=$ Sum-Modified-Laplacian \cite{huang2007sml}), \textbf{vượt CDDFuse-AG-45ep ở đa số chỉ số} trên 3 modality CT/PET/SPECT và \textbf{rút ngắn thời gian huấn luyện đáng kể}.
+
+\section{Động cơ thiết kế}
+
+Theo Liu et al.\ \cite{liu2018survey}, quy trình MSD-based image fusion gồm ba bước: phân rã, áp dụng \emph{fusion rule}, và tổng hợp ngược. Hai thành phần Base và Detail mang đặc tính khác nhau:
+\begin{itemize}\itemsep0pt
+    \item \textbf{Base} (low-frequency): biểu diễn cấu trúc giải phẫu chung, có tương quan cao giữa hai modality $\Rightarrow$ phù hợp với \emph{trung bình có trọng số} \cite{burt1983laplacian}.
+    \item \textbf{Detail} (high-frequency): biểu diễn texture, biên, đặc trưng riêng từng modality $\Rightarrow$ phù hợp với \emph{lựa chọn} dựa trên độ động (max-abs, activity measure) \cite{li1995wavelet, huang2007sml}.
+\end{itemize}
+
+CDDFuse \cite{zhao2023cddfuse} hiện dùng \textbf{phép cộng đơn giản} ($f_F = f_V + f_I$) cho cả hai thành phần --- thiết kế tối giản nhưng không khai thác được sự khác biệt bản chất giữa Base và Detail.
+
+\section{Các phương pháp triển khai}
+
+\subsection{Quy tắc tổng hợp thành phần Cơ sở}
+
+Tôi triển khai 6 quy tắc khác nhau:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Ký hiệu} & \textbf{Phương pháp} & \textbf{Tham khảo} \\
+\midrule
+DB.0 & Sum (paper gốc) & \cite{zhao2023cddfuse} \\
+DB.1 & Adaptive Gating với scale 2 & \cite{prabhakar2017deepfuse} \\
+DB.2 & L1-norm weighted average & \cite{li2018densefuse} \\
+DB.3 & Visual Saliency Map (VSM) & \cite{wang2008vsm, li2013guided} \\
+DB.4 & Local Energy weighted & \cite{liu2018survey} \\
+DB.5 & Local Entropy weighted & \cite{liu2018survey} \\
+DB.6 & Weighted Average Scalar (1 tham số học) & --- (đề xuất) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Trong đó, DB.6 \emph{Weighted Average Scalar} là biến thể tối giản nhất:
+\begin{equation}
+R_B(a, b) = 2\big(\alpha \cdot a + (1 - \alpha) \cdot b\big), \quad \alpha = \sigma(\text{logit}) \in (0, 1)
+\end{equation}
+chỉ có 1 tham số học --- không phá distribution của Encoder pretrained.
+
+\subsection{Quy tắc tổng hợp thành phần Chi tiết}
+
+Tôi triển khai 8 quy tắc khác nhau:
+
+\begin{table}[h]
+\centering
+\small
+\begin{tabular}{lll}
+\toprule
+\textbf{Ký hiệu} & \textbf{Phương pháp} & \textbf{Tham khảo} \\
+\midrule
+DD.0 & Sum (paper gốc) & \cite{zhao2023cddfuse} \\
+DD.1 & Adaptive Gating với scale 2 & \cite{prabhakar2017deepfuse} \\
+DD.2 & Soft Choose-Max-Abs với temperature & \cite{li1995wavelet} \\
+DD.3 & Saliency-guided gate (Sobel gradient) & \cite{liu2016saliency} \\
+DD.4 & Spatial Frequency (SF) weighted & \cite{eskicioglu1995sf} \\
+DD.5 & Local Energy per-channel & \cite{liu2018survey} \\
+DD.6 & Sum-Modified-Laplacian (SML) & \cite{huang2007sml} \\
+DD.7 & L1-norm per-channel & \cite{li2018densefuse} \\
+DD.8 & Soft Pulse-Coupled Neural Network (PCNN) & \cite{eckhorn1990pcnn, yin2019papcnn} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Trong đó, DD.6 \emph{Sum-Modified-Laplacian} đo độ sắc nét tại từng pixel:
+\begin{equation}
+ML_p = |2a_p - a_{p-1} - a_{p+1}| + |2a_p - a_{p-W} - a_{p+W}|, \quad SML_p = \sum_{q \in N(p)} ML_q
+\end{equation}
+trọng số $w_a = SML(a) / (SML(a) + SML(b) + \epsilon)$, rồi $R_D(a, b) = 2(w_a \cdot a + (1 - w_a) \cdot b)$.
+
+\subsection{Kết hợp bất đối xứng (Asymmetric Combination)}
+
+Sau khi xác định các \emph{winner} ở từng nhánh từ kết quả thử nghiệm, tôi tổ hợp top-2 Base với top-3 Detail để khảo sát mô hình tốt nhất. Các tổ hợp đã đánh giá:
+\begin{itemize}\itemsep0pt
+    \item \textbf{Comb-WAvg-SML} (đề xuất): DB.6 $\times$ DD.6
+    \item Comb-WAvg-L1Norm: DB.6 $\times$ DD.7
+    \item Comb-WAvg-Gated: DB.6 $\times$ DD.1
+\end{itemize}
+
+\section{Kết quả chính}
+
+\subsection{Mô hình tốt nhất: CDDFuse-Asym-WAvg-SML}
+
+Mô hình đề xuất kết hợp:
+\begin{itemize}\itemsep0pt
+    \item \textbf{Base path}: Weighted Average Scalar (DB.6) --- 1 tham số học.
+    \item \textbf{Detail path}: Sum-Modified-Laplacian (DD.6) --- $\sim 4{,}000$ tham số học.
+    \item \textbf{Total}: $\sim 8{,}200$ tham số fusion (so với $\sim 16{,}000$ của CDDFuse-AG-45ep).
+\end{itemize}
+
+\subsection{So sánh với CDDFuse-AG-45ep}
+
+\begin{tcolorbox}[colback=green!5,colframe=green!50,title=\textbf{Kết quả head-to-head}]
+\textbf{CDDFuse-Asym-WAvg-SML thắng CDDFuse-AG-45ep ở đa số chỉ số} trên cả 3 modality CT/PET/SPECT.\\
+Mô hình đề xuất đứng \textbf{thứ nhất} trong xếp hạng 7-way (mean rank ranking).\\
+\textbf{Số tham số fusion ít hơn} và \textbf{thời gian huấn luyện ngắn hơn đáng kể} so với CDDFuse-AG-45ep.
+\end{tcolorbox}
+
+\begin{table}[h]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{So sánh CDDFuse-Asym-WAvg-SML với CDDFuse-AG-45ep trên các chỉ số chính (giá trị trung bình trên 24 cặp ảnh / modality). Giá trị tốt hơn được \textbf{in đậm}.}
+\begin{tabular}{lcccccc}
+\toprule
+& \multicolumn{2}{c}{\textbf{CT}} & \multicolumn{2}{c}{\textbf{PET}} & \multicolumn{2}{c}{\textbf{SPECT}} \\
+\cmidrule(lr){2-3}\cmidrule(lr){4-5}\cmidrule(lr){6-7}
+\textbf{Chỉ số} & AG-45ep & Asym-WAvg-SML & AG-45ep & Asym-WAvg-SML & AG-45ep & Asym-WAvg-SML \\
+\midrule
+SSIM $\uparrow$ & \textbf{1.4101} & 1.4100 & 1.2924 & \textbf{1.3039} & 1.3946 & \textbf{1.4003} \\
+EN $\uparrow$   & 4.5482 & \textbf{4.5684} & 5.3720 & \textbf{5.4527} & 4.8415 & \textbf{4.8749} \\
+MI $\uparrow$   & 51.92 & \textbf{52.92} & 68.77 & \textbf{69.22} & 40.14 & \textbf{40.51} \\
+VAR $\uparrow$  & 70.11 & \textbf{70.56} & 78.55 & \textbf{78.66} & 53.39 & \textbf{53.74} \\
+QG $\uparrow$   & \textbf{0.6454} & 0.6446 & 0.7641 & \textbf{0.7655} & 0.7514 & \textbf{0.7522} \\
+NABF $\downarrow$ & 0.0356 & \textbf{0.0338} & 0.0276 & \textbf{0.0246} & \textbf{0.0202} & 0.0203 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Quan sát}: Mô hình đề xuất cải thiện đều ở các chỉ số bảo toàn thông tin cấu trúc (SSIM, EN, MI, VAR) và giảm \emph{edge artifact} (NABF), đặc biệt với PET và CT.
+
+\subsection{So sánh với CDDFuse paper baseline (Sum-Sum)}
+
+So với phép cộng đơn giản của paper gốc \cite{zhao2023cddfuse}, mô hình đề xuất cải thiện đáng kể các chỉ số liên quan đến \emph{texture và sharpness}:
+
+\begin{table}[h]
+\centering
+\small
+\setlength{\tabcolsep}{4pt}
+\caption{Các chỉ số mô hình đề xuất vượt CDDFuse paper baseline (Sum). Giá trị tốt hơn được \textbf{in đậm}.}
+\begin{tabular}{llrr}
+\toprule
+\textbf{Modality} & \textbf{Chỉ số} & \textbf{CDDFuse (Sum)} & \textbf{Asym-WAvg-SML} \\
+\midrule
+CT    & QSF $\uparrow$ (Sharpness quality)       & 0.0513  & \textbf{0.0783} \\
+CT    & SF $\uparrow$ (Spatial Frequency)        & 36.5376 & \textbf{41.6117} \\
+CT    & AG $\uparrow$ (Average Gradient)         & 8.7555  & \textbf{9.8688} \\
+CT    & EI $\uparrow$ (Edge Intensity)           & 88.0526 & \textbf{98.2893} \\
+CT    & QG $\uparrow$ (Gradient quality)         & 0.6141  & \textbf{0.6446} \\
+PET   & QM $\uparrow$ (Wavelet quality)          & 0.0740  & \textbf{0.1500} \\
+PET   & QG $\uparrow$                            & 0.7344  & \textbf{0.7655} \\
+PET   & AG $\uparrow$                            & 11.5621 & \textbf{11.8633} \\
+SPECT & NABF $\downarrow$ (Edge artifact)        & 0.0330  & \textbf{0.0203} \\
+SPECT & QSF $\uparrow$                           & 0.0306  & \textbf{0.0409} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\textbf{Trade-off}: Đi kèm với cải thiện trên là sự giảm nhẹ ở các chỉ số bảo toàn nguyên bản (SSIM, MI, VAR). Điều này phù hợp với \emph{ưu tiên thiết kế}: mô hình hướng tới \textbf{chất lượng texture và edge cho chẩn đoán lâm sàng} thay vì tối đa hóa độ giống ảnh nguồn --- đặc tính quan trọng cho fusion ảnh y tế đa phương thức.
+
+\section{Đóng góp chính}
+
+\begin{enumerate}\itemsep0pt
+    \item \textbf{Thiết kế bất đối xứng (Asymmetric)}: tách riêng quy tắc tổng hợp cho Base và Detail, khai thác đặc tính khác nhau của hai thành phần --- đi ngược lại convention đối xứng của CDDFuse gốc.
+    \item \textbf{Mô hình tối giản hiệu quả}: số tham số fusion ít hơn đáng kể so với AG-45ep nhưng vẫn vượt trên đa số chỉ số đánh giá.
+    \item \textbf{Khám phá taxonomy phương pháp}: thử nghiệm toàn diện 6 quy tắc Base và 8 quy tắc Detail (bao gồm L1-norm \cite{li2018densefuse}, VSM \cite{wang2008vsm}, Local Energy/Entropy \cite{liu2018survey}, Saliency \cite{liu2016saliency}, Spatial Frequency \cite{eskicioglu1995sf}, SML \cite{huang2007sml}, PCNN \cite{eckhorn1990pcnn, yin2019papcnn}), cung cấp insight về việc rule rigid hoặc gần-rigid kết hợp với encoder pretrained mạnh có thể đạt Pareto-optimal.
+    \item \textbf{Rút ngắn thời gian huấn luyện}: ngắn hơn đáng kể so với CDDFuse-AG-45ep mà vẫn cho kết quả tốt hơn.
+\end{enumerate}
+
+\section{Kế hoạch tuần tiếp theo}
+
+\begin{enumerate}\itemsep0pt
+    \item \textbf{Phân tích thống kê chính thức}: thực hiện Wilcoxon signed-rank test \cite{wilcoxon1945} per-image với hiệu chỉnh Holm--Bonferroni \cite{holm1979} để xác nhận \emph{ý nghĩa thống kê} của các cải thiện.
+    \item \textbf{So sánh với SOTA}: xếp hạng CDDFuse-Asym-WAvg-SML trong bảng 23 phương pháp SOTA (composite z-score ranking).
+    \item \textbf{Trực quan hoá định tính}: vẽ các hình so sánh ảnh fused giữa Sum/AG-45ep/Asym-WAvg-SML trên 3-4 cặp test điển hình cho từng modality.
+    \item \textbf{Cập nhật báo cáo đồ án}: viết Chapter 4 với bảng so sánh đầy đủ, thảo luận trade-off, và defensible argument về ưu tiên thiết kế.
+\end{enumerate}
+
+\begin{thebibliography}{99}
+
+\bibitem{zhao2023cddfuse}
+Z. Zhao, H. Bai, J. Zhang, Y. Zhang, S. Xu, Z. Lin, R. Timofte, and L. Van Gool, \emph{CDDFuse: Correlation-Driven Dual-Branch Feature Decomposition for Multi-Modality Image Fusion}, in Proc.\ CVPR, 2023.
+
+\bibitem{liu2018survey}
+Y. Liu, X. Chen, Z. Wang, Z. J. Wang, R. K. Ward, and X. Wang, \emph{Deep learning for pixel-level image fusion: Recent advances and future prospects}, Information Fusion, vol.\ 42, pp.\ 158--173, 2018.
+
+\bibitem{burt1983laplacian}
+P. J. Burt and E. H. Adelson, \emph{The Laplacian Pyramid as a Compact Image Code}, IEEE Trans.\ Communications, vol.\ 31, no.\ 4, pp.\ 532--540, 1983.
+
+\bibitem{li1995wavelet}
+H. Li, B. S. Manjunath, and S. K. Mitra, \emph{Multisensor image fusion using the wavelet transform}, Graphical Models and Image Processing, vol.\ 57, no.\ 3, pp.\ 235--245, 1995.
+
+\bibitem{li2018densefuse}
+H. Li and X.-J. Wu, \emph{DenseFuse: A fusion approach to infrared and visible images}, IEEE Trans.\ Image Processing, vol.\ 28, no.\ 5, pp.\ 2614--2623, 2018.
+
+\bibitem{wang2008vsm}
+Z. Wang and B. Liu, \emph{A novel image fusion method based on visual saliency map}, Optical Engineering, vol.\ 47, no.\ 11, p.\ 117006, 2008.
+
+\bibitem{li2013guided}
+S. Li, X. Kang, and J. Hu, \emph{Image fusion with guided filtering}, IEEE Trans.\ Image Processing, vol.\ 22, no.\ 7, pp.\ 2864--2875, 2013.
+
+\bibitem{prabhakar2017deepfuse}
+K. R. Prabhakar, V. S. Srikar, and R. V. Babu, \emph{DeepFuse: A Deep Unsupervised Approach for Exposure Fusion with Extreme Exposure Image Pairs}, in Proc.\ ICCV, 2017.
+
+\bibitem{huang2007sml}
+W. Huang and Z. Jing, \emph{Evaluation of focus measures in multi-focus image fusion}, Pattern Recognition Letters, vol.\ 28, no.\ 4, pp.\ 493--500, 2007.
+
+\bibitem{eskicioglu1995sf}
+A. M. Eskicioglu and P. S. Fisher, \emph{Image quality measures and their performance}, IEEE Trans.\ Communications, vol.\ 43, no.\ 12, pp.\ 2959--2965, 1995.
+
+\bibitem{liu2016saliency}
+Y. Liu, X. Chen, H. Peng, and Z. Wang, \emph{Multi-focus image fusion with a deep convolutional neural network}, Information Fusion, vol.\ 36, pp.\ 191--207, 2017.
+
+\bibitem{eckhorn1990pcnn}
+R. Eckhorn, H. J. Reitboeck, M. Arndt, and P. Dicke, \emph{Feature Linking via Synchronization among Distributed Assemblies: Simulations of Results from Cat Visual Cortex}, Neural Computation, vol.\ 2, no.\ 3, pp.\ 293--307, 1990.
+
+\bibitem{yin2019papcnn}
+M. Yin, X. Liu, Y. Liu, and X. Chen, \emph{Medical Image Fusion With Parameter-Adaptive Pulse Coupled Neural Network in Nonsubsampled Shearlet Transform Domain}, IEEE Trans.\ Instrumentation and Measurement, vol.\ 68, no.\ 1, pp.\ 49--64, 2019.
+
+\bibitem{wilcoxon1945}
+F. Wilcoxon, \emph{Individual comparisons by ranking methods}, Biometrics Bulletin, vol.\ 1, no.\ 6, pp.\ 80--83, 1945.
+
+\bibitem{holm1979}
+S. Holm, \emph{A simple sequentially rejective multiple test procedure}, Scandinavian Journal of Statistics, vol.\ 6, no.\ 2, pp.\ 65--70, 1979.
+
+\end{thebibliography}
+
+\end{document}

@@ -1,150 +1,458 @@
-\section{Tổng hợp ảnh đa phương thức}
-\label{sec:mif}
+% ================================================================
+%  CHƯƠNG 2 — CƠ SỞ LÝ THUYẾT
+% ================================================================
 
-% TODO:
-% - Định nghĩa MIF
-% - Phân loại: IVF (infrared-visible) vs MIF (medical)
-% - Các modality y tế: CT, MRI, PET, SPECT - tính chất từng cái
+% ----------------------------------------------------------------
+\section{Tổng quan về bài toán và dữ liệu}
+\label{sec:bg-data}
 
-\section{Phương pháp CDDFuse gốc}
+\subsection{Biểu diễn dữ liệu hình ảnh và không gian màu YCbCr}
+\label{ssec:ycbcr}
+
+Ảnh kỹ thuật số được biểu diễn dưới dạng ma trận số nguyên hai chiều (ảnh xám) hoặc ba chiều (ảnh màu). Mỗi phần tử của ma trận --- gọi là \emph{điểm ảnh} (pixel) --- lưu giá trị cường độ ánh sáng trong khoảng $[0, 255]$ với định dạng 8-bit, hoặc $[0, 1]$ sau khi chuẩn hóa. Trong bài toán tổng hợp ảnh, hầu hết các phương pháp xử lý ảnh xám (thang độ xám, một kênh) vì mỗi modality y tế về cơ bản là bản đồ cường độ đơn kênh.
+
+Tuy nhiên, đối với ảnh PET và SPECT, thông tin chức năng thường được trực quan hóa bằng bản đồ màu giả (pseudo-color) nhằm giúp bác sĩ phân biệt các vùng hoạt động chuyển hóa. Trong trường hợp này, mô hình cần xử lý ảnh màu mà vẫn bảo toàn thông tin cường độ gốc. Đây là lý do không gian màu \textbf{YCbCr} được ứng dụng rộng rãi trong xử lý ảnh y tế tổng hợp.
+
+\paragraph{Không gian màu YCbCr.}
+YCbCr là không gian màu tách biệt thành phần \emph{độ chói} (luminance) $Y$ và hai thành phần \emph{độ màu sắc} (chrominance) $C_b$, $C_r$:
+\begin{equation}
+\begin{bmatrix} Y \\ C_b \\ C_r \end{bmatrix}
+=
+\begin{bmatrix} 0.299 & 0.587 & 0.114 \\ -0.169 & -0.331 & 0.500 \\ 0.500 & -0.419 & -0.081 \end{bmatrix}
+\begin{bmatrix} R \\ G \\ B \end{bmatrix}
++
+\begin{bmatrix} 0 \\ 128 \\ 128 \end{bmatrix}
+\label{eq:ycbcr}
+\end{equation}
+trong đó $Y \in [16, 235]$ mang toàn bộ thông tin cấu trúc không gian (tương đương ảnh xám), còn $C_b$, $C_r \in [16, 240]$ chỉ mang thông tin màu sắc mà không ảnh hưởng đến độ sắc nét.
+
+Khi tổng hợp ảnh PET--MRI hoặc SPECT--MRI với đầu vào màu, chiến lược phổ biến là:
+\begin{enumerate}\itemsep2pt
+    \item Chuyển ảnh màu (PET/SPECT) sang không gian YCbCr.
+    \item Chỉ đưa kênh $Y$ (luminance) vào mô hình fusion cùng với ảnh MRI xám.
+    \item Sau khi tổng hợp, gán kênh $Y$ tổng hợp vào cặp $(C_b, C_r)$ của ảnh gốc rồi chuyển ngược về RGB.
+\end{enumerate}
+Chiến lược này giữ nguyên màu sắc đặc trưng của PET/SPECT (màu nóng/lạnh biểu thị mức độ hoạt động) trong khi thông tin cấu trúc từ MRI được đưa vào qua kênh luminance. CDDFuse và hầu hết các phương pháp MIF hiện đại đều áp dụng chiến lược này cho ảnh màu. Hình~\ref{fig:ycbcr} minh họa quá trình chuyển đổi và tách kênh trên một ảnh PET thực tế từ tập Harvard.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.7\textwidth]{figures/fig_ycbcr.png}
+    \caption{Chuyển đổi RGB sang YCbCr và tách thành ba kênh Y (độ chói), Cb (sắc xanh) và Cr (sắc đỏ).}
+    \label{fig:ycbcr}
+\end{figure}
+
+\paragraph{Chuẩn hóa và xử lý tiền kỳ.}
+Trước khi đưa vào mạng, ảnh được chuẩn hóa về khoảng $[0, 1]$ bằng phép chia cho 255. Trong quá trình huấn luyện, ảnh được cắt thành các patch $128 \times 128$ để đảm bảo tính đồng nhất đầu vào và giảm yêu cầu bộ nhớ GPU. Tại thời điểm kiểm thử (inference), ảnh gốc kích thước đầy đủ được đưa vào trực tiếp --- CDDFuse xử lý ảnh theo từng cặp độc lập, không yêu cầu padding hay resize.
+
+% ----------------------------------------------------------------
+\subsection{Các phương thức ảnh y tế}
+\label{ssec:modalities}
+
+Bốn phương thức ảnh y tế chính được sử dụng trong đồ án có đặc điểm vật lý và thông tin bổ sung cho nhau, được tóm tắt trong Bảng~\ref{tab:modalities}.
+
+\begin{table}[H]
+\centering
+\small
+\caption{So sánh bốn phương thức ảnh y tế sử dụng trong đồ án.}
+\label{tab:modalities}
+\setlength{\tabcolsep}{5pt}
+\renewcommand{\arraystretch}{1.4}
+\footnotesize
+\begin{tabular}{|>{\centering\arraybackslash}m{0.12\textwidth}|>{\centering\arraybackslash}m{0.15\textwidth}|m{0.19\textwidth}|m{0.19\textwidth}|m{0.16\textwidth}|}
+\hline
+\textbf{Phương thức} & \textbf{Ảnh mẫu} & \centering\textbf{Nguyên lý} & \centering\textbf{Thông tin cung cấp} & \centering\arraybackslash\textbf{Hạn chế} \\
+\hline
+\textbf{CT}
+(Chụp cắt lớp vi tính)
+&
+\includegraphics[width=0.14\textwidth]{figures/modality_samples/CT.png}
+&
+Đo mức hấp thụ tia X của các mô. Xương hấp thụ nhiều → pixel sáng; mô mềm và không khí → pixel tối.
+&
+Cấu trúc xương, mô đặc, canxi hóa rõ nét. Tốt cho chẩn đoán gãy xương, u xương.
+&
+Phân giải mô mềm thấp. Bệnh nhân tiếp xúc tia X. \\
+\hline
+\textbf{MRI}
+(Chụp cộng hưởng từ)
+&
+\includegraphics[width=0.14\textwidth]{figures/modality_samples/MRI.png}
+&
+Tín hiệu từ hạt nhân hydrogen trong nước và mỡ khi đặt trong từ trường mạnh.
+&
+Phân giải mô mềm vượt trội: não, tủy sống, cơ, dây chằng. Không dùng tia X.
+&
+Thời gian chụp lâu. Chống chỉ định với bệnh nhân có kim loại trong người. \\
+\hline
+\textbf{PET}
+(Chụp cắt lớp phát xạ positron)
+&
+\includegraphics[width=0.14\textwidth]{figures/modality_samples/PET.png}
+&
+Đo hoạt động chuyển hóa qua chất đánh dấu phóng xạ (FDG --- glucose). Vùng hoạt động mạnh → cường độ cao.
+&
+Thông tin chức năng--phân tử: phát hiện khối u, đánh giá thần kinh.
+&
+Độ phân giải không gian thấp (${\sim}4$--$6$ mm). Chi phí cao. \\
+\hline
+\textbf{SPECT}
+(Chụp cắt lớp đơn photon)
+&
+\vspace{4pt}\includegraphics[width=0.14\textwidth]{figures/modality_samples/SPECT.png}\vspace{2pt}
+&
+Tương tự PET nhưng dùng chất đánh dấu phát tia gamma một photon.
+&
+Lưu lượng máu não và tim. Chi phí thấp hơn PET, thiết bị phổ biến hơn.
+&
+Độ phân giải kém hơn PET (${\sim}8$--$10$ mm). Thời gian chụp dài. \\
+\hline
+\end{tabular}
+\end{table}
+
+Sự bổ trợ thông tin giữa các modality tạo ra nhu cầu tự nhiên cho bài toán tổng hợp: CT--MRI kết hợp cấu trúc xương (CT) với cấu trúc mô mềm (MRI); PET--MRI và SPECT--MRI kết hợp thông tin chức năng (PET/SPECT) với thông tin giải phẫu (MRI).
+
+% ----------------------------------------------------------------
+\subsection{Tập dữ liệu Harvard Medical Image Fusion}
+\label{ssec:harvard}
+
+Đồ án sử dụng tập dữ liệu \textbf{Harvard Medical Image Fusion}~\cite{}, bộ dữ liệu chuẩn được sử dụng rộng rãi trong cộng đồng nghiên cứu MIF. Tập dữ liệu gồm các cặp ảnh não người thật, được thu thập và công bố bởi Wellesley College Brain Imaging Center.
+
+\paragraph{Cấu trúc dữ liệu.}
+Toàn bộ dữ liệu được sắp xếp theo ba cặp modality:
+\begin{itemize}\itemsep2pt
+    \item \textbf{CT--MRI}: 768 cặp ảnh (cấu trúc xương + mô mềm não).
+    \item \textbf{PET--MRI}: 768 cặp ảnh (phân bố glucose + giải phẫu).
+    \item \textbf{SPECT--MRI}: 480 cặp ảnh (lưu lượng máu não + giải phẫu).
+\end{itemize}
+
+\paragraph{Phân chia train/test.}
+Đồ án dùng phân chia:
+\begin{itemize}\itemsep2pt
+    \item \textbf{Tập huấn luyện}: 738 cặp ảnh (246 mỗi modality CT/PET/SPECT).
+    \item \textbf{Tập kiểm thử}: 72 cặp ảnh (24 mỗi modality), được giữ cố định cho tất cả thực nghiệm.
+\end{itemize}
+
+Kích thước ảnh gốc thay đổi từ $182\times218$ đến $256\times256$ pixel. Hình~\ref{fig:harvard-grid} minh họa sự đa dạng về cấu trúc não và chất lượng ảnh giữa các bệnh nhân trong tập kiểm thử.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{figures/fig_harvard_grid.png}
+    \caption{Mẫu ảnh từ tập kiểm thử Harvard: 5 bệnh nhân × 4 modality (CT, MRI, PET, SPECT).}
+    \label{fig:harvard-grid}
+\end{figure} Tất cả ảnh đều đã được đăng ký (registered) --- tức là hai ảnh trong mỗi cặp đã được căn chỉnh không gian, đảm bảo từng pixel trong ảnh CT/PET/SPECT tương ứng chính xác với cùng vị trí giải phẫu trong ảnh MRI.
+
+% ================================================================
+\section{Nền tảng kiến trúc học sâu}
+\label{sec:bg-dl}
+
+\subsection{Mạng tích chập và cơ chế Attention}
+\label{ssec:cnn-attention}
+
+\paragraph{Mạng tích chập (CNN).}
+Mạng nơ-ron tích chập là nền tảng của xử lý ảnh hiện đại. Phép tích chập 2D áp dụng bộ lọc (kernel) $k \in \mathbb{R}^{K \times K}$ trượt qua ảnh đầu vào để trích xuất đặc trưng cục bộ:
+\begin{equation}
+(I * k)[i, j] = \sum_{m=0}^{K-1} \sum_{n=0}^{K-1} I[i+m, j+n] \cdot k[m, n]
+\end{equation}
+Bằng cách xếp chồng nhiều lớp tích chập xen kẽ với hàm kích hoạt phi tuyến (ReLU, LeakyReLU), mạng CNN học được các đặc trưng từ đơn giản (biên, góc) đến phức tạp (cấu trúc giải phẫu). Hình~\ref{fig:conv-demo} minh họa cụ thể một phép tích chập với kernel Laplacian phát hiện biên.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.65\textwidth]{figures/fig_conv_demo.png}
+    \caption{Minh họa phép tích chập 2D: kernel Laplacian $3\times3$ trượt qua ảnh $5\times5$, sinh feature map $3\times3$.}
+    \label{fig:conv-demo}
+\end{figure} Tuy nhiên, CNN có vùng tiếp nhận (receptive field) hữu hạn, khó nắm bắt phụ thuộc tầm xa giữa các vùng xa nhau trong ảnh.
+
+\paragraph{Cơ chế Attention.}
+Để khắc phục giới hạn tầm xa của CNN, cơ chế attention cho phép mô hình tự hỏi: \emph{``Với vị trí này trong ảnh, tôi nên nhìn vào đâu để lấy thông tin?''} Ý tưởng tương tự như tra cứu từ điển: có một \emph{câu hỏi} (query), một tập \emph{khóa} (key) gắn với từng vị trí, và \emph{giá trị} (value) tương ứng với mỗi khóa.
+
+Cụ thể, đặc trưng đầu vào được chiếu tuyến tính thành ba ma trận:
+\begin{itemize}\itemsep1pt
+    \item $Q$ (\emph{Query}): ``tôi đang tìm kiếm thông tin gì?''
+    \item $K$ (\emph{Key}): ``mỗi vị trí trong ảnh chứa thông tin gì?''
+    \item $V$ (\emph{Value}): thông tin thực sự được lấy ra từ mỗi vị trí.
+\end{itemize}
+
+Mức độ liên quan giữa một query và tất cả các key được tính bằng tích vô hướng $QK^\top$, sau đó chia cho $\sqrt{d_k}$ để tránh giá trị quá lớn làm gradient bão hòa. Hàm softmax chuyển các điểm số này thành \emph{trọng số chú ý} (attention weights) tổng bằng 1 --- thể hiện ``tôi quan tâm đến vị trí kia bao nhiêu phần trăm''. Cuối cùng, các giá trị $V$ được tổng hợp có trọng số:
+\begin{equation}
+\mathrm{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V
+\end{equation}
+
+\emph{Multi-head Attention} chạy $h$ phép attention song song với không gian chiếu khác nhau, sau đó nối kết quả lại. Mỗi head học một kiểu phụ thuộc khác nhau: một head có thể học quan hệ cạnh-cạnh, head khác học quan hệ vùng xa --- tổng hợp lại cho mô hình cái nhìn toàn diện hơn CNN thuần túy. Hình~\ref{fig:attention} minh họa luồng tính toán đầy đủ.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.8\textwidth]{figures/scale_dot_product_attention.png}
+    \caption{Sơ đồ Scaled Dot-Product Attention: $Q$, $K$, $V$ qua các bước nhân ma trận, chia tỉ lệ và softmax để tạo ra đặc trưng đầu ra.}
+    \label{fig:attention}
+\end{figure}
+
+% ----------------------------------------------------------------
+\subsection{Transformer và Restormer Encoder}
+\label{ssec:transformer}
+
+\paragraph{Vision Transformer (ViT).}
+Transformer ban đầu được thiết kế cho xử lý ngôn ngữ tự nhiên, nhưng đã được chuyển đổi thành công sang xử lý ảnh bởi Dosovitskiy et al.~\cite{dosovitskiy2020vit}. Ý tưởng cốt lõi là \emph{coi mỗi patch nhỏ của ảnh như một token từ trong câu}, từ đó áp dụng Transformer encoder không thay đổi.
+
+\textbf{Bước 1 --- Patch Embedding.}
+Ảnh đầu vào $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ được chia thành $N$ patch không chồng lấp kích thước $P \times P$, mỗi patch được phẳng hóa và chiếu tuyến tính thành vector $d$-chiều:
+\begin{equation}
+\mathbf{z}_i^{(0)} = \mathbf{E} \cdot \mathrm{flatten}(\mathbf{x}_i) + \mathbf{p}_i, \quad i = 1, \ldots, N
+\label{eq:patch-embed}
+\end{equation}
+trong đó $\mathbf{E} \in \mathbb{R}^{d \times (P^2 C)}$ là ma trận chiếu học được, $N = HW/P^2$ là số patch, và $\mathbf{p}_i \in \mathbb{R}^d$ là \emph{positional embedding} --- vector học được mã hóa vị trí không gian của patch thứ $i$ (vì self-attention không có khái niệm thứ tự vốn có).
+
+\textbf{Bước 2 --- Transformer Encoder Block.}
+Chuỗi $N$ token đi qua $L$ block xếp nối tiếp, mỗi block gồm hai thành phần chính với kết nối dư (residual):
+\begin{align}
+\mathbf{z}'^{(\ell)} &= \mathrm{MSA}\!\left(\mathrm{LN}(\mathbf{z}^{(\ell-1)})\right) + \mathbf{z}^{(\ell-1)} \label{eq:vit-msa} \\
+\mathbf{z}^{(\ell)}  &= \mathrm{MLP}\!\left(\mathrm{LN}(\mathbf{z}'^{(\ell)})\right) + \mathbf{z}'^{(\ell)} \label{eq:vit-mlp}
+\end{align}
+trong đó:
+\begin{itemize}\itemsep1pt
+    \item $\mathrm{LN}$: Layer Normalization --- chuẩn hóa từng token theo chiều đặc trưng, ổn định huấn luyện.
+    \item $\mathrm{MSA}$: Multi-head Self-Attention --- mỗi token đồng thời làm query \emph{và} key/value cho tất cả token còn lại, cho phép học phụ thuộc tầm xa toàn cục $O(N^2)$.
+    \item $\mathrm{MLP}$: hai lớp fully-connected với hàm kích hoạt GELU, chiều ẩn thường $= 4d$.
+    \item Kết nối dư (residual $+$): giữ nguyên thông tin từ lớp trước, tránh mất mát gradient ở mạng sâu.
+\end{itemize}
+
+\textbf{Độ phức tạp tính toán.}
+Vì MSA tính tương tác giữa \emph{mọi cặp} token, chi phí tăng bậc hai theo số token:
+\begin{equation}
+\mathcal{C}_{\mathrm{SA}} = O(N^2 d) = O\!\left(\frac{(HW)^2}{P^4}\,d\right)
+\label{eq:vit-complexity}
+\end{equation}
+Kích thước patch $P$ vì vậy là tham số then chốt: tăng $P$ lên 2 lần thì chi phí giảm 16 lần. Hình~\ref{fig:vit-complexity} minh họa cụ thể với ảnh $256\times256$, $d=768$:
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.82\textwidth]{figures/fig_vit_complexity.png}
+    \caption{Độ phức tạp $O(N^2d)$ theo kích thước patch $P$ (thang log). $P=16$ là điểm cân bằng giữa hiệu quả tính toán và khả năng mô hình hóa chi tiết cục bộ.}
+    \label{fig:vit-complexity}
+\end{figure}
+
+Đây là lý do Restormer (xem bên dưới) chuyển attention từ chiều không gian sang chiều kênh, phá vỡ nút thắt cổ chai $O((HW)^2)$ khi xử lý ảnh y tế độ phân giải cao.
+
+\paragraph{Restormer.}
+Restormer~\cite{zamir2022restormer} (Restoration Transformer) là kiến trúc Transformer được thiết kế đặc biệt để khôi phục ảnh độ phân giải cao, giải quyết nút thắt cổ chai tính toán của ViT bằng hai cải tiến cốt lõi.
+
+\textbf{Multi-Dconv Head Transposed Attention (MDTA).}
+Thay vì tính attention trên \emph{chiều không gian} (mỗi pixel là một token), MDTA tính attention trên \emph{chiều kênh}. Cụ thể, với đặc trưng đầu vào $\mathbf{X} \in \mathbb{R}^{C \times H \times W}$:
+\begin{enumerate}\itemsep1pt
+    \item Sinh $Q, K, V$ bằng tích chập sâu (depthwise conv $3\!\times\!3$) thay vì projection tuyến tính, giúp gộp thêm thông tin không gian cục bộ vào mỗi token kênh.
+    \item Reshape: $Q, K, V \in \mathbb{R}^{\hat{C} \times HW}$ (mỗi kênh là một vector $HW$-chiều).
+    \item Tính attention map trên ma trận $\hat{C} \times \hat{C}$ thay vì $HW \times HW$:
+\end{enumerate}
+\begin{equation}
+\mathrm{MDTA}(\mathbf{X}) = \mathrm{Attention}(Q K^\top / \alpha)\, V, \quad
+\text{attention map } \in \mathbb{R}^{\hat{C} \times \hat{C}}
+\label{eq:mdta}
+\end{equation}
+trong đó $\alpha$ là tham số scale học được. So sánh độ phức tạp:
+\[
+\underbrace{O\!\left((HW)^2 C\right)}_{\text{Spatial attention (ViT)}}
+\;\longrightarrow\;
+\underbrace{O\!\left(C^2 HW\right)}_{\text{Channel attention (MDTA)}}
+\]
+\begin{tcolorbox}[
+    enhanced, arc=5pt, boxrule=1.2pt,
+    colback=blue!4!white, colframe=blue!35!black,
+    left=10pt, right=10pt, top=6pt, bottom=6pt
+]
+\centering
+\small
+\begin{tabular}{lcc}
+    & \textbf{Spatial Attention (ViT)} & \textbf{MDTA (Restormer)} \\[3pt]
+    \hline\\[-6pt]
+    Attention map & $HW \times HW = 65536^2$ & $C \times C = 64^2$ \\[2pt]
+    Độ phức tạp   & $O\!\left((HW)^2 C\right)$ & $O\!\left(C^2\, HW\right)$ \\[2pt]
+    Số ops (ảnh $256^2$, $C\!=\!64$) & $\sim 2.7\times10^{11}$ & $\sim 2.7\times10^{8}$ \\[4pt]
+    \hline\\[-6pt]
+    \multicolumn{3}{c}{\normalsize\textbf{MDTA nhanh hơn $\approx$1000 lần} so với Spatial Attention}
+\end{tabular}
+\end{tcolorbox}
+
+\textbf{Gated-Dconv Feed-Forward Network (GDFN).}
+Thay thế MLP thông thường trong Transformer bằng mạng có cơ chế gating:
+\begin{equation}
+\mathrm{GDFN}(\mathbf{X}) = \phi\!\left(\mathrm{DConv}(W_1 \mathbf{X})\right) \odot \mathrm{DConv}(W_2 \mathbf{X})
+\label{eq:gdfn}
+\end{equation}
+trong đó $\phi$ là GELU, $\odot$ là nhân theo phần tử (element-wise), và $W_1, W_2$ là tích chập $1\!\times\!1$. Cơ chế gating cho phép mạng kiểm soát \emph{chủ động} luồng đặc trưng nào được truyền tiếp --- nhánh trái học ``nên giữ thông tin gì'', nhánh phải học ``thông tin nào cần lọc bỏ''.
+
+\textbf{Cấu trúc một Restormer Block.}
+Mỗi block gồm hai bước với kết nối dư, tương tự ViT nhưng thay MSA bằng MDTA và MLP bằng GDFN:
+\begin{align}
+\mathbf{X}' &= \mathrm{MDTA}\!\left(\mathrm{LN}(\mathbf{X})\right) + \mathbf{X} \\
+\mathbf{X}'' &= \mathrm{GDFN}\!\left(\mathrm{LN}(\mathbf{X}')\right) + \mathbf{X}'
+\end{align}
+
+CDDFuse sử dụng Restormer block làm xương sống cho cả Encoder và Decoder, cho phép mô hình học phụ thuộc tầm xa giữa các kênh đặc trưng ảnh y tế mà vẫn đảm bảo hiệu quả tính toán.
+
+% ----------------------------------------------------------------
+\subsection{Mạng nơ-ron khả nghịch (INN)}
+\label{ssec:inn}
+
+\paragraph{Vấn đề mất thông tin trong CNN thông thường.}
+Mạng CNN thông thường thực hiện ánh xạ một chiều $f: \mathbf{x} \to \mathbf{y}$. Một khi đặc trưng $\mathbf{y}$ đã được tính, \textbf{không thể khôi phục lại $\mathbf{x}$ gốc} --- thông tin đã bị nén và mất đi không thể đảo ngược. Với ảnh y tế, điều này có nghĩa là các chi tiết biên mỏng (ví dụ ranh giới khối u trong MRI) có thể bị lọc mất qua các lớp convolution.
+
+\paragraph{Ý tưởng cốt lõi của INN.}
+Mạng nơ-ron khả nghịch (Invertible Neural Network --- INN) xây dựng ánh xạ $f$ sao cho luôn tồn tại $f^{-1}$ tính được hiệu quả:
+\[
+\mathbf{x} \;\xrightarrow{f}\; \mathbf{y} \;\xrightarrow{f^{-1}}\; \mathbf{x}
+\]
+\textbf{Không có thông tin nào bị mất}: toàn bộ nội dung của $\mathbf{x}$ được mã hóa trong $\mathbf{y}$ và có thể phục hồi hoàn toàn. CDDFuse sử dụng INN cho nhánh \emph{Detail CNN Encoder} để đảm bảo thông tin modality-specific (tần số cao) không bị mất khi mã hóa.
+
+\paragraph{Affine Coupling Layer (RealNVP).}
+Câu hỏi thực tế là: \emph{làm thế nào để xây dựng được $f$ khả nghịch mà không cần $f$ phải có dạng đặc biệt?} RealNVP~\cite{dinh2017density} trả lời bằng thủ thuật \textbf{chia đôi và coupling}:
+
+\textbf{Bước 1 --- Chia đôi đầu vào.}
+Đặc trưng $\mathbf{x} \in \mathbb{R}^{2C \times H \times W}$ được chia thành hai nửa $(\mathbf{x}_1, \mathbf{x}_2) \in \mathbb{R}^{C \times H \times W}$ (chia theo chiều kênh).
+
+\textbf{Bước 2 --- Biến đổi có điều kiện (chiều thuận).}
+Nửa $\mathbf{x}_1$ được biến đổi \emph{có điều kiện trên} $\mathbf{x}_2$, và ngược lại:
+\begin{align}
+\mathbf{y}_1 &= \mathbf{x}_1 \odot \exp\!\bigl(s_1(\mathbf{x}_2)\bigr) + t_1(\mathbf{x}_2) \label{eq:inn-fwd1} \\
+\mathbf{y}_2 &= \mathbf{x}_2 \odot \exp\!\bigl(s_2(\mathbf{y}_1)\bigr) + t_2(\mathbf{y}_1) \label{eq:inn-fwd2}
+\end{align}
+trong đó $s_i(\cdot)$ (scale) và $t_i(\cdot)$ (translation) là các mạng CNN con tùy ý --- \emph{không cần phải khả nghịch}. Phép nhân $\odot \exp(s)$ là phép nhân theo phần tử, có tác dụng co giãn từng kênh đặc trưng.
+
+\textbf{Bước 3 --- Nghịch đảo (chiều ngược).}
+Đây là phần then chốt: vì $\mathbf{y}_1$ đã biết, ta tính ngược từ dưới lên:
+\begin{align}
+\mathbf{x}_2 &= \bigl(\mathbf{y}_2 - t_2(\mathbf{y}_1)\bigr) \odot \exp\!\bigl(-s_2(\mathbf{y}_1)\bigr) \label{eq:inn-inv1} \\
+\mathbf{x}_1 &= \bigl(\mathbf{y}_1 - t_1(\mathbf{x}_2)\bigr) \odot \exp\!\bigl(-s_1(\mathbf{x}_2)\bigr) \label{eq:inn-inv2}
+\end{align}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.975\textwidth]{figures/inn_block.png}
+    \caption{Cấu trúc một khối INN (Affine Coupling Layer): chiều thuận (trái sang phải) và chiều nghịch (phải sang trái) đều tính được hiệu quả.}
+    \label{fig:inn-block}
+\end{figure}
+
+\begin{tcolorbox}[
+    enhanced, arc=5pt, boxrule=1pt,
+    colback=green!4!white, colframe=green!40!black,
+    left=9pt, right=9pt, top=5pt, bottom=5pt
+]
+\textbf{Tại sao khả nghịch?} Dù $s_i, t_i$ là mạng CNN bất kỳ, phép biến đổi toàn khối vẫn khả nghịch vì:
+\begin{itemize}\itemsep1pt
+    \item Phương trình~\eqref{eq:inn-fwd1} biến đổi $\mathbf{x}_1$ nhưng \emph{giữ nguyên} $\mathbf{x}_2$ $\Rightarrow$ $\mathbf{x}_2$ vẫn đọc được từ $\mathbf{y}_2$ (bước đầu khi đảo ngược).
+    \item Khi đã có $\mathbf{x}_2$, toàn bộ $s_1(\mathbf{x}_2)$ và $t_1(\mathbf{x}_2)$ đều tính được $\Rightarrow$ khôi phục $\mathbf{x}_1$ từ $\mathbf{y}_1$ theo công thức đại số đơn giản.
+    \item \textbf{Tính khả nghịch đến từ cấu trúc coupling}, không phải từ $s_i, t_i$ --- do đó có thể dùng bất kỳ mạng nào cho $s_i, t_i$ mà không lo mất invertibility.
+\end{itemize}
+\end{tcolorbox}
+
+\paragraph{Ứng dụng trong CDDFuse.}
+Nhánh \emph{Detail CNN Encoder} (DCE) gồm 3 khối coupling xếp nối tiếp. Mỗi ảnh đầu vào $I \in \mathbb{R}^{1 \times H \times W}$ được mở rộng lên 64 kênh qua tích chập rồi đi qua 3 lớp INN liên tiếp để thu đặc trưng detail $f^D \in \mathbb{R}^{64 \times H \times W}$. Tính khả nghịch đảm bảo \textbf{mọi chi tiết tần số cao} (biên mỏng, texture) đều được giữ nguyên trong $f^D$ --- điều mà CNN thông thường không đảm bảo được.
+
+% ================================================================
+\section{Mô hình CDDFuse}
 \label{sec:cddfuse}
 
-CDDFuse \cite{zhao2023cddfuse} là một phương pháp tổng hợp ảnh đa phương thức công bố tại CVPR 2023 dựa trên ý tưởng \emph{phân rã đặc trưng theo correlation} (Correlation-Driven Feature Decomposition). Mô hình sử dụng kiến trúc dual-branch Transformer--CNN cùng hàm mất mát đặc biệt để tách đặc trưng ảnh thành hai nhánh: nhánh \emph{Base} chứa thông tin chung tần số thấp (cấu trúc toàn cục, shared giữa các modality) và nhánh \emph{Detail} chứa thông tin tần số cao (texture, modality-specific). Việc fusion sau đó được thực hiện riêng cho từng nhánh, giúp giữ được cả thông tin chung và thông tin riêng.
+CDDFuse~\cite{zhao2023cddfuse} (CVPR 2023) là phương pháp tổng hợp ảnh đa phương thức dựa trên ý tưởng \emph{phân rã đặc trưng theo tương quan} (Correlation-Driven Feature Decomposition). Thay vì coi toàn bộ đặc trưng ảnh như một khối đồng nhất, CDDFuse phân rã chúng thành hai thành phần có bản chất khác nhau: \emph{Base} (thông tin chung, tần số thấp) và \emph{Detail} (thông tin đặc trưng từng modality, tần số cao), rồi thực hiện fusion riêng cho từng thành phần.
 
+% ----------------------------------------------------------------
 \subsection{Kiến trúc tổng quan}
 \label{ssec:cddfuse-arch}
 
-Mô hình gồm bốn thành phần chính được tổ chức theo sơ đồ Encoder $\to$ Fuse $\to$ Decoder (Hình~\ref{fig:cddfuse-arch}):
+Mô hình gồm ba thành phần chính theo sơ đồ \textbf{Encoder $\to$ Fuse $\to$ Decoder} như minh họa trong Hình~\ref{fig:cddfuse-arch}.
 
-\begin{figure}[h]
+\begin{figure}[H]
     \centering
-    % TODO: vẽ figure CDDFuse architecture (tham khảo docs/CDDFuse_architecture.md section 1)
-    \fbox{\parbox{0.8\textwidth}{\centering\textit{[Hình minh họa kiến trúc CDDFuse: Input $I_V, I_I$ \(\to\) Encoder (shared weights) \(\to\) tách nhánh Base/Detail \(\to\) Fuse \(\to\) Decoder \(\to\) ảnh tổng hợp]}}}
-    \caption{Sơ đồ tổng quan kiến trúc CDDFuse với bốn thành phần chính.}
+    \includegraphics[width=\textwidth]{figures/cddfuse_pipeline.png}
+    \caption{Kiến trúc tổng quan CDDFuse: hai ảnh đầu vào đi qua Encoder dùng chung trọng số, phân rã thành đặc trưng Base ($f^B$) và Detail ($f^D$), được tổng hợp riêng qua Fusion Layer, rồi giải mã thành ảnh đầu ra $I_F$.}
     \label{fig:cddfuse-arch}
 \end{figure}
 
 \paragraph{1. Restormer Encoder.}
-Encoder sử dụng Restormer block \cite{zamir2022restormer} làm xương sống, gồm:
-\begin{itemize}\itemsep0pt
-    \item \textbf{Overlap Patch Embedding}: lớp tích chập 3$\times$3 biến ảnh xám 1 kênh thành đặc trưng 64 kênh, giữ nguyên kích thước không gian $H \times W$.
-    \item \textbf{Shallow Feature Extraction (SFE)}: 4 Restormer Transformer Block xếp nối tiếp. Mỗi block dùng cơ chế MDTA (Multi-Dconv Transposed Attention) tính attention theo channel ($O(C^2)$) thay vì spatial ($O((HW)^2)$), giúp scale tốt với ảnh độ phân giải cao.
-    \item \textbf{Base Transformer Encoder (BTE)}: một transformer block với 8 attention head, dùng spatial multi-head attention để học global context, sinh ra đặc trưng Base $f^B \in \mathbb{R}^{64 \times H \times W}$.
-    \item \textbf{Detail CNN Encoder (DCE)}: ba khối Invertible Neural Network (INN) kiểu RealNVP với affine coupling layer; mỗi khối có ba module $\theta_{\phi}, \theta_{\rho}, \theta_{\eta}$ là Inverted Residual Block (MobileNet-style), sinh ra đặc trưng Detail $f^D \in \mathbb{R}^{64 \times H \times W}$. Tính chất \emph{khả nghịch} (invertibility) của INN giúp không mất mát thông tin tần số cao, vốn nhạy với compression.
+Encoder dùng trọng số chung (shared weights) cho cả hai ảnh đầu vào $I_V$ và $I_I$, sinh ra hai cặp đặc trưng $(f_V^B, f_V^D)$ và $(f_I^B, f_I^D)$. Encoder gồm bốn bước:
+\begin{itemize}\itemsep1pt
+    \item \textbf{Overlap Patch Embedding}: tích chập $3\!\times\!3$ chuyển ảnh 1 kênh thành đặc trưng 64 kênh, giữ nguyên kích thước $H \times W$.
+    \item \textbf{Shallow Feature Extraction (SFE)}: 4 Restormer block xếp nối tiếp, học đặc trưng tầm xa qua MDTA.
+    \item \textbf{Base Transformer Encoder (BTE)}: một Restormer block với spatial multi-head attention, sinh đặc trưng $f^B \in \mathbb{R}^{64 \times H \times W}$.
+    \item \textbf{Detail CNN Encoder (DCE)}: 3 khối INN (RealNVP), sinh đặc trưng $f^D \in \mathbb{R}^{64 \times H \times W}$.
 \end{itemize}
-Encoder có \emph{trọng số dùng chung} (shared weights) cho cả hai modality $I_V$ và $I_I$, sinh ra hai cặp đặc trưng $(f_V^B, f_V^D)$ và $(f_I^B, f_I^D)$.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/encoder.png}
+    \caption{Chi tiết kiến trúc Encoder CDDFuse: từ ảnh đầu vào qua Patch Embedding, SFE, rồi tách thành nhánh Base (BTE) và nhánh Detail (DCE).}
+    \label{fig:cddfuse-encoder}
+\end{figure}
 
 \paragraph{2. Fusion Layer.}
-Đặc trưng Base và Detail của hai modality được hợp nhất riêng:
+Đặc trưng của hai modality được hợp nhất riêng cho từng nhánh:
 \begin{align}
-f_F^B &= \mathrm{BaseFuseLayer}(f_I^B + f_V^B), \label{eq:fuse-base} \\
-f_F^D &= \mathrm{DetailFuseLayer}(f_I^D + f_V^D), \label{eq:fuse-detail}
+f_F^B &= \mathrm{BaseFuseLayer}(f_I^B + f_V^B) \label{eq:fuse-base} \\
+f_F^D &= \mathrm{DetailFuseLayer}(f_I^D + f_V^D) \label{eq:fuse-detail}
 \end{align}
-trong đó:
-\begin{itemize}\itemsep0pt
-    \item \texttt{BaseFuseLayer} có cấu trúc giống BTE (một transformer block, 8 head).
-    \item \texttt{DetailFuseLayer} có cấu trúc giống DCE nhưng chỉ một INN block (so với 3 trong DCE).
-\end{itemize}
+Phép cộng $f_I + f_V$ trước khi qua layer là quy tắc tổng hợp đối xứng mặc định của CDDFuse --- đây chính là thành phần mà đồ án này cải tiến.
 
-\textbf{Điểm yếu}: Cả hai công thức (\ref{eq:fuse-base}) và (\ref{eq:fuse-detail}) đều bắt đầu bằng \emph{phép cộng đơn giản} $f_I + f_V$ trước khi cho qua layer xử lý. Phép cộng này coi đóng góp của hai modality là tương đương ở mọi pixel và mọi channel, không tận dụng được tính chất khác biệt giữa chúng. Đây là điểm mà mô-đun Adaptive Gating (Chương~\ref{ch:method}) sẽ thay thế.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/fusion.png}
+    \caption{Chi tiết Fusion Layer: Base và Detail của hai modality được tổng hợp riêng biệt qua BaseFuseLayer và DetailFuseLayer.}
+    \label{fig:cddfuse-fusion}
+\end{figure}
 
 \paragraph{3. Restormer Decoder.}
-Decoder gồm:
-\begin{itemize}\itemsep0pt
-    \item \textbf{Channel Reduction}: lớp tích chập 1$\times$1 nối hai đặc trưng Base và Detail (concatenate) rồi giảm số kênh từ 128 về 64.
-    \item \textbf{Refinement}: 4 Restormer block, giống cấu trúc SFE của Encoder.
-    \item \textbf{Output Head}: hai lớp tích chập 3$\times$3 (kênh: $64 \to 32 \to 1$) với LeakyReLU ở giữa, kết thúc bằng hàm sigmoid để đưa output về khoảng $[0, 1]$.
-\end{itemize}
-Decoder có hai chế độ: với bài toán tổng hợp ảnh hồng ngoại--khả kiến (IVF) có residual connection từ input, với bài toán ảnh y tế (MIF) thì không có residual.
+Decoder nối hai đặc trưng Base và Detail (concatenate 128 kênh), giảm về 64 kênh qua tích chập $1\!\times\!1$, sau đó qua 4 Restormer block và output head ($64 \to 32 \to 1$ kênh, kết thúc bằng sigmoid).
 
-\paragraph{Tổng số tham số.}
-Toàn bộ CDDFuse có khoảng $\sim 1.20$M parameters, chia gần đều giữa Encoder ($\sim 50\%$) và Decoder ($\sim 42\%$), phần fusion layer chỉ chiếm $\sim 7\%$. Đây là một mô hình tương đối nhẹ so với nhiều phương pháp SOTA khác (DDFM 200M+, U2Fusion 6.4M).
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{figures/decoder.png}
+    \caption{Chi tiết kiến trúc Decoder CDDFuse: concat đặc trưng Base và Detail đã fusion, tái tạo ảnh đầu ra $I_F$ qua Restormer blocks và output head.}
+    \label{fig:cddfuse-decoder}
+\end{figure}
 
-\subsection{Hàm mất mát}
-\label{ssec:loss}
+\paragraph{Tổng tham số.}
+CDDFuse có $\sim 1{,}20$M tham số tổng cộng, phân bổ: Encoder ($\sim 50\%$), Decoder ($\sim 42\%$), Fusion Layer ($\sim 7\%$) và $\sim 8{,}200$ tham số tại phép cộng/các layer trong Fusion. Đây là mô hình nhẹ so với nhiều phương pháp SOTA (DDFM 200M+, U2Fusion 6.4M).
 
-Hàm mất mát của CDDFuse được thiết kế hai pha tách biệt theo tinh thần curriculum learning.
+% ----------------------------------------------------------------
+\subsection{Hàm mất mát và quy trình huấn luyện hai pha}
+\label{ssec:cddfuse-loss}
 
-\paragraph{Pha I (epoch 0--39 --- pretraining decomposition).}
-Trong pha này, chỉ Encoder và Decoder được huấn luyện. Mỗi modality được tự encode-decode (không có cross-modality fusion), với hàm mất mát:
+CDDFuse áp dụng \emph{curriculum learning} với hai pha huấn luyện tách biệt:
+
+\paragraph{Pha I (epoch 0--39 --- tiền huấn luyện phân rã).}
+Chỉ Encoder và Decoder được huấn luyện. Mỗi modality tự encode-decode (không có cross-modality fusion):
 \begin{equation}
-L_I = \alpha_1 L_{\mathrm{recon}}^{V} + \alpha_1 L_{\mathrm{recon}}^{I} + \alpha_2 L_{\mathrm{decomp}} + \alpha_3 L_{\mathrm{TV}}
+L_I = \alpha_1 (L_{\mathrm{recon}}^{V} + L_{\mathrm{recon}}^{I}) + \alpha_2 L_{\mathrm{decomp}} + \alpha_3 L_{\mathrm{TV}}
 \end{equation}
-trong đó:
+Trong đó:
+\begin{itemize}\itemsep1pt
+    \item $L_{\mathrm{recon}}^{X} = 5 \cdot L_{\mathrm{SSIM}}(X, \hat{X}) + L_{\mathrm{MSE}}(X, \hat{X})$: buộc Decoder tái tạo lại ảnh gốc.
+    \item $L_{\mathrm{decomp}} = \dfrac{(\mathrm{CC}_D)^2}{1.01 + \mathrm{CC}_B}$: \emph{Correlation-Driven loss} cốt lõi. Tử số ép correlation của Detail hai modality về 0 (Detail cần mang thông tin riêng biệt); mẫu số thưởng khi Base hai modality tương quan cao (Base cần mang thông tin chung).
+    \item $L_{\mathrm{TV}} = \|\nabla I_V - \nabla \hat{I}_V\|_1$: bảo toàn gradient biên.
+\end{itemize}
+Hệ số: $\alpha_1 = 1$, $\alpha_2 = 2$, $\alpha_3 = 5$ (theo code release).
+
+\paragraph{Pha II (epoch 40--119 --- huấn luyện fusion).}
+BaseFuseLayer và DetailFuseLayer được huấn luyện cùng với Encoder/Decoder:
 \begin{align}
-L_{\mathrm{recon}}^{X} &= 5\cdot L_{\mathrm{SSIM}}(X, \hat{X}) + L_{\mathrm{MSE}}(X, \hat{X}), \\
-L_{\mathrm{decomp}}    &= \frac{(\mathrm{CC}_D)^2}{1.01 + \mathrm{CC}_B}, \\
-L_{\mathrm{TV}}        &= \|\nabla I_V - \nabla \hat{I}_V\|_1.
+L_{II} &= L_{\mathrm{fusion}} + \alpha_4 L_{\mathrm{decomp}} \\
+L_{\mathrm{int}}^{II} &= \|\hat{I}_F - \max(I_V, I_I)\|_F^2 \label{eq:lint} \\
+L_{\mathrm{grad}}^{II} &= \|\nabla \hat{I}_F - \max(|\nabla I_V|, |\nabla I_I|)\|_1
 \end{align}
-$L_{\mathrm{recon}}^{X}$ buộc Decoder tái tạo lại được ảnh gốc từ cặp đặc trưng Base--Detail. $L_{\mathrm{decomp}}$ là \emph{Correlation-Driven loss} cốt lõi: tử số $(\mathrm{CC}_D)^2$ ép correlation giữa Detail của hai modality về $0$ (Detail mang thông tin modality-specific, nên không nên correlated); mẫu số $1.01 + \mathrm{CC}_B$ thưởng khi correlation giữa Base hai modality cao (Base mang thông tin shared). $L_{\mathrm{TV}}$ là gradient preservation loss để giữ đường biên.
+Hàm mất mát này yêu cầu ảnh tổng hợp giữ nguyên pixel sáng hơn từ hai nguồn và gradient lớn hơn tại mỗi điểm, đảm bảo không mất thông tin từ modality nào.
 
-\paragraph{Pha II (epoch 40--119 --- fusion training).}
-Sau khi Encoder/Decoder đã học được phép phân rã ổn định ở Pha I, Pha II huấn luyện thêm BaseFuseLayer, DetailFuseLayer (và tiếp tục fine-tune Encoder/Decoder) với hàm mất mát fusion:
-\begin{equation}
-L_{II} = L_{\mathrm{fusion}} + \alpha_4 L_{\mathrm{decomp}}
-\end{equation}
-trong đó $L_{\mathrm{fusion}}$ gồm hai thành phần:
-\begin{align}
-L_{\mathrm{int}}^{II}  &= \|\hat{I}_F - \max(I_V, I_I)\|_F^2, \label{eq:lint}\\
-L_{\mathrm{grad}}^{II} &= \|\nabla \hat{I}_F - \max(|\nabla I_V|, |\nabla I_I|)\|_1.
-\end{align}
+\paragraph{Cấu hình huấn luyện.} Optimizer: Adam riêng cho mỗi thành phần. Learning rate: $10^{-4}$, StepLR $\gamma = 0.5$ mỗi 20 epoch. Batch size: 8. Patch $128\!\times\!128$. Gradient clipping: norm max $0.01$.
 
-\textbf{Điểm yếu}: Phương trình (\ref{eq:lint}) sử dụng \emph{quy tắc max-pixel} làm target intensity --- chọn pixel sáng hơn giữa hai modality. Khi cường độ của $I_V$ và $I_I$ trái chiều tại biên (ví dụ ranh giới giữa xương và mô mềm trong cặp CT--MRI), max-rule tạo ra discontinuity, dẫn đến ảo ảnh sáng--tối ở vùng biên. Đây là điểm mà cơ chế Saliency-guided Pixel selection (Chương~\ref{ch:method}) sẽ cải tiến.
+% ----------------------------------------------------------------
+\subsection{Vị trí CDDFuse trong bức tranh SOTA}
+\label{ssec:cddfuse-sota}
 
-\paragraph{Cấu hình hệ số.}
-Theo paper text \cite{zhao2023cddfuse}: $\alpha_1 = 1$, $\alpha_2 = 2$, $\alpha_3 = 10$, $\alpha_4 = 2$. Tuy nhiên trong mã nguồn release giá trị $\alpha_3 = 5$. Đồ án dùng $\alpha_3 = 5$ theo code release để đảm bảo tính tái lặp.
+Để xác định vị trí của CDDFuse và lý do chọn làm base model, đồ án đánh giá 22 phương pháp trên cùng tập test Harvard 72 cặp ảnh với 22 chỉ số chất lượng, xếp hạng bằng Composite Z-score (chi tiết tại Mục~\ref{ssec:composite-zscore}).
 
-\subsection{Quy trình huấn luyện}
-\label{ssec:cddfuse-train}
-
-CDDFuse được huấn luyện với cấu hình paper:
-\begin{itemize}\itemsep0pt
-    \item \textbf{Tổng số epoch}: 120 (Pha I: 40, Pha II: 80).
-    \item \textbf{Optimizer}: bốn Adam riêng cho Encoder, Decoder, BaseFuseLayer, DetailFuseLayer.
-    \item \textbf{Learning rate}: $10^{-4}$, StepLR $\gamma = 0.5$ mỗi 20 epoch, floor $10^{-6}$.
-    \item \textbf{Batch size}: 16 theo paper text, 8 theo code release. Đồ án dùng 8 trên GPU Tesla P100 16GB kết hợp AMP fp16.
-    \item \textbf{Gradient clipping}: norm max $0.01$.
-    \item \textbf{Dữ liệu}: ảnh được cắt thành patch $128 \times 128$.
-\end{itemize}
-
-\subsection{Đánh giá hiệu năng của CDDFuse gốc}
-\label{ssec:cddfuse-eval}
-
-Trên tập test Harvard medical 72 cặp ảnh ($24 \times 3$ modality), CDDFuse pretrained công bố đạt các chỉ số tham khảo:
-\begin{itemize}\itemsep0pt
-    \item CT: NABF $\approx 0.020$, SSIM $\approx 1.48$, QM $\approx 0.009$.
-    \item PET: NABF $\approx 0.018$, SSIM $\approx 1.40$, QM $\approx 0.074$.
-    \item SPECT: NABF $\approx 0.033$, SSIM $\approx 1.43$, QM $\approx 0.168$.
-\end{itemize}
-Mặc dù đạt hiệu năng tốt trên cả ba modality, CDDFuse vẫn còn dư địa cải thiện ở các chỉ số liên quan đến ảo ảnh biên (NABF cao trên SPECT) và chất lượng wavelet (QM thấp trên CT). Đây là động lực cho đề xuất CDDFuse-AG ở Chương~\ref{ch:method}.
-
-\section{Các phương pháp so sánh (SOTA)}
-\label{sec:sota}
-
-Để đặt vị trí của CDDFuse trong bối cảnh nghiên cứu hiện tại, đồ án đã đánh giá 22 phương pháp tổng hợp ảnh y tế gần đây trên cùng tập test Harvard medical (72 cặp ảnh, 24 mỗi modality CT/PET/SPECT) với 22 chỉ số chất lượng giống nhau. Để có một con số duy nhất phục vụ xếp hạng, đồ án sử dụng \emph{composite z-score} --- tổ hợp tuyến tính các chỉ số sau khi chuẩn hóa z theo từng metric (đảo dấu cho các metric ``thấp tốt hơn'' như NABF, RMSE, CE), tổng hợp trung bình trên cả ba modality.
-
-\paragraph{Cách tính composite z-score.}
-Với mỗi metric $m$ và modality $k$, giá trị thô $x_{m,k}^{(i)}$ của model $i$ được chuẩn hóa thành z-score:
-\begin{equation}
-z_{m,k}^{(i)} = \mathrm{sign}_m \cdot \frac{x_{m,k}^{(i)} - \mu_{m,k}}{\sigma_{m,k}}
-\end{equation}
-trong đó $\mathrm{sign}_m \in \{-1, +1\}$ (dấu cộng cho metric cao tốt hơn, dấu trừ cho metric thấp tốt hơn), $\mu_{m,k}, \sigma_{m,k}$ là trung bình và độ lệch chuẩn của metric $m$ trên modality $k$ qua toàn bộ 22 model. Composite z-score của model $i$ là:
-\begin{equation}
-\bar{z}^{(i)} = \frac{1}{|M| \cdot 3} \sum_{m \in M} \sum_{k \in \{\mathrm{CT}, \mathrm{PET}, \mathrm{SPECT}\}} z_{m,k}^{(i)}
-\end{equation}
-Composite z-score càng cao thì model càng có hiệu năng tổng thể tốt --- giá trị dương nghĩa là trên trung bình quần thể, giá trị âm là dưới trung bình.
-
-\paragraph{Kết quả xếp hạng.}
-Bảng~\ref{tab:zscore-ranking} liệt kê toàn bộ 22 phương pháp theo thứ tự composite z-score giảm dần. CDDFuse đứng \textbf{vị trí thứ 2} với $\bar{z} = 0.9256$, chỉ sau MM-Net-Fusion ($\bar{z} = 1.0285$) và vượt trội đáng kể so với top 10 trở xuống. Đây là lý do đồ án chọn CDDFuse làm \emph{base model} để cải tiến --- một phương pháp đã ở mức SOTA cao và có dư địa cải thiện ở một vài chỉ số cụ thể (NABF, QM) mà không cần thay đổi toàn bộ kiến trúc.
-
-\begin{table}[h]
+\begin{table}[H]
 \centering
 \small
-\caption{Xếp hạng 22 phương pháp tổng hợp ảnh y tế theo composite z-score (cao hơn = tốt hơn). Đánh giá trên 72 cặp ảnh test, 22 chỉ số chất lượng, gộp ba modality CT/PET/SPECT.}
+\caption{Xếp hạng 22 phương pháp tổng hợp ảnh y tế theo Composite Z-score. Đánh giá trên 72 cặp ảnh test, 22 chỉ số chất lượng, gộp ba modality CT/PET/SPECT.}
 \label{tab:zscore-ranking}
 \begin{tabular}{rlc|rlc}
 \toprule
-\textbf{Rank} & \textbf{Model} & \textbf{Composite $\bar{z}$} & \textbf{Rank} & \textbf{Model} & \textbf{Composite $\bar{z}$} \\
+\textbf{Rank} & \textbf{Model} & \textbf{$\bar{z}$} & \textbf{Rank} & \textbf{Model} & \textbf{$\bar{z}$} \\
 \midrule
 1  & MM-Net-Fusion          & $+1.029$ & 12 & DDBFusion         & $+0.040$ \\
 \textbf{2}  & \textbf{CDDFuse} \cite{zhao2023cddfuse} & $\mathbf{+0.926}$ & 13 & AdaFuse           & $+0.027$ \\
@@ -161,349 +469,147 @@ Bảng~\ref{tab:zscore-ranking} liệt kê toàn bộ 22 phương pháp theo th�
 \end{tabular}
 \end{table}
 
-\paragraph{Giá trị trung bình của các chỉ số chính.}
-Bên cạnh composite z-score (tổng hợp), Bảng~\ref{tab:sota-raw-metrics} trình bày giá trị trung bình \emph{thô} của 7 chỉ số chất lượng quan trọng nhất cho 10 phương pháp dẫn đầu, tính trung bình trên cả ba modality CT/PET/SPECT (mỗi modality 24 cặp ảnh, tổng 72 cặp). Bảng này giúp người đọc hiểu được mức tuyệt đối của từng chỉ số (không chỉ z-score) và thấy rõ điểm mạnh/yếu cụ thể của từng phương pháp.
+CDDFuse đứng \textbf{vị trí thứ 2} với $\bar{z} = 0{,}926$. Lý do chọn CDDFuse thay vì MM-Net-Fusion (rank 1): khoảng cách composite z chỉ $0{,}10$, trong khi CDDFuse có kiến trúc mô-đun hóa rõ ràng, tham số nhẹ ($1{,}2$M), mã nguồn và checkpoint được công bố đầy đủ, và có \emph{điểm cải tiến cụ thể} tại Fusion Layer --- đây là điều kiện lý tưởng để nghiên cứu tác động của fusion rule trong khuôn khổ đồ án.
 
-\begin{table}[h]
+% ================================================================
+% ================================================================
+\section{Phương pháp đánh giá chất lượng ảnh tổng hợp}
+\label{sec:eval-bg}
+
+\subsection{Các chỉ số chất lượng VIFB}
+\label{ssec:metrics}
+
+Đồ án sử dụng \textbf{22 chỉ số chất lượng} theo chuẩn VIFB~\cite{liu2020vifb}, chia thành sáu nhóm theo bản chất đo lường. Phần này trình bày định nghĩa toán học chi tiết cho các chỉ số được sử dụng trực tiếp trong đánh giá và so sánh. Ký hiệu chung: $A$, $B$ là hai ảnh đầu vào (ví dụ MRI và CT), $F$ là ảnh tổng hợp đầu ra, kích thước $M \times N$.
+
+% ── Nhóm 1: Thông tin ─────────────────────────────────────────────────────────
+\subsubsection*{Nhóm 1 --- Thông tin}
+
+\paragraph{Entropy (EN).}
+Đo lượng thông tin trung bình trong ảnh tổng hợp, tính theo histogram xác suất cường độ điểm ảnh:
+\begin{equation}
+\mathrm{EN}(F) = -\sum_{l=0}^{L-1} p_l \log_2 p_l
+\end{equation}
+trong đó $p_l$ là xác suất xuất hiện mức cường độ $l$ (histogram chuẩn hóa), $L=256$. Giá trị cao hơn cho thấy ảnh fused phong phú thông tin hơn. $\uparrow$ cao tốt hơn.
+
+\paragraph{Mutual Information (MI).}
+Đo lượng thông tin chung được bảo toàn từ cả hai nguồn vào ảnh fused:
+\begin{equation}
+\mathrm{MI}(A,B;F) = \mathrm{MI}(A;F) + \mathrm{MI}(B;F)
+\end{equation}
+trong đó $\mathrm{MI}(X;F) = \sum_{x,f} p_{XF}(x,f)\log\frac{p_{XF}(x,f)}{p_X(x)\,p_F(f)}$ với $p_{XF}$ là phân phối xác suất đồng thời. $\uparrow$ cao tốt hơn.
+
+\paragraph{Cross Entropy (CE).}
+Đo sự khác biệt phân phối xác suất giữa ảnh đầu vào và ảnh fused:
+\begin{equation}
+\mathrm{CE}(A,F) = \sum_l p_A(l)\log\frac{p_A(l)}{p_F(l)}
+\end{equation}
+Tổng CE từ cả hai nguồn: $\mathrm{CE} = \mathrm{CE}(A,F)+\mathrm{CE}(B,F)$. Giá trị thấp hơn nghĩa là ảnh fused phân phối cường độ gần với nguồn hơn. $\downarrow$ thấp tốt hơn.
+
+\paragraph{QMI (Normalized Mutual Information).}
+Phiên bản chuẩn hóa của MI, ổn định hơn khi so sánh giữa các modality:
+\begin{equation}
+\mathrm{QMI}(A,B;F) = \frac{\mathrm{MI}(A;F)}{H(A)+H(F)} + \frac{\mathrm{MI}(B;F)}{H(B)+H(F)}
+\end{equation}
+trong đó $H(\cdot)$ là entropy. $\uparrow$ cao tốt hơn.
+
+% ── Nhóm 2: Cấu trúc ─────────────────────────────────────────────────────────
+\subsubsection*{Nhóm 2 --- Cấu trúc}
+
+\paragraph{SSIM (Structural Similarity Index).}
+Đo độ tương đồng cấu trúc giữa ảnh fused và ảnh tham chiếu dựa trên luminance, contrast và structure:
+\begin{equation}
+\mathrm{SSIM}(X,F) = \frac{(2\mu_X\mu_F+c_1)(2\sigma_{XF}+c_2)}{(\mu_X^2+\mu_F^2+c_1)(\sigma_X^2+\sigma_F^2+c_2)}
+\end{equation}
+trong đó $\mu$, $\sigma^2$, $\sigma_{XF}$ lần lượt là mean, variance và cross-covariance; $c_1,c_2$ là hằng số ổn định. Trong bài toán MIF không có ground truth, SSIM được tính so với cả hai nguồn và cộng: $\mathrm{SSIM}=\mathrm{SSIM}(A,F)+\mathrm{SSIM}(B,F)$. $\uparrow$ cao tốt hơn.
+
+\paragraph{SD (Standard Deviation).}
+Đo độ tương phản tổng thể của ảnh fused:
+\begin{equation}
+\mathrm{SD}(F) = \sqrt{\frac{1}{MN}\sum_{i=1}^{M}\sum_{j=1}^{N}\bigl(F_{ij}-\bar{F}\bigr)^2}
+\end{equation}
+Giá trị cao hơn phản ánh vùng sáng--tối phân biệt rõ hơn, nội dung hình ảnh phong phú hơn. $\uparrow$ cao tốt hơn.
+
+% ── Nhóm 3: Biên và gradient ─────────────────────────────────────────────────
+\subsubsection*{Nhóm 3 --- Biên và gradient}
+
+\paragraph{Spatial Frequency (SF).}
+Đo mức độ hoạt động tần số không gian tổng thể của ảnh fused:
+\begin{equation}
+\mathrm{SF}(F) = \sqrt{RF^2 + CF^2}
+\end{equation}
+trong đó $RF = \sqrt{\frac{1}{MN}\sum_{i,j}(F_{i,j}-F_{i,j-1})^2}$ (Row Frequency) và $CF = \sqrt{\frac{1}{MN}\sum_{i,j}(F_{i,j}-F_{i-1,j})^2}$ (Column Frequency). Giá trị cao hơn nghĩa là ảnh fused có nhiều chi tiết kết cấu và biên hơn. $\uparrow$ cao tốt hơn.
+
+\paragraph{Average Gradient (AG).}
+Đo độ sắc nét trung bình của ảnh fused thông qua gradient cục bộ:
+\begin{equation}
+\mathrm{AG}(F) = \frac{1}{MN}\sum_{i=1}^{M}\sum_{j=1}^{N} \sqrt{\frac{(\partial F/\partial x)^2 + (\partial F/\partial y)^2}{2}}
+\end{equation}
+trong đó $\partial F/\partial x$, $\partial F/\partial y$ là đạo hàm riêng theo hướng ngang và dọc. Giá trị cao hơn phản ánh ảnh fused sắc nét, bảo toàn tốt chi tiết biên. $\uparrow$ cao tốt hơn.
+
+\paragraph{Edge Intensity (EI).}
+Đo cường độ biên tổng thể sử dụng bộ lọc Laplacian:
+\begin{equation}
+\mathrm{EI}(F) = \frac{1}{MN}\sum_{i,j}\bigl|\nabla^2 F_{ij}\bigr|
+\end{equation}
+trong đó $\nabla^2$ là toán tử Laplacian. EI tương quan chặt với AG nhưng nhấn mạnh các biên đột ngột (high-frequency). $\uparrow$ cao tốt hơn.
+
+\paragraph{$Q^{AB/F}$ --- Qabf (Petrovic).}
+Đánh giá mức độ truyền tải thông tin gradient--biên từ hai ảnh nguồn vào ảnh fused~\cite{xydeas2000objective}:
+\begin{equation}
+Q^{AB/F} = \frac{\sum_{i,j}\bigl(Q^{AF}_{ij}\,w^A_{ij} + Q^{BF}_{ij}\,w^B_{ij}\bigr)}{\sum_{i,j}(w^A_{ij}+w^B_{ij})}
+\end{equation}
+trong đó $Q^{XF}_{ij}$ là chỉ số truyền biên tại điểm $(i,j)$, $w^X_{ij}$ là trọng số tầm quan trọng cạnh. $Q^{AB/F}\in[0,1]$; giá trị 1 nghĩa là toàn bộ thông tin biên từ cả hai nguồn được giữ lại hoàn toàn. $\uparrow$ cao tốt hơn.
+
+\paragraph{NABF (Noise/Artifact at Boundary Fusion).}
+Đo lượng artifact biên xuất hiện trong ảnh fused nhưng không có trong cả hai nguồn:
+\begin{equation}
+\mathrm{NABF} = \frac{\sum_{i,j}\bigl(Q^{FA}_{ij}\,w^{FA}_{ij} + Q^{FB}_{ij}\,w^{FB}_{ij}\bigr)}{\sum_{i,j}(w^{FA}_{ij}+w^{FB}_{ij})}
+\end{equation}
+Giá trị NABF cao nghĩa là ảnh fused tạo thêm artifact biên không có trong nguồn gốc. $\downarrow$ thấp tốt hơn.
+
+% ── Nhóm 4: Wavelet ───────────────────────────────────────────────────────────
+\subsubsection*{Nhóm 4 --- Wavelet}
+
+\paragraph{QM (Piella Wavelet Quality).}
+Đánh giá chất lượng tổng hợp dựa trên tương quan cấu trúc tại nhiều mức phân giải trong miền wavelet~\cite{piella2003new}:
+\begin{equation}
+Q_M = \frac{1}{W}\sum_w \lambda_w(F)\bigl[Q_0(A,F|w)\,c(A,F|w) + Q_0(B,F|w)\,c(B,F|w)\bigr]
+\end{equation}
+trong đó $w$ là chỉ số mức wavelet, $\lambda_w$ là trọng số saliency, $Q_0$ là SSIM cục bộ trong miền wavelet, $c(\cdot)$ là hệ số tương quan. QM nhạy với việc bảo toàn chi tiết tần số cao (cạnh, texture). $\uparrow$ cao tốt hơn.
+
+% ── Tóm tắt ───────────────────────────────────────────────────────────────────
+\subsubsection*{Tóm tắt và phân nhóm sử dụng}
+
+\begin{table}[H]
 \centering
 \small
-\caption{Giá trị trung bình của 7 chỉ số chính cho 10 phương pháp dẫn đầu, tính trung bình trên 3 modality CT/PET/SPECT (72 cặp ảnh). Mũi tên $\uparrow$ nghĩa là cao tốt hơn, $\downarrow$ nghĩa là thấp tốt hơn.}
-\label{tab:sota-raw-metrics}
-\setlength{\tabcolsep}{4pt}
-\begin{tabular}{lccccccc}
+\caption{12 chỉ số chính sử dụng trong đánh giá, phân loại theo nhóm và hướng tốt.}
+\label{tab:metrics-summary}
+\setlength{\tabcolsep}{5pt}
+\begin{tabular}{llll}
 \toprule
-\textbf{Model} & \textbf{SSIM}$\uparrow$ & \textbf{PSNR}$\uparrow$ & \textbf{QG}$\uparrow$ & \textbf{QM}$\uparrow$ & \textbf{NABF}$\downarrow$ & \textbf{QSF}$\uparrow$ & \textbf{MI}$\uparrow$ \\
+\textbf{Nhóm} & \textbf{Chỉ số} & \textbf{Hướng} & \textbf{Ý nghĩa} \\
 \midrule
-MM-Net-Fusion    & 1.431 & 56.79 & 0.701 & 0.031 & \textbf{0.0001} & 0.233 & --     \\
-\textbf{CDDFuse} & \textbf{1.439} & 56.22 & 0.702 & \textbf{0.083} & 0.024  & 0.038 & 64.60 \\
-MFS-Fusion       & 1.448 & 55.96 & 0.704 & 0.076 & 0.016  & 0.068 & 67.02 \\
-CM-CSAMFNet      & 1.402 & 55.45 & \textbf{0.729} & 0.045 & 0.024  & 0.072 & \textbf{73.72} \\
-BSAFusion        & 1.208 & 56.15 & 0.688 & \textbf{0.115} & 0.019  & 0.104 & 69.53 \\
-MMIF-INet        & 1.421 & 55.72 & 0.683 & 0.026 & 0.022  & 0.068 & --     \\
-LRFNet           & 1.444 & \textbf{56.66} & 0.637 & 0.016 & 0.006  & 0.222 & 57.40 \\
-CMMDL            & 1.147 & 55.41 & 0.700 & 0.021 & 0.026  & 0.037 & 73.05 \\
-GeSeNet          & 1.012 & 55.97 & 0.697 & 0.020 & 0.019  & 0.046 & 67.61 \\
-MBHFuse          & 0.853 & 55.47 & 0.707 & 0.051 & 0.023  & 0.032 & 73.18 \\
+Thông tin   & EN            & $\uparrow$   & Lượng thông tin ảnh fused \\
+            & MI            & $\uparrow$   & Thông tin chung từ nguồn vào fused \\
+            & CE            & $\downarrow$ & Sai lệch phân phối xác suất \\
+            & QMI           & $\uparrow$   & MI chuẩn hóa \\
+\midrule
+Cấu trúc    & SSIM          & $\uparrow$   & Độ tương đồng cấu trúc \\
+            & SD            & $\uparrow$   & Độ tương phản tổng thể \\
+            & PSNR          & $\uparrow$   & Tỷ lệ tín hiệu/nhiễu \\
+\midrule
+Biên/grad.  & SF            & $\uparrow$   & Tần số không gian \\
+            & AG            & $\uparrow$   & Gradient trung bình \\
+            & EI            & $\uparrow$   & Cường độ biên \\
+            & Qabf          & $\uparrow$   & Truyền tải biên (Petrovic) \\
+            & NABF          & $\downarrow$ & Artifact biên \\
+\midrule
+Wavelet     & QM            & $\uparrow$   & Chất lượng đa phân giải \\
 \bottomrule
 \end{tabular}
 \end{table}
 
-\paragraph{Quan sát chính.}
-\begin{itemize}\itemsep0pt
-    \item \textbf{SSIM}: MFS-Fusion (1.448) cao nhất, CDDFuse (1.439) đứng thứ 3 --- nghĩa là ảnh tổng hợp của CDDFuse giữ cấu trúc gần ảnh nguồn tốt thứ 3.
-    \item \textbf{QM (wavelet quality)}: CDDFuse (0.083) đứng thứ 2 sau BSAFusion (0.115) --- cho thấy chất lượng phân rã wavelet ổn.
-    \item \textbf{NABF (ảo ảnh biên, thấp tốt)}: MM-Net-Fusion (0.0001) và LRFNet (0.006) rất thấp, trong khi CDDFuse (0.024) ở mức trung bình --- \emph{đây là điểm yếu rõ nhất của CDDFuse và là target chính của mô-đun Adaptive Gating}.
-    \item \textbf{QSF (sharpness)}: ITFuse (0.680), C2RF (0.617) cao nhất nhưng các phương pháp này có SSIM rất thấp ($<0.6$) --- chúng đánh đổi cấu trúc lấy độ sắc nét. CDDFuse có QSF chỉ 0.038, là điểm yếu thứ hai.
-    \item \textbf{MI (mutual information)}: AWFusion (75.84) và CM-CSAMFNet (73.72) cao nhất, CDDFuse (64.60) ở mức trung bình.
-\end{itemize}
+Các chỉ số trong cùng nhóm thường có tương quan cao với nhau. Một cải thiện thực sự cần thể hiện đồng thời trên cả nhóm chỉ số liên quan, không chỉ trên một metric đơn lẻ.
 
-Điểm yếu cụ thể của CDDFuse là \emph{NABF cao} và \emph{QSF thấp}, đồng thời điểm mạnh là \emph{SSIM} và \emph{QM cao}. Mô hình CDDFuse-AG đề xuất ở Chương~\ref{ch:method} kế thừa điểm mạnh và cải tiến điểm yếu này.
-
-\paragraph{Lựa chọn base model.}
-Bên cạnh vị trí cao trong xếp hạng, CDDFuse có những ưu điểm phù hợp cho cải tiến trong khuôn khổ đồ án:
-\begin{itemize}\itemsep0pt
-    \item Kiến trúc \emph{rõ ràng và mô-đun hóa}: tách Encoder/Fuse/Decoder, cho phép thay thế từng khối mà không ảnh hưởng phần còn lại.
-    \item Tổng tham số \emph{nhẹ} ($\sim 1.2$M), khả thi để huấn luyện đầy đủ trên một GPU consumer.
-    \item Mã nguồn và checkpoint pretrained được công bố đầy đủ, đảm bảo khả năng tái lặp.
-    \item Có \emph{hai điểm cụ thể} (phép cộng trong fuse layer, max-rule trong loss) là target rõ ràng cho cải tiến.
-\end{itemize}
-Trong khi đó MM-Net-Fusion (rank 1) có composite z chỉ cao hơn 0.1 nhưng kiến trúc phức tạp hơn và mã nguồn không công khai đầy đủ, làm cho việc thực nghiệm cải tiến khó hơn. Vì vậy đồ án chọn \textbf{CDDFuse làm điểm xuất phát} cho mô hình đề xuất CDDFuse-AG.
-
-\section{Đánh giá thống kê}
-\label{sec:stats-bg}
-
-\subsection{Cơ sở kiểm định giả thuyết thống kê}
-\label{ssec:hypothesis-testing}
-
-Trước khi đi vào các phép kiểm định cụ thể, đồ án trình bày ngắn gọn các khái niệm nền tảng của \emph{Null Hypothesis Significance Testing} (NHST) --- khung lý thuyết cơ bản của kiểm định thống kê trong khoa học thực nghiệm.
-
-\paragraph{Giả thuyết không và giả thuyết đối.}
-Trong mỗi phép kiểm định, ta thiết lập hai giả thuyết loại trừ lẫn nhau:
-\begin{itemize}\itemsep0pt
-    \item \textbf{Giả thuyết không} ($H_0$): mệnh đề ``mặc định'' --- thường là ``không có hiệu ứng / không có cải thiện''. $H_0$ được chấp nhận \emph{trừ khi} có đủ bằng chứng để bác bỏ.
-    \item \textbf{Giả thuyết đối} ($H_1$): mệnh đề muốn chứng minh --- ``có hiệu ứng / có cải thiện''.
-\end{itemize}
-Trong đồ án, $H_0$: ``CDDFuse-AG không khác CDDFuse baseline''; $H_1$: ``CDDFuse-AG cho metric tốt hơn CDDFuse baseline''.
-
-\paragraph{p-value.}
-$p$-value là xác suất quan sát được dữ liệu \emph{ít nhất cực đoan như dữ liệu hiện tại} \emph{nếu $H_0$ đúng}. $p$ càng nhỏ, dữ liệu càng ``hiếm'' dưới $H_0$, càng có lý do bác bỏ $H_0$.
-
-\paragraph{Mức ý nghĩa $\alpha$.}
-$\alpha$ là ngưỡng quyết định, thường $\alpha = 0.05$. Quy tắc:
-\begin{itemize}\itemsep0pt
-    \item Nếu $p < \alpha$: \emph{bác bỏ} $H_0$, kết luận \emph{có ý nghĩa thống kê}.
-    \item Nếu $p \ge \alpha$: \emph{không bác bỏ} $H_0$, dữ liệu chưa đủ để kết luận có hiệu ứng.
-\end{itemize}
-
-\paragraph{Sai lầm loại I và loại II.}
-Khi ra quyết định dựa trên $p$-value, có thể mắc hai loại sai lầm:
-\begin{center}
-\begin{tabular}{lcc}
-\toprule
-& \textbf{$H_0$ thực sự đúng} & \textbf{$H_0$ thực sự sai} \\
-\midrule
-\textbf{Bác bỏ $H_0$} (kết luận có hiệu ứng) & Sai lầm loại I (xác suất $\alpha$) & Đúng \\
-\textbf{Không bác bỏ $H_0$} & Đúng & Sai lầm loại II (xác suất $\beta$) \\
-\bottomrule
-\end{tabular}
-\end{center}
-$1 - \beta$ gọi là \emph{power} (độ mạnh) của phép kiểm định --- xác suất phát hiện ra hiệu ứng khi nó thực sự tồn tại. Power phụ thuộc vào cỡ mẫu $n$, độ lớn hiệu ứng thật, và $\alpha$.
-
-\paragraph{One-sided vs two-sided.}
-Khi $H_1$ chỉ rõ hướng (variant \emph{tốt hơn} baseline, không quan tâm trường hợp tệ hơn), ta dùng \emph{one-sided test}. Khi quan tâm cả hai chiều khác biệt, ta dùng \emph{two-sided}. Đồ án dùng \emph{one-sided test} (alternative='greater') vì giả thuyết nghiên cứu có hướng rõ ràng: CDDFuse-AG được thiết kế để \emph{cải thiện} baseline, không phải làm xấu đi.
-
-\paragraph{Kiểm định tham số vs phi-tham số.}
-\begin{itemize}\itemsep0pt
-    \item \textbf{Parametric test} (ví dụ t-test): giả định phân phối cụ thể (thường là chuẩn). Mạnh khi giả định đúng nhưng dễ sai khi vi phạm.
-    \item \textbf{Non-parametric test} (Wilcoxon, Mann--Whitney): không giả định phân phối, chỉ dựa vào thứ hạng (rank). Robust nhưng có thể kém mạnh hơn parametric khi dữ liệu thực sự chuẩn.
-\end{itemize}
-Vì các chỉ số chất lượng ảnh thường có phân phối lệch và có outlier, đồ án ưu tiên non-parametric.
-
-\subsection{Pipeline đánh giá của đồ án}
-\label{ssec:eval-pipeline}
-
-So sánh hai mô hình tổng hợp ảnh trên 22 chỉ số chất lượng không thể chỉ dựa vào trung bình. Hai vấn đề có thể gặp:
-\begin{itemize}\itemsep0pt
-    \item \textbf{Chênh lệch trung bình nhỏ có thể là ngẫu nhiên}: với 24 ảnh test, chênh lệch $0.001$ ở SSIM có thể chỉ là sampling noise.
-    \item \textbf{Càng test nhiều chỉ số, càng dễ ``trúng'' SIG ngẫu nhiên}: với $\alpha = 0.05$, test 22 chỉ số sẽ có trung bình $22 \cdot 0.05 \approx 1.1$ false positives mỗi lần --- không thể trust một SIG đơn lẻ.
-\end{itemize}
-Để xử lý hai vấn đề này, đồ án dùng pipeline gồm \emph{kiểm định Wilcoxon} (để đo có ý nghĩa), \emph{Cliff's delta} (để đo độ lớn hiệu ứng) và \emph{Holm--Bonferroni correction} (để hiệu chỉnh multiple testing).
-
-\subsection{Kiểm định Wilcoxon signed-rank}
-\label{ssec:wilcoxon}
-
-Wilcoxon signed-rank test \cite{wilcoxon1945individual} là kiểm định phi-tham số cho dữ liệu \emph{paired} (cặp). Trong context đồ án, mỗi cặp gồm hai giá trị metric của baseline và variant đo trên \emph{cùng một ảnh test}, ví dụ:
-\begin{itemize}\itemsep0pt
-    \item Ảnh CT số 1: SSIM baseline $= 1.480$, SSIM variant $= 1.491 \to$ chênh $+0.011$.
-    \item Ảnh CT số 2: SSIM baseline $= 1.467$, SSIM variant $= 1.473 \to$ chênh $+0.006$.
-    \item \ldots
-\end{itemize}
-24 cặp ảnh $\to$ 24 chênh lệch. Câu hỏi: chênh lệch dương có \emph{ý nghĩa thống kê} không, hay chỉ là ngẫu nhiên?
-
-\paragraph{Giả thuyết.}
-Với one-sided test (variant tốt hơn baseline):
-\begin{align*}
-H_0 &: \text{median}(\text{variant} - \text{baseline}) = 0 \quad (\text{không có cải thiện}) \\
-H_1 &: \text{median}(\text{variant} - \text{baseline}) > 0 \quad (\text{variant cải thiện})
-\end{align*}
-
-\paragraph{Quy trình.}
-Với $n$ cặp dữ liệu $(x_i, y_i)$, tính chênh lệch $d_i = y_i - x_i$:
-\begin{enumerate}\itemsep0pt
-    \item Loại bỏ các cặp $d_i = 0$.
-    \item Xếp hạng $|d_i|$ tăng dần, gán rank $r_i$ (xử lý tie bằng average rank).
-    \item Tính $W^+ = \sum_{d_i > 0} r_i$ và $W^- = \sum_{d_i < 0} r_i$.
-    \item Test statistic $W = \min(W^+, W^-)$ so với phân phối Wilcoxon đã biết.
-    \item Trả về $p$-value: xác suất quan sát được $W$ hoặc cực đoan hơn dưới $H_0$.
-\end{enumerate}
-
-\paragraph{Quyết định.}
-Với mức ý nghĩa $\alpha = 0.05$: nếu $p < \alpha$ thì bác bỏ $H_0$ và kết luận \emph{có cải thiện ý nghĩa}.
-
-\paragraph{Lý do dùng Wilcoxon thay vì t-test.}
-\begin{itemize}\itemsep0pt
-    \item Không yêu cầu phân phối chuẩn của chênh lệch (nhiều metric chất lượng ảnh phân phối lệch).
-    \item Robust với outlier --- một ảnh ``khó'' không kéo lệch toàn bộ kiểm định.
-    \item Phù hợp với cỡ mẫu nhỏ ($n = 24$ mỗi modality).
-\end{itemize}
-
-\subsection{Cliff's delta --- độ lớn hiệu ứng}
-\label{ssec:cliff}
-
-Wilcoxon chỉ trả lời câu hỏi ``có khác biệt không?'' không trả lời ``khác biệt bao nhiêu''. Để đo \emph{độ lớn} của cải thiện, đồ án dùng Cliff's delta \cite{cliff1993dominance} --- một effect size phi-tham số:
-\begin{equation}
-\delta = \frac{\#\{(i, j) : y_i > x_j\} - \#\{(i, j) : y_i < x_j\}}{n_y \cdot n_x}
-\end{equation}
-trong đó $x, y$ là hai mẫu (baseline và variant), $\#\{\cdot\}$ đếm số cặp thỏa điều kiện. $\delta \in [-1, +1]$:
-\begin{itemize}\itemsep0pt
-    \item $\delta = +1$: mọi giá trị variant đều lớn hơn mọi giá trị baseline.
-    \item $\delta = 0$: hai phân phối giống nhau.
-    \item $\delta = -1$: mọi giá trị variant đều nhỏ hơn mọi giá trị baseline.
-\end{itemize}
-
-\paragraph{Diễn giải $\delta$ theo Romano et~al.}
-Đồ án dùng ngưỡng phân loại độ lớn hiệu ứng tiêu chuẩn:
-\begin{center}
-\begin{tabular}{lc}
-\toprule
-\textbf{Độ lớn (effect size)} & \textbf{Ngưỡng $|\delta|$} \\
-\midrule
-Trivial (không đáng kể)   & $|\delta| < 0.147$ \\
-Small (nhỏ)               & $0.147 \le |\delta| < 0.330$ \\
-Medium (vừa)              & $0.330 \le |\delta| < 0.474$ \\
-Large (lớn)               & $|\delta| \ge 0.474$ \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-\paragraph{Vì sao cần effect size.}
-Với cỡ mẫu lớn, ngay cả chênh lệch rất nhỏ (không có ý nghĩa thực tế) cũng có thể đạt $p < 0.05$. Cliff's $\delta$ cho biết độ lớn thực tế của hiệu ứng, độc lập với cỡ mẫu. Một chỉ số đạt $p_{\mathrm{adj}} < 0.05$ nhưng $\delta < 0.147$ (trivial) là \emph{cải thiện nhỏ không có ý nghĩa thực hành} --- đồ án \emph{không} công nhận đó là cải thiện đáng kể.
-
-\subsection{Hiệu chỉnh multiple testing --- Holm--Bonferroni}
-\label{ssec:holm}
-
-Khi test đồng thời 22 chỉ số trên cùng một dataset, xác suất ít nhất một metric ngẫu nhiên đạt $p < 0.05$ là:
-\begin{equation}
-P(\text{ít nhất 1 false SIG}) = 1 - (1 - 0.05)^{22} \approx 0.677
-\end{equation}
-Tức là hơn $2/3$ khả năng có ít nhất một false positive nếu không hiệu chỉnh. Đây là vấn đề \emph{family-wise error rate} (FWER).
-
-\paragraph{Bonferroni đơn giản.}
-Giải pháp dễ nhất là chia $\alpha$ cho số test: $\alpha' = \alpha / K = 0.05 / 22 \approx 0.0023$. Bất kỳ metric nào đạt $p < 0.0023$ mới được coi là SIG. Nhược điểm: \emph{quá bảo thủ}, dễ bỏ sót cải thiện thực sự.
-
-\paragraph{Holm--Bonferroni.}
-Holm \cite{holm1979simple} đề xuất phương pháp \emph{sequentially rejective} mạnh hơn Bonferroni nhưng vẫn kiểm soát FWER:
-\begin{enumerate}\itemsep0pt
-    \item Xếp $K$ p-value tăng dần: $p_{(1)} \le p_{(2)} \le \ldots \le p_{(K)}$.
-    \item Với mỗi $i$, so sánh $p_{(i)}$ với ngưỡng $\alpha / (K - i + 1)$.
-    \item Bác bỏ $H_0^{(i)}$ nếu $p_{(i)} < \alpha / (K - i + 1)$. Nếu một metric không bác bỏ được, dừng lại --- tất cả metric sau cũng giữ $H_0$.
-\end{enumerate}
-
-Ví dụ với $K = 22$, $\alpha = 0.05$:
-\begin{itemize}\itemsep0pt
-    \item Ngưỡng cho metric có p-value nhỏ nhất: $0.05 / 22 \approx 0.0023$ (giống Bonferroni).
-    \item Ngưỡng cho metric thứ hai: $0.05 / 21 \approx 0.0024$.
-    \item Ngưỡng cho metric thứ 22 (lớn nhất): $0.05 / 1 = 0.05$.
-\end{itemize}
-$p$-value sau hiệu chỉnh Holm được tính tương đương:
-\begin{equation}
-p_{(i)}^{\mathrm{adj}} = \max_{j \le i} \min\big(1,\; (K - j + 1) \cdot p_{(j)}\big)
-\end{equation}
-
-\paragraph{Lý do chọn Holm.}
-\begin{itemize}\itemsep0pt
-    \item Mạnh hơn Bonferroni đơn giản (sensitivity cao hơn) nhưng vẫn kiểm soát FWER ở mức $\alpha$.
-    \item Không yêu cầu independence giữa các test (Bonferroni cũng vậy, nhưng Benjamini--Hochberg cần).
-    \item Phù hợp khi muốn \emph{strong control} FWER --- mỗi SIG được công nhận thực sự là cải thiện.
-\end{itemize}
-
-\subsection{Các chỉ số chất lượng ảnh tổng hợp}
-\label{ssec:metrics}
-
-Đồ án sử dụng \textbf{22 chỉ số chất lượng} chia thành 6 nhóm theo bản chất đo lường:
-
-\paragraph{Nhóm 1 --- Thông tin (Information-theoretic).}
-\begin{itemize}\itemsep0pt
-    \item \textbf{EN} (Entropy): độ phong phú thông tin của ảnh tổng hợp, dựa trên histogram.
-    \item \textbf{MI} (Mutual Information): lượng thông tin chung giữa ảnh tổng hợp và ảnh nguồn.
-    \item \textbf{CE} (Cross Entropy): khoảng cách phân phối; thấp tốt hơn.
-    \item \textbf{NCIE} (Nonlinear Correlation Information Entropy): tương quan phi tuyến.
-\end{itemize}
-
-\paragraph{Nhóm 2 --- Cấu trúc (Structural).}
-\begin{itemize}\itemsep0pt
-    \item \textbf{SSIM} (Structural Similarity): độ tương đồng cấu trúc với ảnh nguồn.
-    \item \textbf{PSNR} (Peak SNR): tỷ số tín hiệu trên nhiễu.
-    \item \textbf{RMSE} (Root Mean Square Error): sai số bình phương trung bình; thấp tốt hơn.
-\end{itemize}
-
-\paragraph{Nhóm 3 --- Biên và texture (Edge \& gradient).}
-\begin{itemize}\itemsep0pt
-    \item \textbf{QG / Q\textsuperscript{AB/F}}: chất lượng truyền tải gradient từ ảnh nguồn sang ảnh tổng hợp.
-    \item \textbf{NABF} (Normalized Artifact-Based Fusion): ảo ảnh biên do fusion sinh ra; \emph{thấp tốt hơn}.
-    \item \textbf{EI} (Edge Intensity): cường độ biên.
-    \item \textbf{AG} (Average Gradient): gradient trung bình.
-    \item \textbf{FMI} (Feature Mutual Information): MI dựa trên feature.
-\end{itemize}
-
-\paragraph{Nhóm 4 --- Wavelet và đa độ phân giải.}
-\begin{itemize}\itemsep0pt
-    \item \textbf{QM}: chất lượng wavelet --- ảnh tổng hợp giữ được bao nhiêu thành phần wavelet của hai nguồn.
-    \item \textbf{QC} (Cvejic): chất lượng theo Cvejic.
-    \item \textbf{QS} (Yang): chất lượng theo Yang dựa trên SSIM cục bộ.
-\end{itemize}
-
-\paragraph{Nhóm 5 --- Saliency và HVS (Human Visual System).}
-\begin{itemize}\itemsep0pt
-    \item \textbf{QCB} (Chen--Blum): mô phỏng nhận thức HVS.
-    \item \textbf{QCV} (Chen--Varshney): độ khác biệt theo HVS; thấp tốt hơn.
-    \item \textbf{QY} (Yang--Bao): thước đo chất lượng Yang--Bao.
-\end{itemize}
-
-\paragraph{Nhóm 6 --- Tần số không gian và tương đồng tổng quát.}
-\begin{itemize}\itemsep0pt
-    \item \textbf{SF} (Spatial Frequency): tần số không gian của ảnh.
-    \item \textbf{QSF}: thước đo tần số không gian fusion-specific.
-    \item \textbf{VAR} (Variance): độ tương phản tổng quát.
-    \item \textbf{QMI}, \textbf{QNCIE}, \textbf{QTE}: các phiên bản fusion-specific của MI, NCIE, Tsallis entropy.
-\end{itemize}
-
-Các chỉ số trên không độc lập với nhau --- nhiều chỉ số có \emph{correlation cao} (ví dụ EN và MI thường tăng cùng nhau, NABF và QG thường nghịch). Điều này nghĩa là khi đếm SIG, các chỉ số liên quan có thể cùng SIG hoặc cùng không SIG, làm cho ngưỡng ``5 SIG'' của đồ án trở nên \emph{conservative} --- một cải thiện thực sự thường thể hiện trên một nhóm chỉ số cùng lúc, không chỉ một metric đơn lẻ.
-
-\subsection{Cỡ mẫu và độ mạnh (power)}
-\label{ssec:power}
-
-Với mỗi modality, đồ án có $n = 24$ ảnh test --- một cỡ mẫu \emph{nhỏ} theo tiêu chuẩn thống kê. Cỡ mẫu nhỏ làm giảm power, tức tăng xác suất sai lầm loại II (bỏ sót cải thiện thực sự). Power của Wilcoxon test phụ thuộc:
-\begin{equation}
-\text{Power} \approx \Phi\left(\sqrt{n} \cdot \delta_e - z_{1-\alpha}\right)
-\end{equation}
-trong đó $\delta_e$ là effect size (Cliff's $\delta$), $z_{1-\alpha}$ là quantile của phân phối chuẩn. Với $n = 24$, $\alpha = 0.05$ one-sided, power tối thiểu để phát hiện hiệu ứng:
-\begin{center}
-\begin{tabular}{lc}
-\toprule
-\textbf{Cliff's $\delta$} & \textbf{Power ước lượng} \\
-\midrule
-$0.147$ (small)  & $\sim 0.30$ \\
-$0.330$ (medium) & $\sim 0.75$ \\
-$0.474$ (large)  & $\sim 0.95$ \\
-\bottomrule
-\end{tabular}
-\end{center}
-Tức là cải thiện small ở $n = 24$ có chỉ $30\%$ khả năng được phát hiện --- đây là lý do tại sao đồ án còn báo cáo \emph{pooled} (gộp 3 modality, $n_{\mathrm{pool}} = 72$) bên cạnh per-modal. Với $n = 72$, power cho small effect tăng lên $\sim 0.70$, đáng tin hơn nhiều.
-
-\paragraph{Hệ quả thiết kế thí nghiệm.}
-Cỡ mẫu nhỏ khiến đồ án ưu tiên:
-\begin{itemize}\itemsep0pt
-    \item \textbf{Effect size} thay vì chỉ p-value --- một hiệu ứng \emph{large} với $p$ tiệm cận $0.05$ đáng tin hơn một hiệu ứng \emph{small} với $p = 0.001$.
-    \item \textbf{Pooled analysis} (gộp 3 modality, $n = 72$) để xác nhận trend.
-    \item \textbf{Per-modal} để phát hiện hiệu ứng modality-specific.
-\end{itemize}
-
-\subsection{Per-modality SIG vs Pooled SIG}
-\label{ssec:per-modal-vs-pooled}
-
-Khi đánh giá một biến thể trên 3 modality (CT, PET, SPECT), có \emph{hai cách đếm} số chỉ số có ý nghĩa thống kê:
-
-\paragraph{Per-modality SIG.}
-Thực hiện Wilcoxon test \emph{riêng cho từng modality}. Ví dụ với 24 cặp ảnh CT, test 22 chỉ số $\to$ Holm correction $\to$ đếm số metric SIG cho CT. Lặp lại cho PET (24 cặp) và SPECT (24 cặp). Kết quả ghi dưới dạng \emph{ba con số}, ví dụ ``CT: 10/22, PET: 10/22, SPECT: 2/22''.
-
-\paragraph{Pooled SIG.}
-Gộp toàn bộ chênh lệch của \emph{cả ba modality} thành một mẫu lớn $n_{\mathrm{pool}} = 24 \times 3 = 72$, rồi chạy Wilcoxon test \emph{một lần} cho mỗi chỉ số trên 72 cặp. Kết quả là \emph{một con số}, ví dụ ``Pooled: 2/22''.
-
-\paragraph{Ý nghĩa và sự khác biệt.}
-\begin{itemize}\itemsep0pt
-    \item \textbf{Per-modality SIG} cho biết \emph{cải thiện modality nào}. Hiệu ứng modality-specific (ví dụ Combined cải thiện CT/PET nhưng không cải thiện SPECT) sẽ thể hiện rõ ở đây.
-    \item \textbf{Pooled SIG} cho biết cải thiện \emph{trung bình trên toàn bộ test set}. Nếu một modality có gain dương lớn còn modality khác có gain âm, hai chiều cancel nhau khi pool $\to$ pooled có thể không SIG dù per-modal có.
-\end{itemize}
-
-Vì vậy hai số liệu này \emph{không thay thế nhau} mà \emph{bổ sung}. Một mô hình có per-modal cao nhưng pooled thấp thường có ``cải thiện modality-specific'' --- tốt cho modality cụ thể nhưng kém tổng quát. Một mô hình có pooled cao thường có ``cải thiện overall'' nhất quán trên cả 3 modality.
-
-Đồ án \emph{báo cáo cả hai} và đặt theo thứ tự ưu tiên:
-\begin{enumerate}\itemsep0pt
-    \item \textbf{Per-modal SIG} \emph{cho từng modality} --- thông số chi tiết, có actionable insight.
-    \item \textbf{Pooled SIG} --- thông số tổng quan, dùng cho verdict tổng thể (Mục~\ref{ssec:decision-rule}).
-\end{enumerate}
-
-\subsection{Quy tắc quyết định cuối cùng}
-\label{ssec:decision-rule}
-
-Đồ án công nhận một metric có cải thiện \emph{ý nghĩa và đáng kể} khi thỏa mãn \emph{đồng thời} hai điều kiện:
-\begin{enumerate}\itemsep0pt
-    \item $p_{\mathrm{adj}}^{\mathrm{Holm}} < 0.05$ (ý nghĩa thống kê sau hiệu chỉnh).
-    \item Cliff's $\delta \ge 0.147$ (effect size từ \emph{small} trở lên).
-\end{enumerate}
-Việc kết hợp hai điều kiện đảm bảo claim của đồ án \emph{vừa có ý nghĩa thống kê, vừa có ý nghĩa thực tế}. Quy tắc này áp dụng đồng nhất khi đánh giá cả CDDFuse-AG và các biến thể trung gian, trên cả ba modality CT/PET/SPECT.
-
-\paragraph{Phân loại verdict.}
-Số lượng metric đạt SIG trên tổng 22 metric quyết định verdict cuối cùng:
-\begin{center}
-\begin{tabular}{ll}
-\toprule
-\textbf{Verdict} & \textbf{Điều kiện} \\
-\midrule
-\texttt{CONFIRM\_IMPROVEMENT}  & $\ge 5$ metric SIG \\
-\texttt{MIXED}                 & $2$--$4$ metric SIG \\
-\texttt{NO\_IMPROVEMENT}       & $\le 1$ metric SIG \\
-\bottomrule
-\end{tabular}
-\end{center}
+Tóm lại, Chương~\ref{ch:background} đã trình bày đầy đủ nền tảng lý thuyết từ biểu diễn dữ liệu ảnh, kiến trúc mạng nơ-ron, đến mô hình CDDFuse và phương pháp đánh giá. Trên cơ sở đó, Chương~\ref{ch:method} tiếp theo sẽ trình bày phương pháp CDDFuse-AG đề xuất.
