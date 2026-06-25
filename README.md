@@ -12,64 +12,145 @@
 
 ---
 
-## 1. Tóm tắt
+## 1. Tổng quan
 
-Tổng hợp ảnh y tế đa phương thức (Medical Image Fusion — MIF) kết hợp thông tin từ hai phương thức chụp ảnh (CT/PET/SPECT + MRI) thành một ảnh duy nhất, hỗ trợ chẩn đoán lâm sàng. Đồ án cải tiến **CDDFuse** (CVPR 2023) bằng cách thay thế phép cộng đơn giản ở Fusion Layer bằng hai quy tắc chuyên biệt và bất đối xứng:
+![Medical Image Fusion overview](docs/figures/fig1_mif_examples.png)
 
-| Nhánh | Quy tắc cũ (CDDFuse) | Quy tắc mới (CDDFuse-AG) |
+Tổng hợp ảnh y tế đa phương thức (Medical Image Fusion — MIF) kết hợp CT/PET/SPECT với MRI thành một ảnh duy nhất, giữ đồng thời thông tin cấu trúc giải phẫu và chức năng trao đổi chất. Đồ án cải tiến **CDDFuse** (CVPR 2023) bằng cách thay thế phép cộng đơn giản ở Fusion Layer bằng hai quy tắc chuyên biệt và **bất đối xứng**:
+
+| Nhánh | CDDFuse (cũ) | CDDFuse-AG (đề xuất) |
 |---|---|---|
-| **Base** (tần số thấp) | $f_V + f_I$ | **WAvg** — trung bình có trọng số 1 scalar $\theta$ học được |
-| **Detail** (tần số cao) | $f_V + f_I$ | **SML** — lựa chọn cục bộ theo Sum-Modified-Laplacian |
+| **Base** (tần số thấp, tương quan cao) | $f_V + f_I$ | **WAvg** — trung bình có trọng số 1 scalar $\theta$ học được |
+| **Detail** (tần số cao, bổ trợ nhau) | $f_V + f_I$ | **SML** — lựa chọn cục bộ theo Sum-Modified-Laplacian |
 
 Chỉ thêm **4.161 tham số** (~0.35% so với CDDFuse). Huấn luyện 2 pha trên Harvard MIF (738 cặp train, 72 cặp test).
 
-### Kết quả nổi bật
-
-Trên 72 cặp ảnh test (24 mỗi modality), nhóm 6 chỉ số edge/texture/information (SF · Qabf · AG · EI · QM · QMI):
-
-| Modality | CDDFuse-AG #1 | Cải thiện tiêu biểu |
-|---|---|---|
-| **MRI-CT** | **6/6 chỉ số** | SF +1.3, QM gần gấp đôi CDDFuse |
-| **MRI-PET** | **5/6 chỉ số** | QM +21.9% |
-| **MRI-SPECT** | **3/6 chỉ số** | QM +10.4% |
-| **Tổng** | **14/18 chỉ số** | — |
-
-Z-score tổng hợp (8 chỉ số, so sánh 6 SOTA): z avg **+0.344** (cao nhất nhóm, CDDFuse: +0.286).
-
 ---
 
-## 2. Kiến trúc CDDFuse-AG
+## 2. Kiến trúc
 
-### 2.1 Quy tắc Base: Weighted Average Scalar (WAvg)
+### 2.1 Pipeline tổng thể
+
+![CDDFuse-AG architecture](docs/figures/fusion_diagram_cddag.png)
+
+Encoder dùng chung trọng số (Restormer + INN) tách ảnh đầu vào thành thành phần Base và Detail. Fusion Layer áp dụng quy tắc **bất đối xứng**: WAvg cho Base, SML cho Detail. Decoder tái tạo ảnh tổng hợp.
+
+### 2.2 Lý do thiết kế bất đối xứng
+
+![Asymmetric principle](docs/figures/fig_asymmetric_principle.png)
+
+- **Base** (tần số thấp): hai modality có nội dung tương quan cao → trung bình hóa tối ưu hơn lựa chọn.
+- **Detail** (tần số cao): hai modality bổ trợ nhau → chọn vùng sắc nét hơn tốt hơn trung bình.
+
+### 2.3 Quy tắc WAvg (Base branch)
+
+![WAvg rule](docs/figures/fig_rule_wavg.png)
 
 ```
 α = σ(θ),   θ ∈ ℝ  (1 tham số học duy nhất)
 R_WAvg(a, b) = 2(α·a + (1−α)·b)
 ```
 
-- Khởi tạo `θ=0` → `α=0.5` → tương đương trung bình đều ở epoch 0
-- Học tỉ lệ đóng góp tối ưu giữa hai modality end-to-end
+Init `θ=0` → `α=0.5` ≡ trung bình tại epoch 0. Học tỉ lệ đóng góp tối ưu end-to-end.
 
-### 2.2 Quy tắc Detail: Sum-Modified-Laplacian (SML)
+### 2.4 Quy tắc SML (Detail branch)
+
+![SML rule](docs/figures/fig_rule_sml.png)
 
 ```
 ML_ij(f) = |2f_ij − f_{i-1,j} − f_{i+1,j}| + |2f_ij − f_{i,j-1} − f_{i,j+1}|
-SML_ij(f) = Σ_{N(i,j)} ML_pq(f)          # tổng vùng 3×3
+SML_ij(f) = Σ_{N(i,j)} ML_pq(f)          # sum trên vùng 3×3
 
 w_a = SML(a) / (SML(a) + SML(b) + ε)
 R_SML(a, b) = 2(w_a ⊙ a + (1−w_a) ⊙ b)
 ```
 
-- Không có tham số học — tổng quát hóa tốt qua mọi modality
-- Lựa chọn spatially adaptive: mỗi vị trí ưu tiên modality có cạnh sắc nét hơn
-
-### 2.3 Phát hiện Modality-Specificity
-
-Không có quy tắc duy nhất tối ưu cho mọi modality — fusion strategy nên điều chỉnh theo đặc tính từng cặp modality đầu vào.
+Không có tham số học. Mỗi vị trí ưu tiên modality có cạnh sắc nét hơn.
 
 ---
 
-## 3. Cài đặt
+## 3. Kết quả định lượng
+
+### 3.1 So sánh 6 chỉ số tốt nhất
+
+![6-metric comparison](docs/figures/comparison_6metrics.png)
+
+#### MRI-CT
+
+| Method | SF | AG | EI | Qabf | QM | QMI |
+|---|---|---|---|---|---|---|
+| **CDDFuse-AG (ours)** | **42.074** | **9.898** | **98.416** | **0.645** | **0.015** | **0.794** |
+| CDDFuse | 36.538 | 8.756 | 88.053 | 0.614 | 0.009 | 0.778 |
+| MM-Net-Fusion | 20.614 | 6.072 | 61.625 | 0.539 | 0.008 | 0.966 |
+| MFS-Fusion | 32.856 | 8.071 | 82.524 | 0.609 | 0.013 | 0.758 |
+| MMIF-INet | 33.715 | 8.826 | 89.913 | 0.614 | 0.007 | 0.654 |
+| BSAFusion | 28.822 | 7.542 | 77.589 | 0.536 | 0.007 | 0.788 |
+
+CDDFuse-AG **#1 cả 6 chỉ số**. SF +15%, QM gần gấp đôi so với CDDFuse.
+
+#### MRI-PET
+
+| Method | SF | AG | EI | Qabf | QM | QMI |
+|---|---|---|---|---|---|---|
+| CDDFuse-AG (ours) | 35.779 | 11.922 | 121.140 | **0.764** | **0.232** | 0.809 |
+| CDDFuse | 35.243 | 11.562 | 118.032 | 0.734 | 0.074 | 0.765 |
+| MM-Net-Fusion | 34.179 | 10.851 | 108.919 | 0.797 | 0.035 | **0.890** |
+| MFS-Fusion | 35.173 | 11.521 | 118.046 | 0.760 | 0.094 | 0.725 |
+| CM-CSAMFNet | 33.566 | 11.145 | 114.546 | 0.765 | 0.049 | 0.760 |
+| MMIF-INet | **38.978** | **11.934** | **121.333** | 0.719 | 0.026 | 0.677 |
+| BSAFusion | 34.444 | 11.299 | 115.376 | 0.763 | 0.162 | 0.713 |
+
+CDDFuse-AG **#1 trên 5/6 chỉ số**. QM +21.9% so với CDDFuse.
+
+#### MRI-SPECT
+
+| Method | SF | AG | EI | Qabf | QM | QMI |
+|---|---|---|---|---|---|---|
+| CDDFuse-AG (ours) | 21.849 | 6.848 | 68.918 | 0.751 | **0.091** | 0.919 |
+| CDDFuse | 22.284 | 6.958 | 70.358 | 0.758 | 0.168 | **1.022** |
+| MM-Net-Fusion | 20.013 | 6.516 | 65.581 | **0.767** | 0.050 | 0.964 |
+| MFS-Fusion | 22.147 | 6.946 | 70.214 | 0.742 | 0.122 | 0.789 |
+| CM-CSAMFNet | 21.187 | 6.820 | 70.150 | 0.693 | 0.040 | 0.767 |
+| MMIF-INet | **23.590** | **7.629** | **77.444** | 0.716 | 0.044 | 0.690 |
+| BSAFusion | 22.025 | 6.910 | 69.690 | 0.765 | 0.174 | 0.800 |
+
+CDDFuse-AG **#1 trên 3/6 chỉ số**. QM +10.4% so với CDDFuse (SPECT đặc thù hơn, CDDFuse-AG kém hơn ở QMI).
+
+#### Tổng hợp
+
+| Modality | CDDFuse-AG #1 |
+|---|---|
+| MRI-CT | **6/6 chỉ số** |
+| MRI-PET | **5/6 chỉ số** |
+| MRI-SPECT | **3/6 chỉ số** |
+| **Tổng** | **14/18 chỉ số** |
+
+### 3.2 Xếp hạng Composite Z-score (22 SOTA, 22 chỉ số)
+
+![Z-score ranking](docs/figures/zscore_ranking.png)
+
+CDDFuse (pretrained paper) xếp **#2/22** toàn bảng — xác nhận backbone đủ mạnh để cải tiến.  
+CDDFuse-AG retrain đạt **z avg = +0.344** trong nhóm 6 SOTA so sánh trực tiếp (CDDFuse retrain: +0.286).
+
+---
+
+## 4. Kết quả trực quan
+
+### MRI-CT
+
+![Visual comparison MRI-CT](docs/figures/fig_visual_comparison.png)
+
+### MRI-PET
+
+![Visual comparison MRI-PET](docs/figures/fig_visual_comparison_pet.png)
+
+### MRI-SPECT
+
+![Visual comparison MRI-SPECT](docs/figures/fig_visual_comparison_spect.png)
+
+---
+
+## 5. Cài đặt
 
 ### Yêu cầu
 
@@ -86,16 +167,12 @@ Không có quy tắc duy nhất tối ưu cho mọi modality — fusion strategy
 git clone https://github.com/kienvbhp872004/MMIF-CDDFuse-AG.git
 cd MMIF-CDDFuse-AG
 pip install -r requirements.txt
-```
-
-PyTorch (CUDA 12.1):
-```bash
 pip install torch==2.5.1+cu121 torchvision --index-url https://download.pytorch.org/whl/cu121
 ```
 
 ---
 
-## 4. Sử dụng
+## 6. Sử dụng
 
 ### Đánh giá checkpoint
 
@@ -106,7 +183,7 @@ cd models/MMIF-CDDFuse
 python evaluate_cddfuse.py --modal CT --ckpt models/CDDFuse_MIF.pth \
     --harvard_root ../../data/reference --out_dir ../../results_v2/CDDFuse
 
-# Eval CDDFuse-AG (Comb-WAvg-SML)
+# Eval CDDFuse-AG
 python evaluate_cddfuse.py --variant Comb-WAvg-SML --modal CT \
     --ckpt models/CDDFuse-AG.pth \
     --harvard_root ../../data/reference --out_dir ../../results_v2/CDDFuse-AG
@@ -115,10 +192,7 @@ python evaluate_cddfuse.py --variant Comb-WAvg-SML --modal CT \
 ### Huấn luyện
 
 ```bash
-# Tiền xử lý dữ liệu
-python dataprocessing_MIF.py
-
-# Train 120 epoch, 2-phase, AMP fp16
+python dataprocessing_MIF.py       # tiền xử lý → h5 patches
 python train_MIF.py --variant Comb-WAvg-SML --amp --num_epochs 120 --batch 8
 ```
 
@@ -126,7 +200,21 @@ Wall time: ~3-5 giờ trên Kaggle Tesla P100.
 
 ---
 
-## 5. Cấu trúc repo
+## 7. Ablation Study
+
+Khảo sát hệ thống **13 quy tắc tổng hợp** theo one-factor-at-a-time:
+
+| Stage | Khảo sát | Winner |
+|---|---|---|
+| **1 — Base rule** | 5 quy tắc: Sum, Mean, WAvg, Gated, CrossAttn (giữ Detail=Sum) | **WAvg** (#1 CT) |
+| **2 — Detail rule** | 8 quy tắc: Sum, Mean, SML, Max, MoE, … (giữ Base=Sum) | **SML** (ổn định nhất 3 modality) |
+| **3 — Kết hợp** | Sym-AG vs Asym (WAvg+SML) | **Asym** thắng 10/18 |
+
+Thiết kế **đối xứng** (Sym-AG: WAvg cả hai nhánh) yếu hơn bất đối xứng — xác nhận vai trò khác nhau của Base/Detail.
+
+---
+
+## 8. Cấu trúc repo
 
 ```
 MMIF-CDDFuse-AG/
@@ -135,72 +223,31 @@ MMIF-CDDFuse-AG/
 │   │   ├── net.py              # Encoder, Decoder, Restormer blocks
 │   │   ├── fusion_rules.py     # WAvg, SML và các quy tắc ablation
 │   │   ├── train_MIF.py        # Training script (2-phase, 120 epoch)
-│   │   ├── evaluate_cddfuse.py # Eval + per-image metrics
-│   │   └── models/             # Pretrained checkpoints
-│   └── <22 SOTA models>/       # NestFuse, GeSeNet, WaveFusion, ...
+│   │   └── evaluate_cddfuse.py
+│   └── <22 SOTA models>/
 │
 ├── data/reference/             # 72 cặp ảnh test (24 × CT/PET/SPECT)
 │
 ├── results_v2/
+│   ├── CDDFuse-AG-45ep/        # Mô hình đề xuất (Comb-WAvg-SML)
 │   ├── CDDFuse/                # Baseline retrain
-│   ├── CDDFuse-AG/             # Mô hình đề xuất (Comb-WAvg-SML)
 │   ├── <22 SOTA>/
-│   ├── zscore_ranking.csv      # Xếp hạng composite z-score 22 methods
-│   └── PROGRESS.md             # Nhật ký thí nghiệm
+│   ├── _compare_vs_sota/       # Per-modal & composite ranking CSVs
+│   ├── zscore_ranking.csv
+│   └── PROGRESS.md
 │
-├── report_latex/               # Báo cáo ĐATN (LaTeX)
-│   ├── main.tex
-│   ├── main.pdf                # PDF xuất bản
-│   ├── chapters/               # 7 chương
-│   └── bibliography.bib
+├── docs/figures/               # Figures dùng trong README
 │
-├── paper_nckh/                 # Paper NCKH (single-column, A4)
-│   ├── main.tex
-│   └── main.pdf
-│
-├── presentation_latex/         # Slide báo cáo (Beamer, HUST RED 16:9)
-│   ├── CDDFuse_AG_Slide.tex
-│   └── CDDFuse_AG_Slide.pdf
-│
+├── report_latex/               # Báo cáo ĐATN (LaTeX + PDF)
+├── paper_nckh/                 # Paper NCKH (A4, single-column)
+├── presentation_latex/         # Slide bảo vệ (Beamer HUST RED 16:9)
 ├── 20224869-DoTrungKien-DATN/  # Thư mục nộp đồ án
-│
-├── kaggle_run/                 # Kaggle notebook training
-└── dev/                        # Tooling phân tích
+└── dev/                        # Tooling phân tích & gen figures
 ```
 
 ---
 
-## 6. Ablation Study
-
-Khảo sát hệ thống **13 quy tắc tổng hợp** theo chiến lược one-factor-at-a-time:
-
-| Stage | Khảo sát | Winner |
-|---|---|---|
-| **1** | 5 Base rule (giữ Detail=Sum) | **WAvg** (#1 CT-MRI) |
-| **2** | 8 Detail rule (giữ Base=Sum) | **SML** (ổn định nhất 3 modality) |
-| **3** | Kết hợp bất đối xứng | **Comb-WAvg-SML** (10/18 chỉ số paper) |
-
-Thiết kế **đối xứng** (Sym-AG) yếu nhất Stage 3 — xác nhận bất đối xứng hiệu quả hơn.
-
----
-
-## 7. So sánh SOTA
-
-Xếp hạng Composite Z-score (22 chỉ số, 72 cặp test, 22 phương pháp):
-
-| Rank | Phương pháp | Z avg |
-|---|---|---|
-| 1 | MM-Net-Fusion | +1.028 |
-| **2** | **CDDFuse (pretrained paper)** | **+0.926** |
-| 3 | MFS-Fusion | +0.688 |
-| ... | ... | ... |
-
-CDDFuse (pretrained) xếp **#2/22** — xác nhận backbone đủ mạnh.
-CDDFuse-AG retrain đạt z avg **+0.344** trong nhóm 6 SOTA so sánh trực tiếp (CDDFuse retrain: +0.286).
-
----
-
-## 8. Tài liệu
+## 9. Tài liệu
 
 | File | Mô tả |
 |---|---|
@@ -208,11 +255,10 @@ CDDFuse-AG retrain đạt z avg **+0.344** trong nhóm 6 SOTA so sánh trực ti
 | [`paper_nckh/main.pdf`](paper_nckh/main.pdf) | Paper NCKH (A4, 1 cột) |
 | [`presentation_latex/CDDFuse_AG_Slide.pdf`](presentation_latex/CDDFuse_AG_Slide.pdf) | Slide bảo vệ ĐATN |
 | [`results_v2/PROGRESS.md`](results_v2/PROGRESS.md) | Nhật ký thực nghiệm |
-| [`report_latex/bibliography.bib`](report_latex/bibliography.bib) | BibTeX references |
 
 ---
 
-## 9. Tác giả
+## 10. Tác giả
 
 - **Sinh viên:** Đỗ Trung Kiên — MSSV 20224869
 - **Trường:** Đại học Bách Khoa Hà Nội — Khoa học máy tính, Trường CNTT & Truyền thông
@@ -222,7 +268,7 @@ CDDFuse-AG retrain đạt z avg **+0.344** trong nhóm 6 SOTA so sánh trực ti
 
 ---
 
-## 10. License
+## 11. License
 
 Mã nguồn công khai phục vụ mục đích học thuật và nghiên cứu. Không sử dụng cho mục đích thương mại.
 
