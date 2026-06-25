@@ -4,10 +4,8 @@
 \usepackage{lmodern}
 \usepackage{booktabs}
 \usepackage{colortbl}
-\usepackage{multirow}
-\usepackage{graphicx}
 
-% --- LỀ ---
+% --- CẤU HÌNH LỀ (giống Slide_HUST.tex mẫu) ---
 \def\slideContentLeftMargin{0.5cm}
 \def\slideContentRightMargin{1cm}
 \def\hustHeaderHeight{1cm}
@@ -18,111 +16,115 @@
 % Thêm graphicspath cho figures luận văn
 \graphicspath{{images/}{../report_latex/figures/}}
 
-% --- TITLE PAGE căn trái ---
+% --- TITLE PAGE ---
 \renewcommand{\titlePageTitleX}{-0.5cm}
-\renewcommand{\titlePageTitleY}{-0.3cm}
+\renewcommand{\titlePageTitleY}{-0.5cm}
 \renewcommand{\hustTitleAlign}{\alignLeft}
 \renewcommand{\hustSubtitleAlign}{\alignLeft}
 \renewcommand{\hustAuthorAlign}{\alignLeft}
 \renewcommand{\hustInstAlign}{\alignLeft}
 
-\title{ĐỀ XUẤT MÔ HÌNH CDDFuse-AG\\CHO TỔNG HỢP ẢNH Y TẾ ĐA PHƯƠNG THỨC}
-\subtitle{Báo cáo Đồ án tốt nghiệp}
+% Title ngắn → \Huge không quá to; subtitle mang tên đề tài → \Large vừa
+\title{ĐỒ ÁN TỐT NGHIỆP}
+\subtitle{Đề xuất mô hình CDDFuse-AG\\cho tổng hợp ảnh y tế đa phương thức}
 \author{Đỗ Trung Kiên --- 20224869}
 \institute{GVHD: TS. Phạm Đăng Hải · PGS. TS. Phạm Văn Hải}
 
 \begin{document}
 
-% ---- CÁC TRANG ĐẶC BIỆT ----
 \hustintropage{}
 \hustsectionpage{}
 
-% ---- TRANG BÌA ----
 \husttitlepage
 
-% ---- MỤC LỤC ----
 \begin{frame}[allowframebreaks]{Nội dung trình bày}
     \tableofcontents[hideallsubsections]
 \end{frame}
 
 \resetPageCount
 \showPageNumber
-\useStyleHustFull
-\useThinBar
 
 % =================================================================
 \section{Giới thiệu bài toán}
 % =================================================================
+\useStyleHustFull
+\useThinBar
 
-\begin{frame}{Tổng hợp ảnh y tế đa phương thức là gì?}
+\begin{frame}{Bài toán tổng hợp ảnh y tế đa phương thức}
     \begin{columns}[T]
-        \begin{column}{0.52\textwidth}
-            \textbf{Mỗi phương thức ảnh y tế có ưu/nhược điểm riêng:}
-            \begin{itemize}
-                \item \textbf{MRI}: Độ phân giải cao về mô mềm, não bộ
-                \item \textbf{CT}: Rõ cấu trúc xương, mô cứng
+        \begin{column}{0.50\textwidth}
+            \textbf{Mỗi phương thức ảnh có ưu điểm riêng:}
+            \begin{itemize}\itemsep1pt
+                \item \textbf{MRI}: Độ phân giải cao về mô mềm
+                \item \textbf{CT}: Rõ cấu trúc xương
                 \item \textbf{PET/SPECT}: Thông tin chức năng, trao đổi chất
             \end{itemize}
-            \vspace{0.5em}
-            \textbf{Medical Image Fusion (MIF)} kết hợp hai phương thức thành \alert{một ảnh duy nhất} --- giảm thời gian chẩn đoán, tăng độ chính xác.
+            \vspace{0.15em}
+            \textbf{MIF} kết hợp hai phương thức thành \alert{một ảnh duy nhất} --- hỗ trợ chẩn đoán nhanh và chính xác hơn.
+            \vspace{0.15em}
 
-            \vspace{0.5em}
-            \textbf{Thách thức đặc thù:} Không tồn tại ảnh tổng hợp chuẩn (no ground-truth) $\Rightarrow$ hàm mất mát không giám sát.
+            \textbf{Thách thức:} Không tồn tại ảnh chuẩn $\Rightarrow$ hàm mất mát không giám sát.
         \end{column}
-        \begin{column}{0.45\textwidth}
+        \begin{column}{0.46\textwidth}
             \begin{figure}
-                \includegraphics[width=\textwidth]{fig1_mif_examples.png}
-                \caption{\small Ví dụ tổng hợp CT-MRI, PET-MRI, SPECT-MRI trên Harvard MIF.}
+                \includegraphics[width=\textwidth,height=0.48\textheight,keepaspectratio]{fig1_mif_examples.png}
+                \caption{\small CT-MRI, PET-MRI, SPECT-MRI trên Harvard MIF.}
             \end{figure}
         \end{column}
     \end{columns}
 \end{frame}
 
-\begin{frame}{Tại sao chọn CDDFuse làm nền tảng?}
+\begin{frame}{Tại sao CDDFuse? Và hạn chế nào cần cải tiến?}
     \begin{columns}[T]
-        \begin{column}{0.54\textwidth}
-            \textbf{CDDFuse} (Zhao et al., CVPR 2023):
+        \begin{column}{0.52\textwidth}
+            \textbf{CDDFuse} (Zhao et al., CVPR 2023) --- \#2/22 SOTA:
             \begin{itemize}
-                \item Dual-branch Transformer--CNN: tách biệt đặc trưng thành nhánh \textbf{Base} (tần số thấp) và \textbf{Detail} (tần số cao)
-                \item Kết hợp Restormer Encoder + Invertible Neural Network
-                \item Xếp hạng \textbf{\#2/22} SOTA trên Harvard MIF (Composite Z-score = $+0.926$)
+                \item Dual-branch: tách nhánh \textbf{Base} (tần số thấp) và \textbf{Detail} (tần số cao)
+                \item Restormer Encoder + Invertible Neural Network
+                \item Huấn luyện không giám sát trên dữ liệu y tế
             \end{itemize}
-            \vspace{0.6em}
-            \textbf{Hạn chế cốt lõi:} Cả hai nhánh Base và Detail đều dùng chung \alert{phép cộng đơn giản}:
+            \vspace{0.3em}
+            \textbf{Hạn chế:} Cả hai nhánh dùng chung \alert{phép cộng đơn giản}:
             \[ f_F = f_V + f_I \]
-            Không khai thác sự \textbf{khác biệt bản chất} giữa tần số thấp và tần số cao.
+            Không khai thác \textbf{bản chất khác nhau} giữa tần số thấp và tần số cao.
         \end{column}
-        \begin{column}{0.42\textwidth}
-            \begin{block}{Câu hỏi nghiên cứu}
-                \textit{Nếu thay phép cộng bằng các quy tắc \textbf{chuyên biệt và khác nhau} cho mỗi nhánh --- kết quả sẽ thay đổi như thế nào?}
-            \end{block}
-            \vspace{0.5em}
+        \begin{column}{0.44\textwidth}
             \begin{alertblock}{Điểm can thiệp}
-                Chỉ thay thế \textbf{Fusion Layer}, giữ nguyên toàn bộ Encoder--Decoder pretrained $\Rightarrow$ so sánh công bằng, tốn ít tài nguyên.
+                Chỉ thay thế \textbf{Fusion Layer}, giữ nguyên Encoder--Decoder pretrained.\\[4pt]
+                $\Rightarrow$ So sánh công bằng, tốn ít tài nguyên.
             \end{alertblock}
+            \vspace{0.5em}
+            \begin{block}{Câu hỏi nghiên cứu}
+                \small Dùng quy tắc \textbf{khác nhau cho từng nhánh} (bất đối xứng) có cải thiện chất lượng tổng hợp không?
+            \end{block}
         \end{column}
     \end{columns}
 \end{frame}
 
 % =================================================================
-\section{Phương pháp đề xuất: CDDFuse-AG}
+\section{Phương pháp đề xuất}
 % =================================================================
 \useStyleLogoOnly
 \useThickBar
 
 \begin{frame}{Nguyên lý thiết kế bất đối xứng}
     \begin{columns}[T]
-        \begin{column}{0.50\textwidth}
-            \textbf{Bản chất khác nhau của hai nhánh:}
+        \begin{column}{0.48\textwidth}
+            \begin{block}{Nhánh Base (tần số thấp)}
+                Mang thông tin cấu trúc toàn cục.\\
+                Hai modality có \textbf{tương quan cao}.\\
+                $\Rightarrow$ Cần \textbf{trung bình hóa} (averaging).
+            \end{block}
             \vspace{0.4em}
-            \begin{itemize}
-                \item \textbf{Nhánh Base} (tần số thấp): thông tin cấu trúc toàn cục --- hai modality có \emph{tương quan cao} $\Rightarrow$ cần \textbf{trung bình hóa}
-                \item \textbf{Nhánh Detail} (tần số cao): cạnh, texture đặc thù từng modality --- thông tin \emph{bổ trợ nhau} $\Rightarrow$ cần \textbf{lựa chọn cục bộ}
-            \end{itemize}
-            \vspace{0.5em}
-            Phép cộng Sum áp dụng cùng một chiến lược cho cả hai --- \alert{không tối ưu}.
+            \begin{block}{Nhánh Detail (tần số cao)}
+                Mang cạnh, texture đặc thù từng modality.\\
+                Thông tin \textbf{bổ trợ nhau}.\\
+                $\Rightarrow$ Cần \textbf{lựa chọn cục bộ} (activity-based selection).
+            \end{block}
+            \vspace{0.4em}
+            \small Phép cộng Sum áp dụng \emph{cùng chiến lược} cho cả hai --- \alert{không tối ưu}.
         \end{column}
-        \begin{column}{0.46\textwidth}
+        \begin{column}{0.48\textwidth}
             \begin{figure}
                 \includegraphics[width=\textwidth]{fig_asymmetric_principle.png}
                 \caption{\small WAvg phù hợp Base (đồng thuận); SML phù hợp Detail (bổ trợ).}
@@ -134,24 +136,22 @@
 \begin{frame}{Quy tắc Base: Weighted Average Scalar (WAvg)}
     \begin{columns}[T]
         \begin{column}{0.50\textwidth}
-            \textbf{Ý tưởng:} Trung bình có trọng số với \textbf{1 scalar học được} $\theta$:
+            Trung bình có trọng số với \textbf{1 scalar học được} $\theta$:
             \begin{align}
-                \alpha &= \sigma(\theta), \quad \theta \in \mathbb{R} \\
+                \alpha &= \sigma(\theta), \quad \theta \in \mathbb{R} \\[4pt]
                 R_{\mathrm{WAvg}}(a,b) &= 2\bigl(\alpha \cdot a + (1-\alpha) \cdot b\bigr)
             \end{align}
-            \vspace{0.3em}
-            \textbf{Ưu điểm:}
+            \vspace{0.2em}
             \begin{itemize}
                 \item Chỉ \textbf{1 tham số học} --- tránh overfitting
-                \item Trung bình hóa toàn cục --- phù hợp bản chất đồng thuận của Base
-                \item Mô hình tự học tỉ lệ đóng góp tối ưu $\alpha$ giữa hai modality
-                \item Khởi tạo $\theta=0$ ($\alpha=0.5$) --- chuyển pha ổn định
+                \item Tự học tỉ lệ $\alpha$ tối ưu cho từng modality
+                \item Khởi tạo $\theta=0$ ($\alpha=0.5$) --- ổn định khi chuyển pha
             \end{itemize}
         \end{column}
         \begin{column}{0.46\textwidth}
             \begin{figure}
                 \includegraphics[width=\textwidth]{fig_rule_wavg.png}
-                \caption{\small WAvg: hai Feature Map Base kết hợp bằng scalar $\alpha$ học được.}
+                \caption{\small WAvg: hai Feature Map Base kết hợp bằng scalar $\alpha$.}
             \end{figure}
         \end{column}
     \end{columns}
@@ -159,56 +159,53 @@
 
 \begin{frame}{Quy tắc Detail: Sum-Modified-Laplacian (SML)}
     \begin{columns}[T]
-        \begin{column}{0.52\textwidth}
-            \textbf{Ý tưởng:} Tại mỗi vị trí, chọn modality có cạnh \textbf{sắc nét hơn}:
+        \begin{column}{0.50\textwidth}
+            Tại mỗi vị trí, chọn modality có cạnh \textbf{sắc nét hơn}:
             \begin{align}
-                \mathrm{ML}_{ij}(f) &= |2f_{ij} - f_{i-1,j} - f_{i+1,j}| \notag\\
-                                    &\quad + |2f_{ij} - f_{i,j-1} - f_{i,j+1}| \\
-                w_a &= \frac{\mathrm{SML}(a)}{\mathrm{SML}(a)+\mathrm{SML}(b)+\varepsilon} \\
+                \mathrm{ML}_{ij} &= |2f_{ij}{-}f_{i-1,j}{-}f_{i+1,j}| + |2f_{ij}{-}f_{i,j-1}{-}f_{i,j+1}| \\
+                w_a &= \tfrac{\mathrm{SML}(a)}{\mathrm{SML}(a)+\mathrm{SML}(b)+\varepsilon} \\
                 R_{\mathrm{SML}} &= 2\bigl(w_a \odot a + (1-w_a) \odot b\bigr)
             \end{align}
-            \textbf{Ưu điểm:}
             \begin{itemize}
-                \item \textbf{Không có tham số học} --- tính tổng quát cao
-                \item Nhạy cảm với cạnh và tần số cao (Modified Laplacian)
-                \item Lựa chọn \textbf{theo vị trí không gian} (spatially adaptive)
+                \item \textbf{Không tham số học} --- tổng quát hóa tốt
+                \item Lựa chọn \textbf{theo từng vị trí} (spatially adaptive)
             \end{itemize}
         \end{column}
-        \begin{column}{0.44\textwidth}
+        \begin{column}{0.46\textwidth}
             \begin{figure}
                 \includegraphics[width=\textwidth]{fig_rule_sml.png}
-                \caption{\small SML: weight map $w_a$ --- xanh = ưu tiên Detail A, đỏ = ưu tiên Detail B.}
+                \caption{\small Xanh = ưu tiên Detail A; Đỏ = ưu tiên Detail B.}
             \end{figure}
         \end{column}
     \end{columns}
 \end{frame}
 
-\begin{frame}{Kiến trúc CDDFuse-AG tổng thể}
+\begin{frame}{Kiến trúc CDDFuse-AG}
     \begin{columns}[T]
-        \begin{column}{0.38\textwidth}
-            \textbf{Thay đổi duy nhất so với CDDFuse:}
+        \begin{column}{0.35\textwidth}
+            \textbf{Thay đổi duy nhất:}
             \begin{itemize}
-                \item Nhánh Base: Sum $\rightarrow$ \textbf{WAvg}
-                \item Nhánh Detail: Sum $\rightarrow$ \textbf{SML}
+                \item Base: Sum $\rightarrow$ \textbf{WAvg}
+                \item Detail: Sum $\rightarrow$ \textbf{SML}
             \end{itemize}
             \vspace{0.5em}
-            \begin{block}{Tham số mới}
-                \centering
+            \begin{block}{Tham số bổ sung}
+                \small
                 \begin{tabular}{lr}
                     \toprule
-                    WAvg ($\theta$) & 1 \\
-                    SML refine Conv & 4{,}160 \\
+                    WAvg ($\theta$)     & 1     \\
+                    SML refine Conv     & 4,160 \\
                     \midrule
-                    \textbf{Tổng mới} & \textbf{4{,}161} \\
+                    \textbf{Tổng mới}   & \textbf{4,161} \\
                     \bottomrule
                 \end{tabular}\\[4pt]
-                \small ($\sim$0,35\% so với CDDFuse)
+                \footnotesize ($\sim$0.35\% của 1,188,272 params CDDFuse)
             \end{block}
         \end{column}
-        \begin{column}{0.58\textwidth}
+        \begin{column}{0.61\textwidth}
             \begin{figure}
                 \includegraphics[width=\textwidth]{fusion_diagram_cddag.png}
-                \caption{\small Kiến trúc CDDFuse-AG: WAvg cho Base, SML cho Detail.}
+                \caption{\small WAvg cho nhánh Base, SML cho nhánh Detail.}
             \end{figure}
         \end{column}
     \end{columns}
@@ -221,113 +218,108 @@
 \useThinBar
 
 \begin{frame}{Chiến lược Ablation 3 giai đoạn}
-    \textbf{One-factor-at-a-time}: khảo sát \textbf{13 quy tắc tổng hợp} (5 Base + 8 Detail):
+    Khảo sát hệ thống \textbf{13 quy tắc tổng hợp} theo chiến lược \emph{one-factor-at-a-time}:
     \vspace{0.3em}
     \begin{columns}[T]
-        \begin{column}{0.32\textwidth}
-            \begin{block}{Stage 1 --- Base rule}
-                Giữ Detail = Sum\\[4pt]
-                Khảo sát 5 quy tắc:\\
-                L1Norm, VSM, LocalEnergy,\\
-                \textbf{WeightedAvg}, LocalEntropy
+        \begin{column}{0.30\textwidth}
+            \begin{block}{\small Stage 1 --- Base}
+                \small Giữ Detail = Sum\\[3pt]
+                5 quy tắc: L1Norm, VSM,\\
+                LocalEnergy, \textbf{WAvg},\\
+                LocalEntropy
             \end{block}
         \end{column}
-        \begin{column}{0.32\textwidth}
-            \begin{block}{Stage 2 --- Detail rule}
-                Giữ Base = Sum\\[4pt]
-                Khảo sát 8 quy tắc:\\
-                MaxAbs, L1Norm, Saliency,\\
-                \textbf{SML}, SF, LocalEnergy,\\
-                PCNN-soft, Gated
+        \begin{column}{0.30\textwidth}
+            \begin{block}{\small Stage 2 --- Detail}
+                \small Giữ Base = Sum\\[3pt]
+                8 quy tắc: MaxAbs, L1Norm,\\
+                Saliency, \textbf{SML}, SF,\\
+                LocalEnergy, PCNN, Gated
             \end{block}
         \end{column}
-        \begin{column}{0.32\textwidth}
-            \begin{alertblock}{Stage 3 --- Asymmetric}
-                Base = WAvg (winner S1)\\
-                Detail $\in$ \{SML, L1Norm, Gated\}\\[4pt]
-                So sánh bất đối xứng\\
-                vs. đối xứng (Sym-AG)
+        \begin{column}{0.34\textwidth}
+            \begin{alertblock}{\small Stage 3 --- Asymmetric}
+                \small Base = WAvg (winner S1)\\
+                Detail $\in$ \{SML, L1Norm, Gated\}\\[3pt]
+                + So sánh với Sym-AG (đối xứng)
             \end{alertblock}
         \end{column}
     \end{columns}
     \vspace{0.5em}
-    \textbf{Chỉ số đánh giá:} Composite Z-score trên 8 chỉ số (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI) --- 72 cặp test Harvard MIF (24 CT, 24 PET, 24 SPECT).
+    \textbf{Đánh giá:} Composite Z-score trên 8 chỉ số --- 72 cặp test Harvard MIF (24 CT + 24 PET + 24 SPECT).
 \end{frame}
 
-\begin{frame}{Kết quả Ablation Stage 1 \& 2}
+\begin{frame}{Ablation Stage 1 \& Stage 2}
     \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
-            \textbf{Stage 1 --- Base rule} (Detail = Sum cố định):
-            \vspace{0.3em}
-            \small
+        \begin{column}{0.47\textwidth}
+            \small\textbf{Stage 1 --- Base rule} (Detail = Sum):
+            \vspace{0.2em}
+            \resizebox{\columnwidth}{!}{\footnotesize
             \begin{tabular}{lcccc}
                 \toprule
                 \textbf{Variant} & \textbf{z CT} & \textbf{z PET} & \textbf{z SP} & \textbf{avg} \\
                 \midrule
                 CDDFuse (Sum) & +0.135 & \textbf{+0.436} & \textbf{+0.415} & \textbf{+0.33} \\
-                LocalEnergy   & +0.054 & +0.257 & +0.368 & +0.23 \\
-                L1Norm        & +0.049 & +0.190 & +0.330 & +0.19 \\
-                \rowcolor{red!15}
+                LocalEnergy & +0.054 & +0.257 & +0.368 & +0.23 \\
+                L1Norm      & +0.049 & +0.190 & +0.330 & +0.19 \\
+                \rowcolor{red!12}
                 \textbf{WAvg} & \textbf{+0.127} & $-0.013$ & +0.070 & +0.06 \\
-                LocalEntropy  & $-0.421$ & $-1.075$ & $-1.472$ & $-0.99$ \\
+                LocalEntropy & $-0.421$ & $-1.075$ & $-1.472$ & $-0.99$ \\
                 \bottomrule
-            \end{tabular}
-            \vspace{0.3em}
-            \small WAvg \textbf{\#1 trên CT-MRI} --- winner Stage 1.
+            \end{tabular}}
+            \vspace{0.2em}
+            \small $\Rightarrow$ \textbf{WAvg winner} (\#1 CT-MRI).
         \end{column}
-        \begin{column}{0.48\textwidth}
-            \textbf{Stage 2 --- Detail rule} (Base = Sum cố định):
-            \vspace{0.3em}
-            \small
+        \begin{column}{0.47\textwidth}
+            \small\textbf{Stage 2 --- Detail rule} (Base = Sum):
+            \vspace{0.2em}
+            \resizebox{\columnwidth}{!}{\footnotesize
             \begin{tabular}{lcccc}
                 \toprule
                 \textbf{Variant} & \textbf{z CT} & \textbf{z PET} & \textbf{z SP} & \textbf{avg} \\
                 \midrule
                 CDDFuse (Sum)  & +0.106 & \textbf{+0.572} & +0.046 & \textbf{+0.24} \\
-                \rowcolor{red!15}
+                \rowcolor{red!12}
                 \textbf{SML}   & $-0.005$ & +0.237 & \textbf{+0.175} & +0.14 \\
                 SF             & +0.035 & +0.090 & +0.040 & +0.06 \\
                 MaxAbs         & $-0.036$ & +0.209 & $-0.167$ & +0.00 \\
                 Saliency       & \textbf{+0.541} & $-1.341$ & $-0.030$ & $-0.28$ \\
                 \bottomrule
-            \end{tabular}
-            \vspace{0.3em}
-            \small SML \textbf{ổn định nhất} qua 3 modality --- winner Stage 2.
+            \end{tabular}}
+            \vspace{0.2em}
+            \small $\Rightarrow$ \textbf{SML winner} (ổn định nhất 3 modality).
         \end{column}
     \end{columns}
 \end{frame}
 
-\begin{frame}{Kết quả Ablation Stage 3 --- Chọn CDDFuse-AG}
-    \textbf{Stage 3 --- Kết hợp bất đối xứng} (Base = WAvg, Detail thay đổi):
-    \vspace{0.4em}
-    \begin{center}
+\begin{frame}{Ablation Stage 3 --- Chọn CDDFuse-AG}
+    \textbf{Stage 3 --- Kết hợp bất đối xứng} (Base = WAvg):
+    \vspace{0.3em}
     \small
     \begin{tabular}{lcccc}
         \toprule
         \textbf{Variant} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z avg} \\
         \midrule
-        CDDFuse (Sum--Sum)               & $-0.233$ & \textbf{+0.532} & $-0.227$ & +0.024 \\
-        Comb-WAvg-L1Norm                 & \textbf{+0.231} & $-0.196$ & \textbf{+0.541} & \textbf{+0.192} \\
-        \rowcolor{red!15}
-        \textbf{Comb-WAvg-SML (Ours)}    & +0.102 & $-0.065$ & $-0.285$ & $-0.083$ \\
-        Comb-WAvg-Gated                  & $-0.101$ & $-0.270$ & $-0.029$ & $-0.133$ \\
-        Sym-AG (đối xứng)                & $-0.042$ & $-0.047$ & $-0.479$ & $-0.189$ \\
+        CDDFuse (Sum--Sum)             & $-0.233$ & \textbf{+0.532} & $-0.227$ & +0.024 \\
+        Comb-WAvg-L1Norm               & \textbf{+0.231} & $-0.196$ & \textbf{+0.541} & \textbf{+0.192} \\
+        \rowcolor{red!12}
+        \textbf{Comb-WAvg-SML (Ours)}  & +0.102 & $-0.065$ & $-0.285$ & $-0.083$ \\
+        Comb-WAvg-Gated                & $-0.101$ & $-0.270$ & $-0.029$ & $-0.133$ \\
+        Sym-AG (đối xứng)              & $-0.042$ & $-0.047$ & $-0.479$ & $-0.189$ \\
         \bottomrule
     \end{tabular}
-    \end{center}
     \vspace{0.4em}
     \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
-            \textbf{Tại sao chọn Comb-WAvg-SML?}
+        \begin{column}{0.52\textwidth}
+            \small\textbf{Tại sao chọn Comb-WAvg-SML?}
             \begin{itemize}
-                \item Đánh giá \textbf{6 chỉ số paper}: thắng \textbf{10/18} (L1Norm: 8/18)
-                \item Ổn định hơn trên PET-MRI
-                \item \textbf{\#1 mean rank} toàn bộ ablation
+                \item Trên 6 chỉ số paper: thắng \textbf{10/18} (L1Norm: 8/18)
+                \item Ổn định hơn trên PET; \textbf{\#1 mean rank} toàn ablation
             \end{itemize}
         \end{column}
-        \begin{column}{0.48\textwidth}
-            \begin{alertblock}{Kết luận quan trọng}
-                \textbf{Sym-AG} (đối xứng) yếu nhất --- xác nhận thiết kế \textbf{bất đối xứng} hiệu quả hơn đối xứng.
+        \begin{column}{0.44\textwidth}
+            \begin{alertblock}{\small Kết luận}
+                \small \textbf{Sym-AG} yếu nhất ($-0.189$) --- xác nhận \textbf{bất đối xứng} hiệu quả hơn đối xứng.
             \end{alertblock}
         \end{column}
     \end{columns}
@@ -339,124 +331,114 @@
 \useStyleLogoOnly
 \useThickBar
 
-\begin{frame}{6 chỉ số tốt nhất --- MRI-CT (24 cặp)}
-    CDDFuse-AG đứng \textbf{\#1 trên cả 6 chỉ số} nhóm edge/texture/information:
-    \vspace{0.3em}
-    \begin{center}
-    \small
-    \setlength{\tabcolsep}{5pt}
+\begin{frame}{6 chỉ số tốt nhất --- MRI-CT}
+    CDDFuse-AG đứng \textbf{\#1 trên cả 6 chỉ số} SF · Qabf · AG · EI · QM · QMI:
+    \vspace{0.2em}
+    \resizebox{\textwidth}{!}{%
+    \small\setlength{\tabcolsep}{5pt}
     \begin{tabular}{lcccccc}
         \toprule
         \textbf{Phương pháp} & \textbf{SF}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{AG}$\uparrow$ & \textbf{EI}$\uparrow$ & \textbf{QM}$\uparrow$ & \textbf{QMI}$\uparrow$ \\
         \midrule
-        NestFuse   & 29.032 & 0.372 & 7.539  & 74.942  & 0.0016 & 0.723 \\
-        TUFusion   & 22.549 & 0.352 & 6.705  & 67.478  & 0.0010 & 0.592 \\
-        WaveFusion & 34.761 & 0.625 & 8.502  & 85.732  & 0.0046 & 0.701 \\
-        DDBFusion  & 25.580 & 0.439 & 6.024  & 60.992  & 0.0024 & 0.740 \\
-        GeSeNet    & 35.660 & 0.629 & 8.766  & 88.337  & 0.0086 & 0.708 \\
-        CDDFuse    & 40.317 & 0.618 & 9.616  & 96.017  & 0.0046 & 0.783 \\
+        NestFuse   & 29.032 & 0.372 & 7.539 & 74.942 & 0.0016 & 0.723 \\
+        WaveFusion & 34.761 & 0.625 & 8.502 & 85.732 & 0.0046 & 0.701 \\
+        GeSeNet    & 35.660 & 0.629 & 8.766 & 88.337 & 0.0086 & 0.708 \\
+        CDDFuse    & 40.317 & 0.618 & 9.616 & 96.017 & 0.0046 & 0.783 \\
         \midrule
-        \rowcolor{red!15}
+        \rowcolor{red!12}
         \textbf{CDDFuse-AG} & \textbf{41.612} & \textbf{0.645} & \textbf{9.869} & \textbf{98.289} & \textbf{0.0094} & \textbf{0.810} \\
         \bottomrule
-    \end{tabular}
-    \end{center}
+    \end{tabular}}%
     \vspace{0.3em}
-    \small
     \begin{itemize}
-        \item SF: $+1.295$ so với CDDFuse --- SML bảo toàn tần số cao tốt hơn phép cộng
-        \item QM: $+0.0048$ ($\approx 2\times$ CDDFuse) --- chi tiết wavelet tần số cao vượt trội
-        \item Cạnh xương (CT) và mô mềm (MRI) không chồng lấp $\Rightarrow$ SML phân biệt tốt nhất
+        \item \textbf{SF} $+1.3$ so với CDDFuse --- SML bảo toàn tần số cao tốt hơn phép cộng
+        \item \textbf{QM} $\approx 2\times$ CDDFuse --- chi tiết wavelet vượt trội rõ rệt
+        \item Cạnh xương (CT) và mô mềm (MRI) \textbf{không chồng lấp} $\Rightarrow$ SML phân biệt nguồn tốt nhất
     \end{itemize}
 \end{frame}
 
 \begin{frame}{6 chỉ số tốt nhất --- MRI-PET \& MRI-SPECT}
     \begin{columns}[T]
         \begin{column}{0.49\textwidth}
-            \textbf{MRI-PET} (24 cặp) --- CDDFuse-AG \textbf{5/6}:
+            \small\textbf{MRI-PET} --- CDDFuse-AG thắng \textbf{5/6}:
             \vspace{0.2em}
-            \tiny
+            \resizebox{\columnwidth}{!}{\footnotesize
             \begin{tabular}{lcccccc}
                 \toprule
-                \textbf{P.pháp} & \textbf{SF} & \textbf{Qabf} & \textbf{AG} & \textbf{EI} & \textbf{QM} & \textbf{QMI} \\
+                & \textbf{SF} & \textbf{Qabf} & \textbf{AG} & \textbf{EI} & \textbf{QM} & \textbf{QMI} \\
                 \midrule
-                GeSeNet    & 34.563 & 0.738 & 11.356 & 116.256 & 0.0158 & 0.614 \\
-                CDDFuse    & 34.471 & 0.764 & 11.277 & 114.699 & 0.1230 & \textbf{0.802} \\
+                GeSeNet & 34.563 & 0.738 & 11.356 & 116.3 & 0.0158 & 0.614 \\
+                CDDFuse & 34.471 & 0.764 & 11.277 & 114.7 & 0.1230 & \textbf{0.802} \\
                 \midrule
-                \rowcolor{red!15}
-                \textbf{Ours} & \textbf{35.619} & \textbf{0.765} & \textbf{11.863} & \textbf{120.521} & \textbf{0.1500} & 0.785 \\
+                \rowcolor{red!12}
+                \textbf{Ours} & \textbf{35.619} & \textbf{0.765} & \textbf{11.863} & \textbf{120.5} & \textbf{0.1500} & 0.785 \\
                 \bottomrule
-            \end{tabular}
-            \vspace{0.3em}
-            \small QM tăng \textbf{+21.9\%} so với CDDFuse.\\
-            CDDFuse thắng QMI vì Sum giữ toàn bộ thông tin chung --- trade-off của cơ chế lựa chọn.
+            \end{tabular}}
+            \vspace{0.2em}
+            \small QM tăng \textbf{+21.9\%}. CDDFuse thắng QMI vì Sum giữ toàn bộ thông tin chung.
         \end{column}
         \begin{column}{0.49\textwidth}
-            \textbf{MRI-SPECT} (24 cặp) --- CDDFuse-AG \textbf{3/6}:
+            \small\textbf{MRI-SPECT} --- CDDFuse-AG thắng \textbf{3/6}:
             \vspace{0.2em}
-            \tiny
+            \resizebox{\columnwidth}{!}{\footnotesize
             \begin{tabular}{lcccccc}
                 \toprule
-                \textbf{P.pháp} & \textbf{SF} & \textbf{Qabf} & \textbf{AG} & \textbf{EI} & \textbf{QM} & \textbf{QMI} \\
+                & \textbf{SF} & \textbf{Qabf} & \textbf{AG} & \textbf{EI} & \textbf{QM} & \textbf{QMI} \\
                 \midrule
-                GeSeNet    & \textbf{22.327} & 0.726 & \textbf{7.059} & \textbf{71.276} & 0.0356 & 0.722 \\
-                CDDFuse    & 21.845 & 0.750 & 6.792  & 68.498 & 0.0788 & 0.905 \\
+                GeSeNet & \textbf{22.327} & 0.726 & \textbf{7.059} & \textbf{71.3} & 0.0356 & 0.722 \\
+                CDDFuse & 21.845 & 0.750 & 6.792 & 68.5 & 0.0788 & 0.905 \\
                 \midrule
-                \rowcolor{red!15}
-                \textbf{Ours} & 21.986 & \textbf{0.752} & 6.857 & 69.054 & \textbf{0.0870} & \textbf{0.919} \\
+                \rowcolor{red!12}
+                \textbf{Ours} & 21.986 & \textbf{0.752} & 6.857 & 69.1 & \textbf{0.0870} & \textbf{0.919} \\
                 \bottomrule
-            \end{tabular}
-            \vspace{0.3em}
-            \small QM tăng \textbf{+10.4\%}, QMI tăng \textbf{+1.6\%}.\\
-            GeSeNet dẫn SF/AG/EI nhờ semantic-edge fusion tối ưu trực tiếp cho gradient metric.
+            \end{tabular}}
+            \vspace{0.2em}
+            \small QM tăng \textbf{+10.4\%}; GeSeNet dẫn SF/AG/EI nhờ semantic-edge fusion.
         \end{column}
     \end{columns}
-    \vspace{0.4em}
-    \begin{alertblock}{Tổng kết 3 modality}
-        \centering CDDFuse-AG thắng \textbf{14/18 chỉ số} (6+5+3) --- CDDFuse gốc chỉ thắng 1/18 (QMI PET).
+    \vspace{0.3em}
+    \begin{alertblock}{\small Tổng kết 3 modality}
+        \centering\small CDDFuse-AG thắng \textbf{14/18 chỉ số} (6+5+3) so với CDDFuse chỉ thắng 1/18.
     \end{alertblock}
 \end{frame}
 
-\begin{frame}{So sánh Z-score với SOTA}
+\begin{frame}{So sánh Z-score tổng hợp}
     \begin{columns}[T]
-        \begin{column}{0.48\textwidth}
-            \textbf{Z-score theo modality} (8 chỉ số, 24 cặp mỗi modal):
-            \vspace{0.3em}
-            \small
+        \begin{column}{0.50\textwidth}
+            \small\textbf{Z-score theo modality} (8 chỉ số):
+            \vspace{0.2em}
+            \footnotesize
             \begin{tabular}{lcccc}
                 \toprule
-                \textbf{P.pháp} & \textbf{CT} & \textbf{PET} & \textbf{SP} & \textbf{avg} \\
+                \textbf{Phương pháp} & \textbf{z CT} & \textbf{z PET} & \textbf{z SP} & \textbf{avg} \\
                 \midrule
                 NestFuse   & $-0.35$ & $-0.39$ & $-0.79$ & $-0.51$ \\
-                TUFusion   & $-0.53$ & $+0.16$ & $-0.11$ & $-0.16$ \\
                 WaveFusion & $+0.13$ & $-0.02$ & $+0.06$ & $+0.06$ \\
                 DDBFusion  & \textbf{+0.37} & $-0.11$ & $+0.18$ & $+0.15$ \\
-                GeSeNet    & $+0.09$ & $-0.33$ & $-0.25$ & $-0.16$ \\
                 CDDFuse    & $-0.01$ & \textbf{+0.43} & $+0.44$ & $+0.29$ \\
                 \midrule
-                \rowcolor{red!15}
-                \textbf{Ours} & $+0.31$ & $+0.25$ & \textbf{+0.48} & \textbf{+0.34} \\
+                \rowcolor{red!12}
+                \textbf{CDDFuse-AG} & $+0.31$ & $+0.25$ & \textbf{+0.48} & \textbf{+0.34} \\
                 \bottomrule
             \end{tabular}
         \end{column}
-        \begin{column}{0.48\textwidth}
-            \textbf{Xếp hạng 22 SOTA} (Composite Z-score, 22 chỉ số):
-            \vspace{0.3em}
-            \small
+        \begin{column}{0.46\textwidth}
+            \small\textbf{Xếp hạng 22 SOTA} (22 chỉ số tổng):
+            \vspace{0.2em}
+            \resizebox{\columnwidth}{!}{\footnotesize
             \begin{tabular}{clc}
                 \toprule
-                \textbf{Rank} & \textbf{Phương pháp} & \textbf{Z avg} \\
+                \textbf{\#} & \textbf{Phương pháp} & \textbf{Z avg} \\
                 \midrule
-                1 & MM-Net-Fusion & $+1.028$ \\
-                2 & CDDFuse (pretrained) & $+0.926$ \\
-                3 & MFS-Fusion & $+0.688$ \\
-                \multicolumn{3}{c}{\small\textit{... (22 phương pháp tổng)}} \\
+                1 & MM-Net-Fusion   & $+1.028$ \\
+                2 & CDDFuse (paper) & $+0.926$ \\
+                3 & MFS-Fusion      & $+0.688$ \\
+                \multicolumn{3}{c}{\ldots (22 phương pháp)} \\
                 \bottomrule
-            \end{tabular}
-            \vspace{0.4em}
-
-            \begin{block}{Nhận xét}
-                CDDFuse pretrained \textbf{\#2/22} --- backbone mạnh, xác nhận nền tảng đủ tốt để áp dụng cải tiến Fusion Layer.
+            \end{tabular}}
+            \vspace{0.3em}
+            \begin{block}{\small Nhận xét}
+                \small CDDFuse (pretrained) \textbf{\#2/22} --- backbone đủ mạnh để áp dụng cải tiến.
             \end{block}
         \end{column}
     \end{columns}
@@ -473,7 +455,7 @@
         \begin{column}{0.49\textwidth}
             \begin{figure}
                 \includegraphics[width=\textwidth]{fig_visual_comparison_spect.png}
-                \caption{\small MRI-SPECT: CDDFuse-AG bảo toàn cả cấu trúc MRI lẫn thông tin chức năng SPECT.}
+                \caption{\small MRI-SPECT: bảo toàn cấu trúc MRI và thông tin chức năng SPECT.}
             \end{figure}
         \end{column}
     \end{columns}
@@ -487,10 +469,9 @@
 
 \begin{frame}{Phát hiện Modality-Specificity}
     \begin{columns}[T]
-        \begin{column}{0.50\textwidth}
+        \begin{column}{0.48\textwidth}
             \textbf{Không có quy tắc duy nhất tối ưu cho mọi modality:}
-            \vspace{0.4em}
-            \begin{center}
+            \vspace{0.3em}
             \small
             \begin{tabular}{lll}
                 \toprule
@@ -501,21 +482,20 @@
                 SPECT-MRI & CDDFuse (Sum) & $+0.897$ \\
                 \bottomrule
             \end{tabular}
-            \end{center}
-            \vspace{0.5em}
-            \textbf{Lý giải:}
+            \vspace{0.4em}
+            \small\textbf{Lý giải:}
             \begin{itemize}
-                \item \textbf{CT}: cạnh xương và mô mềm không chồng lấp --- SML phân biệt tốt nhất
-                \item \textbf{SPECT}: đặc trưng thưa thớt --- Sum đơn giản an toàn hơn
+                \item CT: cạnh xương/mô mềm không chồng lấp --- SML phân biệt tốt
+                \item SPECT: đặc trưng thưa thớt --- Sum đơn giản an toàn hơn
             \end{itemize}
         \end{column}
-        \begin{column}{0.46\textwidth}
+        \begin{column}{0.48\textwidth}
             \begin{alertblock}{Ý nghĩa khoa học}
-                Fusion strategy nên \textbf{điều chỉnh theo đặc tính từng cặp modality}, không nên dùng một mô hình chung cứng nhắc.
+                Fusion strategy nên \textbf{điều chỉnh theo từng cặp modality}, không nên cố định một chiến lược chung.
             \end{alertblock}
-            \vspace{0.5em}
+            \vspace{0.4em}
             \begin{block}{Hướng mở rộng}
-                \textbf{Modality-aware routing}: tự động chọn fusion rule dựa trên phân phối đặc trưng đầu vào --- không cần biết trước modality.
+                \textbf{Modality-aware routing}: tự động chọn fusion rule dựa trên phân phối đặc trưng đầu vào.
             \end{block}
         \end{column}
     \end{columns}
@@ -526,26 +506,23 @@
         \begin{column}{0.54\textwidth}
             \textbf{Đóng góp chính:}
             \begin{enumerate}
-                \item \textbf{CDDFuse-AG}: quy tắc bất đối xứng WAvg+SML, chỉ thêm \textbf{4.161 tham số} ($\sim$0.35\%)
-                \item \textbf{Ablation study hệ thống}: 13 quy tắc × 3 giai đoạn --- cơ sở thực nghiệm toàn diện
-                \item \textbf{Phát hiện Modality-Specificity}: CT-MRI hưởng lợi nhiều nhất từ asymmetric fusion
-                \item Xác nhận \textbf{tính giản dị}: WAvg 1 tham số vượt nhiều quy tắc phức tạp trên CT-MRI
+                \item \textbf{CDDFuse-AG}: WAvg + SML bất đối xứng, chỉ thêm \textbf{4.161 tham số}
+                \item \textbf{Ablation 3 giai đoạn}: 13 quy tắc, cơ sở thực nghiệm toàn diện
+                \item \textbf{Modality-Specificity}: CT-MRI hưởng lợi nhiều nhất
+                \item \textbf{Tính giản dị}: WAvg 1 tham số vượt nhiều quy tắc phức tạp
             \end{enumerate}
         \end{column}
         \begin{column}{0.42\textwidth}
             \begin{block}{Kết quả nổi bật}
                 \begin{itemize}
                     \item \textbf{14/18 chỉ số} SF/Qabf/AG/EI/QM/QMI
-                    \item CT-MRI: z-score $+0.309$ vs $-0.014$ (CDDFuse)
-                    \item z avg \textbf{+0.344} --- cao nhất nhóm so sánh
+                    \item CT z-score: $+0.309$ (CDDFuse: $-0.014$)
+                    \item z avg \textbf{+0.344} --- cao nhất nhóm
                 \end{itemize}
             \end{block}
-            \vspace{0.5em}
+            \vspace{0.3em}
             \begin{alertblock}{Hạn chế}
-                \begin{itemize}
-                    \item SML nhạy artifact màu giả PET
-                    \item Chưa đánh giá lâm sàng (reader study)
-                \end{itemize}
+                \small SML nhạy artifact màu giả PET; chưa reader study lâm sàng.
             \end{alertblock}
         \end{column}
     \end{columns}
@@ -554,16 +531,15 @@
 % =================================================================
 % TRANG KẾT THÚC
 % =================================================================
-
 \hustcontactpage{\hfill THÔNG TIN LIÊN HỆ \hfill}{
     \textbf{Sinh viên:} Đỗ Trung Kiên --- MSSV 20224869 \\
-    \textbf{Giảng viên hướng dẫn:} TS. Phạm Đăng Hải · PGS. TS. Phạm Văn Hải \\
+    \textbf{GVHD:} TS. Phạm Đăng Hải · PGS. TS. Phạm Văn Hải \\
     \vspace{0.5cm}
     \begin{itemize}
         \item \textbf{Email:} \href{mailto:kien.dt224869@sis.hust.edu.vn}{kien.dt224869@sis.hust.edu.vn}
-        \item \textbf{GitHub:} \url{https://github.com/kienvbhp872004/MMIF-CDDFuse-AG}
+        \item \textbf{GitHub:} \small\url{https://github.com/kienvbhp872004/MMIF-CDDFuse-AG}
     \end{itemize}
-    \vspace{0.8cm}
+    \vspace{0.6cm}
     \textit{Xin chân thành cảm ơn Hội đồng đã lắng nghe!}
 }
 
