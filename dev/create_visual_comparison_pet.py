@@ -50,13 +50,13 @@ G2 = ["DDBFusion", "GeSeNet", "CDDFuse", "CDDFuse-AG\n(Ours)"]
 plt.rcParams.update({
     "font.family": "serif",
     "font.serif":  ["Times New Roman", "Times", "DejaVu Serif"],
-    "font.size":   9,
+    "font.size":   18,
 })
 
 n_cols = max(len(G1), len(G2))
-fig, axes = plt.subplots(4, n_cols, figsize=(14, 9.0),
+fig, axes = plt.subplots(4, n_cols, figsize=(14, 9.5),
     gridspec_kw={"height_ratios": [3, 1.2, 3, 1.2],
-                 "hspace": 0.10, "wspace": 0.04})
+                 "hspace": 0.18, "wspace": 0.04})
 fig.patch.set_facecolor("white")
 
 def render_group(group, row_full, row_crop):
@@ -83,10 +83,10 @@ def render_group(group, row_full, row_crop):
         tc = TITLE_COLOR.get(label, "#222222")
         fw = "bold" if label in BORDER else "normal"
         if "Ours" in label:
-            af.set_title("CDDFuse-AG\n(Ours)", fontsize=8.5,
-                         color="#27AE60", pad=3, fontweight="bold")
+            af.set_title("CDDFuse-AG\n(Ours)", fontsize=20,
+                         color="#27AE60", pad=4, fontweight="bold")
         else:
-            af.set_title(label, fontsize=8.5, color=tc, pad=3, fontweight=fw)
+            af.set_title(label, fontsize=20, color=tc, pad=4, fontweight=fw)
 
         crop = img[CR-CS//2: CR+CS//2, CC-CS//2: CC+CS//2]
         ac.imshow(crop, aspect="equal")
@@ -100,16 +100,16 @@ def render_group(group, row_full, row_crop):
 render_group(G1, row_full=0, row_crop=1)
 render_group(G2, row_full=2, row_crop=3)
 
-axes[0, 0].set_ylabel("Ảnh đầy đủ", fontsize=9, color="#555", labelpad=4)
-axes[1, 0].set_ylabel("Vùng\nphóng to", fontsize=9, color="#DAA520", labelpad=4)
-axes[2, 0].set_ylabel("Ảnh đầy đủ", fontsize=9, color="#555", labelpad=4)
-axes[3, 0].set_ylabel("Vùng\nphóng to", fontsize=9, color="#DAA520", labelpad=4)
+axes[0, 0].set_ylabel("Ảnh đầy đủ", fontsize=16, color="#555", labelpad=4)
+axes[1, 0].set_ylabel("Vùng\nphóng to", fontsize=16, color="#DAA520", labelpad=4)
+axes[2, 0].set_ylabel("Ảnh đầy đủ", fontsize=16, color="#555", labelpad=4)
+axes[3, 0].set_ylabel("Vùng\nphóng to", fontsize=16, color="#DAA520", labelpad=4)
 
 fig.add_artist(mlines.Line2D(
     [0.02, 0.98], [0.505, 0.505],
     transform=fig.transFigure, color="#cccccc", lw=1.2, ls="--"))
 
-fig.savefig(OUT / "fig_visual_comparison_spect.png", dpi=160,
+fig.savefig(OUT / "fig_visual_comparison_spect.png", dpi=200,
             bbox_inches="tight", facecolor="white")
 plt.close(fig)
 print("Saved fig_visual_comparison_pet.png")
