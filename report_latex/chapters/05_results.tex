@@ -192,7 +192,7 @@ Kết hợp hai quy tắc, CDDFuse-AG chỉ thêm \textbf{4.161 tham số} ($\ap
 \section{Ablation Study: Module D --- Asymmetric Fusion Rule}
 \label{sec:ablation-moduleD}
 
-Module D khảo sát việc áp dụng \emph{fusion rule khác nhau cho nhánh Base và nhánh Detail} thay vì dùng cùng phép cộng Sum cho cả hai. Thực nghiệm chia thành 3 giai đoạn: (1) quét Base rule, (2) quét Detail rule, (3) kết hợp asymmetric. Đánh giá bằng \textbf{Composite Z-score} trên 8 chỉ số chính (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI), baseline = CDDFuse.
+Module D khảo sát việc áp dụng \emph{fusion rule khác nhau cho nhánh Base và nhánh Detail} thay vì dùng cùng phép cộng Sum cho cả hai. Các rule được chọn từ tài liệu fusion kinh điển: L1-norm và Weighted Average từ DenseFuse~\cite{li2018densefuse}, Local Energy từ Laplacian pyramid~\cite{burt1983laplacian}, Visual Saliency Map~\cite{wang2008vsm}, SML từ Huang \& Jing~\cite{huang2007sml}, Spatial Frequency~\cite{eskicioglu1995sf}, PCNN từ Eckhorn et al.~\cite{eckhorn1990pcnn}, Adaptive Gating từ NestFuse~\cite{li2020nestfuse}, và Saliency-based selection~\cite{liu2016saliency}. Thực nghiệm chia thành 3 giai đoạn: (1) quét Base rule, (2) quét Detail rule, (3) kết hợp asymmetric. Đánh giá bằng \textbf{Composite Z-score} trên 8 chỉ số chính (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI), baseline = CDDFuse~\cite{zhao2023cddfuse}.
 
 % ─── Stage 1 ──────────────────────────────────────────────────────────────────
 \subsection{Stage 1 --- Base Rule Ablation}
@@ -209,12 +209,12 @@ Giữ DetailFuseLayer = Sum cố định, thay thế BaseFuseLayer bằng các r
 \toprule
 \textbf{Variant} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z avg} \\
 \midrule
-CDDFuse (Sum--Sum)      & +0.135 & \textbf{+0.436} & \textbf{+0.415} & \textbf{+0.329} \\
-DB.4 LocalEnergy        & +0.054 & +0.257 & +0.368 & +0.226 \\
-DB.2 L1Norm             & +0.049 & +0.190 & +0.330 & +0.189 \\
-DB.3 VSM                & +0.058 & +0.205 & +0.289 & +0.184 \\
-DB.6 WeightedAvg        & \textbf{+0.127} & $-0.013$ & +0.070 & +0.061 \\
-DB.5 LocalEntropy       & $-0.421$ & $-1.075$ & $-1.472$ & $-0.990$ \\
+CDDFuse~\cite{zhao2023cddfuse} (Sum--Sum) & +0.135 & \textbf{+0.436} & \textbf{+0.415} & \textbf{+0.329} \\
+DB.4 LocalEnergy~\cite{burt1983laplacian}  & +0.054 & +0.257 & +0.368 & +0.226 \\
+DB.2 L1Norm~\cite{li2018densefuse}         & +0.049 & +0.190 & +0.330 & +0.189 \\
+DB.3 VSM~\cite{wang2008vsm}                & +0.058 & +0.205 & +0.289 & +0.184 \\
+DB.6 WeightedAvg~\cite{li2018densefuse}    & \textbf{+0.127} & $-0.013$ & +0.070 & +0.061 \\
+DB.5 LocalEntropy~\cite{liu2018survey}     & $-0.421$ & $-1.075$ & $-1.472$ & $-0.990$ \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -237,15 +237,15 @@ Giữ BaseFuseLayer = Sum cố định, thay thế DetailFuseLayer bằng các r
 \toprule
 \textbf{Variant} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z avg} \\
 \midrule
-CDDFuse (Sum--Sum)      & +0.106 & \textbf{+0.572} & +0.046 & \textbf{+0.241} \\
-DD.6 SML                & $-0.005$ & +0.237 & \textbf{+0.175} & +0.136 \\
-DD.4 SF                 & +0.035 & +0.090 & +0.040 & +0.055 \\
-DD.2 MaxAbs             & $-0.036$ & +0.209 & $-0.167$ & +0.002 \\
-DD.1 Gated              & $-0.038$ & +0.101 & $-0.081$ & $-0.006$ \\
-DD.8 PCNN-soft          & $-0.296$ & +0.168 & +0.086 & $-0.014$ \\
-DD.7 L1Norm             & $-0.040$ & $-0.098$ & $-0.059$ & $-0.066$ \\
-DD.5 LocalEnergy        & $-0.267$ & +0.061 & $-0.009$ & $-0.071$ \\
-DD.3 Saliency           & \textbf{+0.541} & $-1.341$ & $-0.030$ & $-0.277$ \\
+CDDFuse~\cite{zhao2023cddfuse} (Sum--Sum)  & +0.106 & \textbf{+0.572} & +0.046 & \textbf{+0.241} \\
+DD.6 SML~\cite{huang2007sml}               & $-0.005$ & +0.237 & \textbf{+0.175} & +0.136 \\
+DD.4 SF~\cite{eskicioglu1995sf}            & +0.035 & +0.090 & +0.040 & +0.055 \\
+DD.2 MaxAbs~\cite{li2018densefuse}         & $-0.036$ & +0.209 & $-0.167$ & +0.002 \\
+DD.1 Gated~\cite{li2020nestfuse}           & $-0.038$ & +0.101 & $-0.081$ & $-0.006$ \\
+DD.8 PCNN-soft~\cite{yin2019papcnn}        & $-0.296$ & +0.168 & +0.086 & $-0.014$ \\
+DD.7 L1Norm~\cite{li2018densefuse}         & $-0.040$ & $-0.098$ & $-0.059$ & $-0.066$ \\
+DD.5 LocalEnergy~\cite{burt1983laplacian}  & $-0.267$ & +0.061 & $-0.009$ & $-0.071$ \\
+DD.3 Saliency~\cite{liu2016saliency}       & \textbf{+0.541} & $-1.341$ & $-0.030$ & $-0.277$ \\
 \bottomrule
 \end{tabular}
 \end{table}
