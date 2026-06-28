@@ -31,6 +31,7 @@
 \usepackage[most]{tcolorbox}
 \usepackage{titlesec}
 \usepackage{titletoc}
+\usepackage{fancyhdr}
 
 % Chapter heading in body: centered, two lines "CHƯƠNG X" + "Tên chương"
 \titleformat{\chapter}[display]
@@ -74,6 +75,26 @@
 \title{\textbf{Đề xuất mô hình CDDFuse-AG cho tổng hợp ảnh y tế đa phương thức}}
 \author{Đỗ Trung Kiên --- 20224869}
 \date{\today}
+
+% ---------- Running header (fancyhdr)
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0.4pt}
+\fancyhead[R]{\small\bfseries\nouppercase{\leftmark}}
+\fancyfoot[C]{\thepage}
+
+% Chapter mark: "CHƯƠNG X. Tên chương"
+\renewcommand{\chaptermark}[1]{%
+  \markboth{CHƯƠNG \thechapter.\ #1}{}}
+% Numberless chapters (Tóm tắt, etc.) — dùng markboth trực tiếp trong file chapter
+
+% Chapter opening pages also get the header
+\fancypagestyle{plain}{%
+  \fancyhf{}
+  \renewcommand{\headrulewidth}{0.4pt}
+  \fancyhead[R]{\small\bfseries\nouppercase{\leftmark}}
+  \fancyfoot[C]{\thepage}
+}
 
 % ================================================================
 \begin{document}
