@@ -35,10 +35,10 @@
 
 % Chapter heading in body: centered, two lines "CHƯƠNG X" + "Tên chương"
 \titleformat{\chapter}[display]
-  {\normalfont\LARGE\bfseries\centering}{CHƯƠNG \thechapter}{0pt}{}
+  {\normalfont\huge\bfseries\centering}{CHƯƠNG \thechapter}{0pt}{}
 \titlespacing*{\chapter}{0pt}{-10pt}{24pt}
 \titleformat{name=\chapter,numberless}[display]
-  {\normalfont\LARGE\bfseries\centering}{}{0pt}{}
+  {\normalfont\huge\bfseries\centering}{}{0pt}{}
 \titlespacing*{name=\chapter,numberless}{0pt}{-10pt}{24pt}
 
 % TOC: chapter entries bold with "CHƯƠNG X." prefix
@@ -62,8 +62,8 @@
 \setlength{\intextsep}{8pt plus 2pt minus 2pt}
 \setlength{\abovecaptionskip}{4pt}
 \setlength{\belowcaptionskip}{2pt}
-% Scale up to 13pt equivalent (report class only supports 10/11/12pt natively)
-\AtBeginDocument{\fontsize{13}{19.5}\selectfont}
+% Scale up to 14pt equivalent (report class only supports 10/11/12pt natively)
+\AtBeginDocument{\fontsize{14}{21}\selectfont}
 
 \hypersetup{
     colorlinks=true,
