@@ -1,3 +1,61 @@
+% ================================================================
+\section{Kiến trúc CDDFuse-AG}
+\label{sec:cddfuse-ag-arch}
+
+Mô hình đề xuất \textbf{CDDFuse-AG} (Asymmetric Gating) giữ nguyên kiến trúc CDDFuse, chỉ thay thế phép cộng ở Fusion Layer bằng hai quy tắc bất đối xứng:
+
+\begin{align}
+f_F^B &= \mathrm{BaseFuseLayer}\!\left(R_{\mathrm{WAvg}}(f_V^B,\; f_I^B)\right) \label{eq:ag-base} \\
+f_F^D &= \mathrm{DetailFuseLayer}\!\left(R_{\mathrm{SML}}(f_V^D,\; f_I^D)\right) \label{eq:ag-detail}
+\end{align}
+
+trong đó $R_{\mathrm{WAvg}}$ là quy tắc trung bình có trọng số học được cho nhánh Base, và $R_{\mathrm{SML}}$ là quy tắc lựa chọn theo Sum-Modified-Laplacian cho nhánh Detail (định nghĩa chi tiết tại Mục~\ref{sec:proposed-rules}).
+
+\paragraph{Channel Reduction.}
+Hai đặc trưng $f_F^B$ và $f_F^D$ (mỗi cái $64$ kênh) được nối kênh rồi chiếu về $64$ kênh bằng Conv$_{1\times1}$ trước khi đưa vào Decoder:
+\begin{equation}
+f_{\mathrm{merge}} = \mathrm{Conv}_{1\times1}\!\left(\mathrm{cat}(f_F^B,\; f_F^D)\right), \quad 128\!\to\!64 \text{ kênh}
+\end{equation}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.97\textwidth]{figures/fusion_diagram_cddag.png}
+\caption{Kiến trúc CDDFuse-AG: Encoder dùng chung trọng số trích xuất đặc trưng Base/Detail, Fusion Layer áp dụng bất đối xứng (WAvg cho Base, SML cho Detail), Decoder tái tạo ảnh tổng hợp $F$.}
+\label{fig:cddfuse-ag-arch}
+\end{figure}
+
+\paragraph{Tổng số tham số.}
+\begin{center}
+\setlength{\tabcolsep}{8pt}
+\begin{tabular}{lrr}
+\toprule
+\textbf{Thành phần} & \textbf{Kiến trúc} & \textbf{Số tham số} \\
+\midrule
+Encoder                         & PatchEmbed + 4$\times$TransBlock + BFE + DFE$_3$ & $599{,}144$ \\
+\quad patch\_embed              & Conv$3\!\times\!3$, $1\!\to\!64$                  & $576$ \\
+\quad encoder\_level1           & $4\times$ TransformerBlock, $\mathrm{dim}=64$     & $181{,}024$ \\
+\quad baseFeature               & BaseFeatureExtraction, $\mathrm{heads}=8$         & $363{,}016$ \\
+\quad detailFeature             & DetailFeatureExtraction, $3\times$ DetailNode     & $54{,}528$ \\
+\midrule
+BaseFuseLayer                   & BaseFeatureExtraction, $\mathrm{dim}=64$          & $363{,}016$ \\
+DetailFuseLayer                 & DetailFeatureExtraction, $1\times$ DetailNode     & $18{,}176$ \\
+\midrule
+Decoder                         & ReduceChannel + 4$\times$TransBlock + Output      & $207{,}936$ \\
+\quad reduce\_channel           & Conv$1\!\times\!1$, $128\!\to\!64$               & $8{,}192$ \\
+\quad encoder\_level2           & $4\times$ TransformerBlock, $\mathrm{dim}=64$     & $181{,}024$ \\
+\quad output                    & Conv$3\!\times\!3 \to$ LeakyReLU $\to$ Conv$3\!\times\!3$ & $18{,}720$ \\
+\midrule
+\textbf{Quy tắc WAvg} (Base)   & scalar $\theta \in \mathbb{R}$                    & \textbf{1} \\
+\textbf{Quy tắc SML} (Detail)  & refine Conv$1\!\times\!1$, $64\!\to\!64$         & $4{,}160$ \\
+\midrule
+\textbf{Tổng tham số}          &                                                   & $\mathbf{1{,}192{,}433}$ \\
+\bottomrule
+\end{tabular}
+\end{center}
+
+So với CDDFuse baseline ($1{,}188{,}272$ tham số), CDDFuse-AG chỉ thêm \textbf{4{,}161 tham số} ($\approx 0{,}35\%$) từ WAvg ($\theta$) và SML refine Conv. Toàn bộ tham số được huấn luyện end-to-end; Encoder dùng chung trọng số (shared weights) cho cả hai modality đầu vào.
+
+% ================================================================
 \section{Phân tích điểm can thiệp}
 \label{sec:intervention}
 
@@ -31,7 +89,7 @@ Phép cộng Sum của CDDFuse gốc áp dụng cùng một chiến lược cho 
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.96\textwidth]{figures/fig_asymmetric_principle.png}
-\caption{Nguyên lý bất đối xứng: nhánh Base (tần số thấp, đồng thuận) phù hợp với trung bình hóa WAvg; nhánh Detail (tần số cao, bổ trợ) phù hợp với lựa chọn theo độ sắc nét SML.}
+\caption{Nguyên lý bất đối xứng: nhánh Base (tần số thấp, đồng thuận) phù hợp với trung bình hóa WAvg; nhánh Detail (tần số cao, bổ trợ) phù hợp với lựa chọn theo độ sắc nét SML. (Hình tự thiết kế)}
 \label{fig:asymmetric-principle}
 \end{figure}
 
@@ -42,7 +100,7 @@ Phép cộng Sum của CDDFuse gốc áp dụng cùng một chiến lược cho 
 \subsection{Quy tắc Base: Weighted Average Scalar (WAvg)}
 \label{ssec:rule-wavg}
 
-Nhánh Base cần trung bình hóa thông tin cấu trúc chung của hai modality. Thay vì phép cộng cố định, đề xuất dùng \textbf{trung bình có trọng số học được}:
+Nhánh Base cần trung bình hóa thông tin cấu trúc chung của hai modality. Thay vì phép cộng cố định, đề xuất dùng \textbf{trung bình có trọng số học được}. Ý tưởng trung bình hóa có trọng số được sử dụng rộng rãi trong các phương pháp fusion truyền thống~\cite{li2018densefuse, xu2020u2fusion}; ở đây chúng tôi đơn giản hóa thành \emph{một tham số scalar duy nhất} để phù hợp với kiến trúc CDDFuse:
 
 \begin{equation}
 \alpha = \sigma(\theta), \quad \theta \in \mathbb{R} \text{ (tham số học duy nhất)}
@@ -57,7 +115,7 @@ trong đó $a = f_V^B$, $b = f_I^B$ là đặc trưng Base của hai modality, $
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.88\textwidth]{figures/fig_rule_wavg.png}
-\caption{Quy tắc Weighted Average (WAvg) cho nhánh Base: hai feature map Base A và B được kết hợp bằng trọng số scalar $\alpha$ học được, đảm bảo trung bình hóa toàn cục có thể điều chỉnh.}
+\caption{Quy tắc Weighted Average (WAvg) cho nhánh Base: hai feature map Base A và B được kết hợp bằng trọng số scalar $\alpha$ học được, đảm bảo trung bình hóa toàn cục có thể điều chỉnh. (Hình tự thiết kế)}
 \label{fig:rule-wavg}
 \end{figure}
 
@@ -71,7 +129,7 @@ trong đó $a = f_V^B$, $b = f_I^B$ là đặc trưng Base của hai modality, $
 \subsection{Quy tắc Detail: Sum-Modified-Laplacian (SML)}
 \label{ssec:rule-sml}
 
-Nhánh Detail cần lựa chọn, tại từng vị trí không gian, modality nào cung cấp thông tin chi tiết (cạnh, texture) phong phú hơn. Đề xuất dùng \textbf{Sum-Modified-Laplacian} \cite{huang2007sml} làm thước đo độ sắc nét cục bộ:
+Nhánh Detail cần lựa chọn, tại từng vị trí không gian, modality nào cung cấp thông tin chi tiết (cạnh, texture) phong phú hơn. Đề xuất dùng \textbf{Sum-Modified-Laplacian} làm thước đo độ sắc nét cục bộ. SML được đề xuất bởi Huang và Jing~\cite{huang2007sml} trong bối cảnh đánh giá độ nét cho multi-focus fusion; ở đây chúng tôi áp dụng vào bài toán multi-modal fusion để đo hoạt động chi tiết trên từng kênh đặc trưng:
 
 \begin{equation}
 \mathrm{ML}_{ij}(f) = |2f_{ij} - f_{i-1,j} - f_{i+1,j}| + |2f_{ij} - f_{i,j-1} - f_{i,j+1}|
@@ -98,7 +156,7 @@ trong đó $a = f_V^D$, $b = f_I^D$ là đặc trưng Detail, $\epsilon$ là h�
 \begin{figure}[H]
 \centering
 \includegraphics[width=0.95\textwidth]{figures/fig_rule_sml.png}
-\caption{Quy tắc SML cho nhánh Detail: (trái) sơ đồ tính weight map từ SML của hai feature map; (phải) ví dụ weight map $w_a$ --- vùng xanh lá ưu tiên Detail A, vùng đỏ ưu tiên Detail B theo độ sắc nét cục bộ.}
+\caption[Quy tắc SML cho nhánh Detail]{Quy tắc SML cho nhánh Detail: (trái) sơ đồ tính weight map từ SML của hai feature map; (phải) ví dụ weight map $w_a$ --- vùng xanh lá ưu tiên Detail A, vùng đỏ ưu tiên Detail B theo độ sắc nét cục bộ. (Hình tự thiết kế; công thức SML từ~\cite{huang2007sml})}
 \label{fig:rule-sml}
 \end{figure}
 
@@ -108,59 +166,3 @@ trong đó $a = f_V^D$, $b = f_I^D$ là đặc trưng Detail, $\epsilon$ là h�
     \item \textbf{Lựa chọn theo vị trí} (spatially adaptive): tại mỗi điểm ảnh, modality nào có cạnh sắc nét hơn sẽ được ưu tiên --- khai thác tính bổ trợ giữa MRI (mô mềm) và CT/PET/SPECT (cấu trúc đặc thù).
     \item \textbf{Không có tham số học}: quy tắc hoàn toàn dựa trên đặc trưng đầu vào, không phụ thuộc vào khởi tạo hay dữ liệu huấn luyện --- tính tổng quát hóa cao.
 \end{itemize}
-
-% ================================================================
-\section{Kiến trúc CDDFuse-AG}
-\label{sec:cddfuse-ag-arch}
-
-Mô hình đề xuất \textbf{CDDFuse-AG} (Asymmetric Gating) giữ nguyên kiến trúc CDDFuse, chỉ thay thế phép cộng ở Fusion Layer:
-
-\begin{align}
-f_F^B &= \mathrm{BaseFuseLayer}\!\left(R_{\mathrm{WAvg}}(f_V^B,\; f_I^B)\right) \label{eq:ag-base} \\
-f_F^D &= \mathrm{DetailFuseLayer}\!\left(R_{\mathrm{SML}}(f_V^D,\; f_I^D)\right) \label{eq:ag-detail}
-\end{align}
-
-\paragraph{Channel Reduction.}
-Hai đặc trưng $f_F^B$ và $f_F^D$ (mỗi cái $64$ kênh) được nối kênh rồi chiếu về $64$ kênh bằng Conv$_{1\times1}$ trước khi đưa vào Decoder:
-\begin{equation}
-f_{\mathrm{merge}} = \mathrm{Conv}_{1\times1}\!\left(\mathrm{cat}(f_F^B,\; f_F^D)\right), \quad 128\!\to\!64 \text{ kênh}
-\end{equation}
-
-\paragraph{Tổng số tham số.}
-\begin{center}
-\setlength{\tabcolsep}{8pt}
-\begin{tabular}{lrr}
-\toprule
-\textbf{Thành phần} & \textbf{Kiến trúc} & \textbf{Số tham số} \\
-\midrule
-Encoder                         & PatchEmbed + 4$\times$TransBlock + BFE + DFE$_3$ & $599{,}144$ \\
-\quad patch\_embed              & Conv$3\!\times\!3$, $1\!\to\!64$                  & $576$ \\
-\quad encoder\_level1           & $4\times$ TransformerBlock, $\mathrm{dim}=64$     & $181{,}024$ \\
-\quad baseFeature               & BaseFeatureExtraction, $\mathrm{heads}=8$         & $363{,}016$ \\
-\quad detailFeature             & DetailFeatureExtraction, $3\times$ DetailNode     & $54{,}528$ \\
-\midrule
-BaseFuseLayer                   & BaseFeatureExtraction, $\mathrm{dim}=64$          & $363{,}016$ \\
-DetailFuseLayer                 & DetailFeatureExtraction, $1\times$ DetailNode     & $18{,}176$ \\
-\midrule
-Decoder                         & ReduceChannel + 4$\times$TransBlock + Output      & $207{,}936$ \\
-\quad reduce\_channel           & Conv$1\!\times\!1$, $128\!\to\!64$               & $8{,}192$ \\
-\quad encoder\_level2           & $4\times$ TransformerBlock, $\mathrm{dim}=64$     & $181{,}024$ \\
-\quad output                    & Conv$3\!\times\!3 \to$ LeakyReLU $\to$ Conv$3\!\times\!3$ & $18{,}720$ \\
-\midrule
-\textbf{Quy tắc WAvg} (Base)   & scalar $\theta \in \mathbb{R}$                    & \textbf{1} \\
-\textbf{Quy tắc SML} (Detail)  & refine Conv$1\!\times\!1$, $64\!\to\!64$         & $4{,}160$ \\
-\midrule
-\textbf{Tổng tham số}          &                                                   & $\mathbf{1{,}192{,}433}$ \\
-\bottomrule
-\end{tabular}
-\end{center}
-
-Toàn bộ $1{,}192{,}433$ tham số được huấn luyện end-to-end. Encoder được dùng chung (shared weights) cho cả hai modality đầu vào $I$ và $V$. So với CDDFuse baseline ($1{,}188{,}272$ tham số), CDDFuse-AG chỉ thêm \textbf{4{,}161 tham số} từ WAvg ($\theta$) và SML refine Conv.
-
-\begin{figure}[H]
-\centering
-\includegraphics[width=0.97\textwidth]{figures/fusion_diagram_cddag.png}
-\caption{Kiến trúc CDDFuse-AG: Encoder dùng chung trọng số trích xuất đặc trưng Base/Detail, Fusion Layer áp dụng bất đối xứng (WAvg cho Base, SML cho Detail), Decoder tái tạo ảnh tổng hợp $F$.}
-\label{fig:cddfuse-ag-arch}
-\end{figure}
-

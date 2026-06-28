@@ -182,7 +182,7 @@ Mức độ liên quan giữa một query và tất cả các key được tính
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.8\textwidth]{figures/scale_dot_product_attention.png}
-    \caption{Sơ đồ Scaled Dot-Product Attention: $Q$, $K$, $V$ qua các bước nhân ma trận, chia tỉ lệ và softmax để tạo ra đặc trưng đầu ra.}
+    \caption[Sơ đồ Scaled Dot-Product Attention]{Sơ đồ Scaled Dot-Product Attention: $Q$, $K$, $V$ qua các bước nhân ma trận, chia tỉ lệ và softmax để tạo ra đặc trưng đầu ra. (Nguồn: \cite{vaswani2017attention})}
     \label{fig:attention}
 \end{figure}
 
@@ -326,7 +326,7 @@ trong đó $s_i(\cdot)$ (scale) và $t_i(\cdot)$ (translation) là các mạng C
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.975\textwidth]{figures/inn_block.png}
-    \caption{Cấu trúc một khối INN (Affine Coupling Layer): chiều thuận (trái sang phải) và chiều nghịch (phải sang trái) đều tính được hiệu quả.}
+    \caption[Cấu trúc một khối INN (Affine Coupling Layer)]{Cấu trúc một khối INN (Affine Coupling Layer): chiều thuận (trái sang phải) và chiều nghịch (phải sang trái) đều tính được hiệu quả. (Nguồn: \cite{dinh2017density})}
     \label{fig:inn-block}
 \end{figure}
 
@@ -361,7 +361,7 @@ Mô hình gồm ba thành phần chính theo sơ đồ \textbf{Encoder $\to$ Fus
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/cddfuse_pipeline.png}
-    \caption{Kiến trúc tổng quan CDDFuse: hai ảnh đầu vào đi qua Encoder dùng chung trọng số, phân rã thành đặc trưng Base ($f^B$) và Detail ($f^D$), được tổng hợp riêng qua Fusion Layer, rồi giải mã thành ảnh đầu ra $I_F$.}
+    \caption[Kiến trúc tổng quan CDDFuse]{Kiến trúc tổng quan CDDFuse: hai ảnh đầu vào đi qua Encoder dùng chung trọng số, phân rã thành đặc trưng Base ($f^B$) và Detail ($f^D$), được tổng hợp riêng qua Fusion Layer, rồi giải mã thành ảnh đầu ra $I_F$. (Nguồn: \cite{zhao2023cddfuse})}
     \label{fig:cddfuse-arch}
 \end{figure}
 
@@ -377,7 +377,7 @@ Encoder dùng trọng số chung (shared weights) cho cả hai ảnh đầu vào
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/encoder.png}
-    \caption{Chi tiết kiến trúc Encoder CDDFuse: từ ảnh đầu vào qua Patch Embedding, SFE, rồi tách thành nhánh Base (BTE) và nhánh Detail (DCE).}
+    \caption[Chi tiết kiến trúc Encoder CDDFuse]{Chi tiết kiến trúc Encoder CDDFuse: từ ảnh đầu vào qua Patch Embedding, SFE, rồi tách thành nhánh Base (BTE) và nhánh Detail (DCE). (Nguồn: \cite{zhao2023cddfuse})}
     \label{fig:cddfuse-encoder}
 \end{figure}
 
@@ -392,7 +392,7 @@ Phép cộng $f_I + f_V$ trước khi qua layer là quy tắc tổng hợp đố
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/fusion.png}
-    \caption{Chi tiết Fusion Layer: Base và Detail của hai modality được tổng hợp riêng biệt qua BaseFuseLayer và DetailFuseLayer.}
+    \caption[Chi tiết Fusion Layer CDDFuse]{Chi tiết Fusion Layer: Base và Detail của hai modality được tổng hợp riêng biệt qua BaseFuseLayer và DetailFuseLayer. (Nguồn: \cite{zhao2023cddfuse})}
     \label{fig:cddfuse-fusion}
 \end{figure}
 
@@ -402,7 +402,7 @@ Decoder nối hai đặc trưng Base và Detail (concatenate 128 kênh), giảm 
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{figures/decoder.png}
-    \caption{Chi tiết kiến trúc Decoder CDDFuse: concat đặc trưng Base và Detail đã fusion, tái tạo ảnh đầu ra $I_F$ qua Restormer blocks và output head.}
+    \caption[Chi tiết kiến trúc Decoder CDDFuse]{Chi tiết kiến trúc Decoder CDDFuse: concat đặc trưng Base và Detail đã fusion, tái tạo ảnh đầu ra $I_F$ qua Restormer blocks và output head. (Nguồn: \cite{zhao2023cddfuse})}
     \label{fig:cddfuse-decoder}
 \end{figure}
 
