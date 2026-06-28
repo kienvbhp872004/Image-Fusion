@@ -89,7 +89,7 @@ def render_group(group, row_full, row_crop, col_offset=0):
         fw = "bold" if label in BORDER else "normal"
         clean = label.replace("\n(Ours)", "")
         if "Ours" in label:
-            af.set_title("CDDFuse-AG\n(Ours)", fontsize=20,
+            af.set_title("Ours", fontsize=20,
                          color="#27AE60", pad=4, fontweight="bold")
         else:
             af.set_title(clean, fontsize=20, color=tc, pad=4, fontweight=fw)
