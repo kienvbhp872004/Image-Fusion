@@ -49,17 +49,38 @@ Mặc dù có nhiều cải tiến theo từng hướng, hầu hết các phươ
 \section{Mục tiêu và Đóng góp của Đồ án}
 \label{sec:goal}
 
-Mục tiêu cốt lõi của đồ án là đề xuất mô hình \textbf{CDDFuse-AG} nhằm cải thiện chất lượng tổng hợp ảnh y tế đa phương thức thông qua thiết kế lại quy tắc tổng hợp đặc trưng theo hướng bất đối xứng, mà không thay đổi kiến trúc Encoder--Decoder đã được pretrained. Đồ án hướng tới việc khắc phục hạn chế cốt lõi của CDDFuse gốc --- áp dụng cùng một phép cộng đơn giản cho cả hai nhánh Base và Detail --- đồng thời đảm bảo so sánh công bằng và tiết kiệm tài nguyên tính toán thông qua việc tái sử dụng toàn bộ backbone đã huấn luyện.
+\subsection{Tầm quan trọng của thành phần chi tiết trong chẩn đoán y tế}
+\label{ssec:goal-motivation}
 
-Để hiện thực hóa mục tiêu này, đồ án lựa chọn hướng tiếp cận khảo sát thực nghiệm có kiểm soát theo chiến lược \emph{one-factor-at-a-time ablation} ba giai đoạn. Ở giai đoạn khảo sát quy tắc tổng hợp Cơ sở, năm quy tắc thay thế được thiết kế và đánh giá cho nhánh Base trong khi cố định nhánh Detail theo paper gốc. Ở giai đoạn khảo sát quy tắc Chi tiết, tám quy tắc được khảo sát tương tự cho nhánh Detail với nhánh Base cố định. Các quy tắc tốt nhất từ hai giai đoạn sau đó được kết hợp bất đối xứng (Base rule $\neq$ Detail rule) để tạo ra mô hình CDDFuse-AG cuối cùng. Toàn bộ thực nghiệm được đánh giá trên tập \emph{Harvard Medical Image Fusion} với 22 chỉ số chất lượng theo chuẩn VIFB~\cite{liu2020vifb} và xếp hạng tổng hợp bằng phương pháp Composite Z-score.
+Để hiểu được mục tiêu của đồ án, cần hiểu rõ điều bác sĩ thực sự cần khi nhìn vào ảnh tổng hợp. Khi bác sĩ đọc ảnh y tế, phần thông tin thường quyết định chẩn đoán không phải là cấu trúc tổng thể của cơ quan --- thứ mà ai cũng nhìn thấy rõ --- mà là những \textbf{chi tiết nhỏ}: rìa khối u có rõ không, ranh giới mô lành và mô bệnh có phân biệt được không, tổn thương khu trú ở đúng vùng giải phẫu nào. Những chi tiết này thường chỉ hiện rõ trên một trong hai phương thức ảnh --- ví dụ, CT cho thấy cạnh xương sắc nét trong khi MRI tiết lộ sự xâm lấn vào mô mềm xung quanh. Nếu ảnh tổng hợp không bảo toàn được các chi tiết đó, bác sĩ buộc phải quay lại xem lần lượt từng ảnh gốc --- đúng với hạn chế mà MIF đặt mục tiêu giải quyết.
+
+Tệ hơn, ảnh tổng hợp kém chất lượng có thể làm \emph{mờ đi} những chi tiết tế nhị vốn có trong ảnh gốc. Một cạnh không rõ, một vùng ranh giới bị trung bình hóa quá mức có thể khiến bác sĩ bỏ sót tổn thương nhỏ hoặc đánh giá sai mức độ xâm lấn. Nói cách khác, \textbf{chất lượng thành phần chi tiết trong ảnh tổng hợp ảnh hưởng trực tiếp đến độ an toàn của chẩn đoán lâm sàng}.
+
+Tuy nhiên, các mô hình MIF hiện tại --- kể cả CDDFuse~\cite{zhao2023cddfuse}, một trong những phương pháp hàng đầu hiện nay --- áp dụng cùng một phép cộng đơn giản ($f_F = f_V + f_I$) cho cả thành phần cấu trúc tổng thể lẫn thành phần chi tiết. Phép cộng này hoạt động như một phép \emph{trung bình hóa}: thay vì giữ lại chi tiết sắc nét nhất từ mỗi modality, nó pha trộn cả hai, làm giảm độ nét của các vùng cạnh quan trọng. Đây chính là khoảng trống mà đồ án này nhắm đến.
+
+\subsection{Mục tiêu đề xuất}
+\label{ssec:goal-objective}
+
+Mục tiêu của đồ án là đề xuất mô hình \textbf{CDDFuse-AG} --- một phiên bản cải tiến của CDDFuse --- với khả năng \textbf{bảo toàn thành phần chi tiết tốt hơn} trong quá trình tổng hợp ảnh y tế đa phương thức.
+
+Ý tưởng xuất phát từ việc nhận ra rằng hai thành phần trong kiến trúc CDDFuse có bản chất hoàn toàn khác nhau và cần được xử lý khác nhau:
+
+\begin{itemize}\itemsep2pt
+    \item \textbf{Thành phần cơ sở} (Base) mang thông tin cấu trúc chung, tương quan cao giữa hai modality --- hai ảnh thường \emph{đồng thuận} ở mức độ tổng thể. Với thành phần này, trung bình hóa là hợp lý.
+    \item \textbf{Thành phần chi tiết} (Detail) mang các cạnh, texture và thông tin đặc thù của từng modality --- hai ảnh mang thông tin \emph{bổ sung nhau}, không phải lặp lại nhau. Với thành phần này, cần \emph{lựa chọn} thay vì trung bình: tại mỗi vùng không gian, ưu tiên lấy chi tiết từ modality nào cung cấp thông tin sắc nét hơn.
+\end{itemize}
+
+Từ phân tích đó, CDDFuse-AG áp dụng \textbf{hai quy tắc tổng hợp khác nhau} cho hai thành phần: quy tắc trung bình có trọng số học được (WAvg) cho nhánh Base, và quy tắc lựa chọn theo độ sắc nét cục bộ (SML --- Sum-Modified-Laplacian) cho nhánh Detail. Toàn bộ kiến trúc Encoder--Decoder của CDDFuse được giữ nguyên; phần thay đổi duy nhất là cơ chế kết hợp đặc trưng tại Fusion Layer.
+
+\subsection{Đóng góp chính}
+\label{ssec:goal-contributions}
 
 Các đóng góp chính của đồ án được tóm tắt như sau:
 
 \begin{itemize}\itemsep4pt
-    \item Đề xuất chiến lược thực nghiệm ablation ba giai đoạn có kiểm soát, khảo sát hệ thống 13 quy tắc tổng hợp (5 quy tắc Base và 8 quy tắc Detail), bao phủ từ phương pháp truyền thống (L1-norm, SML, SF, VSM) đến học sâu (Adaptive Gating, Saliency Gate, Soft PCNN), cung cấp cơ sở thực nghiệm toàn diện cho bài toán lựa chọn fusion rule trong MIF.
+    \item \textbf{Đề xuất mô hình CDDFuse-AG} với thiết kế bất đối xứng: Weighted Average Scalar (WAvg) cho nhánh Base và Sum-Modified-Laplacian (SML) cho nhánh Detail. Mô hình chỉ bổ sung $4{,}161$ tham số so với CDDFuse ($\approx 0{,}35\%$), nhưng cải thiện rõ rệt các chỉ số đo chất lượng chi tiết: \textbf{SF, Qabf, AG, EI, QM, QMI} --- đây là các thang đo phản ánh trực tiếp mức độ bảo toàn cạnh, tần số không gian và thông tin chi tiết mà bác sĩ cần trong chẩn đoán.
 
-    \item Đề xuất mô hình \textbf{Comb-WAvg-SML (CDDFuse-AG)}: thiết kế bất đối xứng với Weighted Average Scalar cho nhánh Base và Sum-Modified-Laplacian cho nhánh Detail, chỉ bổ sung $\sim 8.200$ tham số fusion nhưng vượt CDDFuse rõ rệt trên CT-MRI (composite z-score $+0{,}240$ so với $-0{,}483$, chênh $+0{,}723$).
-
+    \item \textbf{Khảo sát thực nghiệm hệ thống} theo chiến lược ablation ba giai đoạn kiểm soát một yếu tố tại một thời điểm, bao gồm 13 quy tắc tổng hợp (5 quy tắc Base, 8 quy tắc Detail), cung cấp bằng chứng thực nghiệm toàn diện về vai trò của thiết kế quy tắc tổng hợp bất đối xứng trong MIF.
 \end{itemize}
 
 \section{Bố cục đồ án}
