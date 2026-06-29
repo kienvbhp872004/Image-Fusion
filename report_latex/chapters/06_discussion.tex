@@ -1,7 +1,7 @@
 \section{Phát hiện Modality-Specificity}
 \label{sec:disc-modality}
 
-Kết quả Giai đoạn 3 (Bảng~\ref{tab:moduleD-stage3}) cho thấy một phát hiện quan trọng: \textbf{không có một quy tắc tổng hợp đơn lẻ nào tối ưu cho mọi modality y tế}.
+Kết quả Giai đoạn 3 (Bảng~\ref{tab:moduleD-stage3}) cho thấy một phát hiện quan trọng: không có một quy tắc tổng hợp đơn lẻ nào tối ưu cho mọi modality y tế.
 
 \begin{center}
 \begin{tabular}{lll}
@@ -16,24 +16,24 @@ SPECT-MRI & CDDFuse (Sum, paper gốc)       & $+0{,}897$ \\
 \end{center}
 
 \paragraph{Lý giải cho CT-MRI.}
-CT-MRI là cặp ảnh \emph{cấu trúc} (structural pair): CT chứa thông tin xương/mô đặc rõ ràng với gradient mạnh, MRI chứa thông tin mô mềm chi tiết. Hai modality có đặc trưng Base và Detail \emph{rất khác nhau} ở từng vùng giải phẫu. Quy tắc bất đối xứng phù hợp vì:
+CT-MRI là cặp ảnh cấu trúc (structural pair): CT chứa thông tin xương/mô đặc rõ ràng với gradient mạnh, MRI chứa thông tin mô mềm chi tiết. Hai modality có đặc trưng Base và Detail rất khác nhau ở từng vùng giải phẫu. Quy tắc bất đối xứng phù hợp vì:
 \begin{itemize}\itemsep0pt
     \item WeightedAvg ở Base cho phép mô hình học cân bằng toàn cục phù hợp nhất giữa hai modality cấu trúc.
     \item SML ở Detail lựa chọn vùng nào của modality nào có chi tiết sắc nét hơn --- đặc biệt hiệu quả với biên xương (CT) và biên mô mềm (MRI) không trùng nhau.
 \end{itemize}
 
 \paragraph{Lý giải cho SPECT-MRI.}
-SPECT-MRI là cặp ảnh \emph{chức năng--cấu trúc} (functional-structural pair): SPECT cho phân bố lưu lượng máu não, có đặc trưng thưa thớt và phân bố cường độ uniform hơn. Phép cộng đơn giản phù hợp vì:
+SPECT-MRI là cặp ảnh chức năng--cấu trúc (functional-structural pair): SPECT cho phân bố lưu lượng máu não, có đặc trưng thưa thớt và phân bố cường độ uniform hơn. Phép cộng đơn giản phù hợp vì:
 \begin{itemize}\itemsep0pt
     \item Đặc trưng SPECT có ít thông tin chi tiết (low entropy), nên mọi quy tắc lựa chọn phức tạp đều có xu hướng gây artifact khi không có đủ tín hiệu để lựa chọn.
     \item Sum fusion bảo toàn toàn bộ thông tin từ cả hai modality mà không cắt bỏ gì --- an toàn khi không biết trước modality nào mang thông tin quan trọng hơn tại từng vùng.
 \end{itemize}
 
 \paragraph{Ý nghĩa khoa học.}
-Phát hiện Modality-Specificity là đóng góp mới của đồ án vào lĩnh vực MIF. Hầu hết các phương pháp hiện tại thiết kế \emph{một mô hình chung} cho mọi modality. Kết quả của đồ án gợi ý rằng \textbf{fusion strategy nên được điều chỉnh theo đặc tính của từng cặp modality}, mở hướng cho:
+Phát hiện Modality-Specificity là đóng góp mới của đồ án vào lĩnh vực MIF. Hầu hết các phương pháp hiện tại thiết kế một mô hình chung cho mọi modality. Kết quả của đồ án gợi ý rằng fusion strategy nên được điều chỉnh theo đặc tính của từng cặp modality, mở hướng cho:
 \begin{itemize}\itemsep0pt
-    \item \textbf{Modality-aware routing}: chọn quy tắc tổng hợp tự động dựa trên modality đầu vào.
-    \item \textbf{Adaptive fusion}: học trọng số điều chỉnh linh hoạt giữa các quy tắc dựa trên đặc trưng phân bố ảnh.
+    \item Modality-aware routing: chọn quy tắc tổng hợp tự động dựa trên modality đầu vào.
+    \item Adaptive fusion: học trọng số điều chỉnh linh hoạt giữa các quy tắc dựa trên đặc trưng phân bố ảnh.
 \end{itemize}
 
 \section{Vai trò của thiết kế bất đối xứng}
@@ -50,9 +50,9 @@ Lý do thiết kế bất đối xứng phù hợp:
 \section{Tính giản dị và hiệu quả tham số}
 \label{sec:disc-simplicity}
 
-Một phát hiện nổi bật từ Giai đoạn 1: \textbf{DB.6 WeightedAvg chỉ có 1 tham số học} nhưng đứng đầu trên CT-MRI. Điều này phản ánh nguyên tắc quan trọng trong thiết kế mô hình học sâu:
+Một phát hiện nổi bật từ Giai đoạn 1: DB.6 WeightedAvg chỉ có 1 tham số học nhưng đứng đầu trên CT-MRI. Điều này phản ánh nguyên tắc quan trọng trong thiết kế mô hình học sâu:
 
-\emph{Khi backbone Encoder đã được pretrained tốt và capture đủ thông tin, fusion rule chỉ cần đủ đơn giản và đúng hướng --- không cần phức tạp.}
+Khi backbone Encoder đã được pretrained tốt và capture đủ thông tin, fusion rule chỉ cần đủ đơn giản và đúng hướng --- không cần phức tạp.
 
 Encoder Restormer sau Phase I đã học cách phân rã ảnh thành Base và Detail một cách ổn định, cùng với đặc trưng phân bố phù hợp cho từng modality. Fusion rule chỉ đóng vai trò "điều hướng" --- không cần học lại thông tin đã có trong Encoder.
 

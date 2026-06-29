@@ -59,9 +59,9 @@ So với CDDFuse baseline ($1{,}188{,}272$ tham số), CDDFuse-AG chỉ thêm \t
 \section{Phân tích điểm can thiệp}
 \label{sec:intervention}
 
-Kiến trúc CDDFuse gồm ba khối tuần tự: Encoder $\to$ Fusion Layer $\to$ Decoder (Mục~\ref{ssec:cddfuse-arch}). Encoder và Decoder đã được tối ưu hóa để phân rã và tái tạo ảnh một cách ổn định. \textbf{Điểm can thiệp duy nhất} của đề xuất là \emph{Fusion Layer} --- cụ thể là phép cộng $f_I + f_V$ được dùng mặc định ở đầu mỗi nhánh trước BaseFuseLayer và DetailFuseLayer.
+Kiến trúc CDDFuse gồm ba khối tuần tự: Encoder $\to$ Fusion Layer $\to$ Decoder (Mục~\ref{ssec:cddfuse-arch}). Encoder và Decoder đã được tối ưu hóa để phân rã và tái tạo ảnh một cách ổn định. Điểm can thiệp duy nhất của đề xuất là Fusion Layer --- cụ thể là phép cộng $f_I + f_V$ được dùng mặc định ở đầu mỗi nhánh trước BaseFuseLayer và DetailFuseLayer.
 
-Phép cộng đơn giản (Sum) không phân biệt tầm quan trọng giữa hai modality và không khai thác sự bổ trợ cấu trúc khác nhau giữa nhánh Base và nhánh Detail. Đề xuất của đồ án: \textbf{thay thế phép cộng bằng các quy tắc tổng hợp chuyên biệt, khác nhau giữa nhánh Base và nhánh Detail}, giữ nguyên toàn bộ Encoder và Decoder. Điều này cho phép:
+Phép cộng đơn giản (Sum) không phân biệt tầm quan trọng giữa hai modality và không khai thác sự bổ trợ cấu trúc khác nhau giữa nhánh Base và nhánh Detail. Đề xuất của đồ án: thay thế phép cộng bằng các quy tắc tổng hợp chuyên biệt, khác nhau giữa nhánh Base và nhánh Detail, giữ nguyên toàn bộ Encoder và Decoder. Điều này cho phép:
 \begin{itemize}\itemsep0pt
     \item So sánh công bằng: mọi sai biệt kết quả đến từ quy tắc tổng hợp, không phải từ thay đổi encoder/decoder.
     \item Tận dụng pretrained weights của CDDFuse gốc.
@@ -75,8 +75,8 @@ Phép cộng đơn giản (Sum) không phân biệt tầm quan trọng giữa ha
 CDDFuse phân rã ảnh thành hai thành phần với bản chất hoàn toàn khác nhau (Hình~\ref{fig:asymmetric-principle}):
 
 \begin{itemize}\itemsep0pt
-    \item \textbf{Nhánh Base} (tần số thấp): mang thông tin cấu trúc giải phẫu chung, tương quan cao giữa hai modality. Hai modality thường \emph{đồng thuận} ở mức độ toàn cục --- MRI và CT đều thể hiện cùng cơ quan, cùng vị trí giải phẫu.
-    \item \textbf{Nhánh Detail} (tần số cao): mang texture, cạnh và thông tin đặc thù của từng modality. CT nổi bật về cấu trúc xương cứng; MRI nổi bật về mô mềm. Hai nguồn mang thông tin \emph{bổ sung nhau} chứ không đồng thuận.
+    \item Nhánh Base (tần số thấp): mang thông tin cấu trúc giải phẫu chung, tương quan cao giữa hai modality. Hai modality thường đồng thuận ở mức độ toàn cục --- MRI và CT đều thể hiện cùng cơ quan, cùng vị trí giải phẫu.
+    \item Nhánh Detail (tần số cao): mang texture, cạnh và thông tin đặc thù của từng modality. CT nổi bật về cấu trúc xương cứng; MRI nổi bật về mô mềm. Hai nguồn mang thông tin bổ sung nhau chứ không đồng thuận.
 \end{itemize}
 
 Từ sự khác biệt bản chất này, Liu et al.\ \cite{liu2018survey} đề xuất nguyên tắc:
@@ -84,7 +84,7 @@ Từ sự khác biệt bản chất này, Liu et al.\ \cite{liu2018survey} đề
 \emph{``Base cần trung bình hóa (averaging) --- Detail cần lựa chọn theo hoạt động cục bộ (activity-based selection).''}
 \end{center}
 
-Phép cộng Sum của CDDFuse gốc áp dụng cùng một chiến lược cho cả hai nhánh, không khai thác được sự khác biệt này. Đề xuất CDDFuse-AG áp dụng \textbf{hai quy tắc khác nhau cho hai nhánh} --- thiết kế \emph{bất đối xứng} (asymmetric).
+Phép cộng Sum của CDDFuse gốc áp dụng cùng một chiến lược cho cả hai nhánh, không khai thác được sự khác biệt này. Đề xuất CDDFuse-AG áp dụng hai quy tắc khác nhau cho hai nhánh --- thiết kế \emph{bất đối xứng} (\emph{asymmetric}).
 
 \begin{figure}[H]
 \centering
@@ -100,7 +100,7 @@ Phép cộng Sum của CDDFuse gốc áp dụng cùng một chiến lược cho 
 \subsection{Quy tắc Base: Weighted Average Scalar (WAvg)}
 \label{ssec:rule-wavg}
 
-Nhánh Base cần trung bình hóa thông tin cấu trúc chung của hai modality. Thay vì phép cộng cố định, đề xuất dùng \textbf{trung bình có trọng số học được}. Ý tưởng trung bình hóa có trọng số được sử dụng rộng rãi trong các phương pháp fusion truyền thống~\cite{li2018densefuse, xu2020u2fusion}; ở đây chúng tôi đơn giản hóa thành \emph{một tham số scalar duy nhất} để phù hợp với kiến trúc CDDFuse:
+Nhánh Base cần trung bình hóa thông tin cấu trúc chung của hai modality. Thay vì phép cộng cố định, đề xuất dùng trung bình có trọng số học được. Ý tưởng trung bình hóa có trọng số được sử dụng rộng rãi trong các phương pháp fusion truyền thống~\cite{li2018densefuse, xu2020u2fusion}; ở đây chúng tôi đơn giản hóa thành \emph{một tham số scalar duy nhất} để phù hợp với kiến trúc CDDFuse:
 
 \begin{equation}
 \alpha = \sigma(\theta), \quad \theta \in \mathbb{R} \text{ (tham số học duy nhất)}
@@ -121,15 +121,15 @@ trong đó $a = f_V^B$, $b = f_I^B$ là đặc trưng Base của hai modality, $
 
 \paragraph{Lý do chọn WAvg cho nhánh Base.}
 \begin{itemize}\itemsep0pt
-    \item \textbf{Chỉ 1 tham số học}: tránh overfitting và không phá vỡ phân phối đặc trưng mà Encoder đã học.
-    \item \textbf{Trung bình hóa toàn cục}: phù hợp với bản chất đồng thuận của Base --- không cần phân biệt theo vị trí không gian.
-    \item \textbf{Trọng số tối ưu cho từng modality}: thay vì giả định $\alpha = 0{,}5$ cố định, mô hình tự học tỷ lệ đóng góp tối ưu giữa hai nguồn.
+    \item Chỉ 1 tham số học: tránh overfitting và không phá vỡ phân phối đặc trưng mà Encoder đã học.
+    \item Trung bình hóa toàn cục: phù hợp với bản chất đồng thuận của Base --- không cần phân biệt theo vị trí không gian.
+    \item Trọng số tối ưu cho từng modality: thay vì giả định $\alpha = 0{,}5$ cố định, mô hình tự học tỷ lệ đóng góp tối ưu giữa hai nguồn.
 \end{itemize}
 
 \subsection{Quy tắc Detail: Sum-Modified-Laplacian (SML)}
 \label{ssec:rule-sml}
 
-Nhánh Detail cần lựa chọn, tại từng vị trí không gian, modality nào cung cấp thông tin chi tiết (cạnh, texture) phong phú hơn. Đề xuất dùng \textbf{Sum-Modified-Laplacian} làm thước đo độ sắc nét cục bộ. SML được đề xuất bởi Huang và Jing~\cite{huang2007sml} trong bối cảnh đánh giá độ nét cho multi-focus fusion; ở đây chúng tôi áp dụng vào bài toán multi-modal fusion để đo hoạt động chi tiết trên từng kênh đặc trưng:
+Nhánh Detail cần lựa chọn, tại từng vị trí không gian, modality nào cung cấp thông tin chi tiết (cạnh, texture) phong phú hơn. Đề xuất dùng Sum-Modified-Laplacian (SML) làm thước đo độ sắc nét cục bộ. SML được đề xuất bởi Huang và Jing~\cite{huang2007sml} trong bối cảnh đánh giá độ nét cho multi-focus fusion; ở đây chúng tôi áp dụng vào bài toán multi-modal fusion để đo hoạt động chi tiết trên từng kênh đặc trưng:
 
 \begin{equation}
 \mathrm{ML}_{ij}(f) = |2f_{ij} - f_{i-1,j} - f_{i+1,j}| + |2f_{ij} - f_{i,j-1} - f_{i,j+1}|
@@ -162,7 +162,7 @@ trong đó $a = f_V^D$, $b = f_I^D$ là đặc trưng Detail, $\epsilon$ là h�
 
 \paragraph{Lý do chọn SML cho nhánh Detail.}
 \begin{itemize}\itemsep0pt
-    \item \textbf{Nhạy với cạnh và tần số cao}: Modified Laplacian đặc biệt nhạy với các biến thiên đột ngột --- đúng với bản chất tần số cao của nhánh Detail.
-    \item \textbf{Lựa chọn theo vị trí} (spatially adaptive): tại mỗi điểm ảnh, modality nào có cạnh sắc nét hơn sẽ được ưu tiên --- khai thác tính bổ trợ giữa MRI (mô mềm) và CT/PET/SPECT (cấu trúc đặc thù).
-    \item \textbf{Không có tham số học}: quy tắc hoàn toàn dựa trên đặc trưng đầu vào, không phụ thuộc vào khởi tạo hay dữ liệu huấn luyện --- tính tổng quát hóa cao.
+    \item Nhạy với cạnh và tần số cao: Modified Laplacian đặc biệt nhạy với các biến thiên đột ngột --- đúng với bản chất tần số cao của nhánh Detail.
+    \item Lựa chọn theo vị trí (spatially adaptive): tại mỗi điểm ảnh, modality nào có cạnh sắc nét hơn sẽ được ưu tiên --- khai thác tính bổ trợ giữa MRI (mô mềm) và CT/PET/SPECT (cấu trúc đặc thù).
+    \item Không có tham số học: quy tắc hoàn toàn dựa trên đặc trưng đầu vào, không phụ thuộc vào khởi tạo hay dữ liệu huấn luyện --- tính tổng quát hóa cao.
 \end{itemize}

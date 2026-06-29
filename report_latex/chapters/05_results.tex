@@ -4,20 +4,20 @@
 \section{Tập dữ liệu}
 \label{sec:dataset}
 
-Đồ án sử dụng tập dữ liệu \textbf{Harvard Medical Image Fusion}~\cite{johnson1999harvard} --- bộ dữ liệu chuẩn được sử dụng rộng rãi trong cộng đồng nghiên cứu MIF~\cite{ma2019fusiongan,zhao2023cddfuse}. Tập dữ liệu gồm các cặp ảnh não người thật, được thu thập và công bố bởi Wellesley College Brain Imaging Center.
+Đồ án sử dụng tập dữ liệu Harvard Medical Image Fusion~\cite{johnson1999harvard} --- bộ dữ liệu chuẩn được sử dụng rộng rãi trong cộng đồng nghiên cứu MIF~\cite{ma2019fusiongan,zhao2023cddfuse}. Tập dữ liệu gồm các cặp ảnh não người thật, được thu thập và công bố bởi Wellesley College Brain Imaging Center.
 
 \paragraph{Cấu trúc dữ liệu.}
 Toàn bộ dữ liệu được sắp xếp theo ba cặp modality:
 \begin{itemize}\itemsep2pt
-    \item \textbf{CT--MRI}: 768 cặp ảnh (cấu trúc xương + mô mềm não).
-    \item \textbf{PET--MRI}: 768 cặp ảnh (phân bố glucose + giải phẫu).
-    \item \textbf{SPECT--MRI}: 480 cặp ảnh (lưu lượng máu não + giải phẫu).
+    \item CT--MRI: 768 cặp ảnh (cấu trúc xương + mô mềm não).
+    \item PET--MRI: 768 cặp ảnh (phân bố glucose + giải phẫu).
+    \item SPECT--MRI: 480 cặp ảnh (lưu lượng máu não + giải phẫu).
 \end{itemize}
 
 \paragraph{Phân chia train/test.}
 \begin{itemize}\itemsep2pt
-    \item \textbf{Tập huấn luyện}: 738 cặp ảnh ($160$ CT-MRI + $245$ PET-MRI + $333$ SPECT-MRI).
-    \item \textbf{Tập kiểm thử}: 72 cặp ảnh (24 mỗi modality), được giữ cố định cho tất cả thực nghiệm và dùng chung với các phương pháp SOTA trong Bảng~\ref{tab:sota-ct}--\ref{tab:sota-spect}.
+    \item Tập huấn luyện: 738 cặp ảnh ($160$ CT-MRI + $245$ PET-MRI + $333$ SPECT-MRI).
+    \item Tập kiểm thử: 72 cặp ảnh (24 mỗi modality), được giữ cố định cho tất cả thực nghiệm và dùng chung với các phương pháp SOTA trong Bảng~\ref{tab:sota-ct}--\ref{tab:sota-spect}.
 \end{itemize}
 
 Kích thước ảnh gốc thay đổi từ $182\times218$ đến $256\times256$ pixel. Tất cả ảnh đã được đăng ký (registered) --- từng pixel trong ảnh CT/PET/SPECT tương ứng chính xác với cùng vị trí giải phẫu trong ảnh MRI. Hình~\ref{fig:harvard-grid} minh họa sự đa dạng về cấu trúc não giữa các bệnh nhân trong tập kiểm thử.
@@ -33,10 +33,10 @@ Kích thước ảnh gốc thay đổi từ $182\times218$ đến $256\times256$
 Dữ liệu đầu vào được xử lý qua 4 bước:
 
 \begin{enumerate}\itemsep2pt
-    \item \textbf{Chuẩn hóa modality}: CT/MRI (grayscale) chuẩn hóa trực tiếp về $[0,1]$. PET/SPECT (RGB pseudo-color) chuyển sang YCbCr, lấy kênh $Y = 0.299R + 0.587G + 0.114B$; hai kênh $C_b, C_r$ giữ lại để khôi phục màu khi xuất kết quả.
-    \item \textbf{Cắt patch}: Mỗi ảnh $256\times256$ cắt thành patch $128\times128$, stride~64 → 9 patch/ảnh. Patch có dynamic range thấp ($p_{90}-p_{10} < 0.1\cdot p_{90}$) bị loại bỏ.
-    \item \textbf{Lưu HDF5}: Các patch hợp lệ lưu vào \texttt{.h5} (nhóm \texttt{mri\_patchs} và \texttt{src\_patchs}), tổng $\sim$6000--8000 patch.
-    \item \textbf{DataLoader}: Đọc từ HDF5, shuffle, batch~8, pin memory cho GPU.
+    \item Chuẩn hóa modality: CT/MRI (grayscale) chuẩn hóa trực tiếp về $[0,1]$. PET/SPECT (RGB pseudo-color) chuyển sang YCbCr, lấy kênh $Y = 0.299R + 0.587G + 0.114B$; hai kênh $C_b, C_r$ giữ lại để khôi phục màu khi xuất kết quả.
+    \item Cắt patch: Mỗi ảnh $256\times256$ cắt thành patch $128\times128$, stride~64 → 9 patch/ảnh. Patch có dynamic range thấp ($p_{90}-p_{10} < 0.1\cdot p_{90}$) bị loại bỏ.
+    \item Lưu HDF5: Các patch hợp lệ lưu vào \texttt{.h5} (nhóm \texttt{mri\_patchs} và \texttt{src\_patchs}), tổng $\sim$6000--8000 patch.
+    \item DataLoader: Đọc từ HDF5, shuffle, batch~8, pin memory cho GPU.
 \end{enumerate}
 
 % ================================================================
@@ -45,9 +45,9 @@ Dữ liệu đầu vào được xử lý qua 4 bước:
 \section{Thang đo đánh giá}
 \label{sec:metrics}
 
-Đồ án sử dụng bộ \textbf{22 chỉ số chất lượng} theo chuẩn VIFB~\cite{liu2020vifb} bao gồm các nhóm: (1)~chỉ số cường độ (EN, SD, MI, QMI), (2)~chỉ số cạnh và tần số không gian (SF, AG, EI, QG, QSF, Qabf), (3)~chỉ số cấu trúc (SSIM, PSNR, QM, NABF), và các chỉ số tổng hợp khác. Ký hiệu $\uparrow$ chỉ giá trị cao hơn là tốt hơn; $\downarrow$ là ngược lại.
+Đồ án sử dụng bộ 22 chỉ số chất lượng theo chuẩn VIFB~\cite{liu2020vifb} bao gồm các nhóm: (1)~chỉ số cường độ (EN, SD, MI, QMI), (2)~chỉ số cạnh và tần số không gian (SF, AG, EI, QG, QSF, Qabf), (3)~chỉ số cấu trúc (SSIM, PSNR, QM, NABF), và các chỉ số tổng hợp khác. Ký hiệu $\uparrow$ chỉ giá trị cao hơn là tốt hơn; $\downarrow$ là ngược lại.
 
-Để xếp hạng tổng thể các phương pháp trên nhiều chỉ số và nhiều modality, đồ án dùng \textbf{Composite Z-score}: với mỗi chỉ số $m$ và mỗi modality, tính z-score chuẩn hóa của từng phương pháp so với nhóm, sau đó lấy trung bình qua các chỉ số. Z-score cao hơn có nghĩa phương pháp tốt hơn so với nhóm theo phân phối tổng thể.
+Để xếp hạng tổng thể các phương pháp trên nhiều chỉ số và nhiều modality, đồ án dùng Composite Z-score: với mỗi chỉ số $m$ và mỗi modality, tính z-score chuẩn hóa của từng phương pháp so với nhóm, sau đó lấy trung bình qua các chỉ số. Z-score cao hơn có nghĩa phương pháp tốt hơn so với nhóm theo phân phối tổng thể.
 
 % ================================================================
 % SECTION 3: CẤU HÌNH THÍ NGHIỆM
@@ -80,7 +80,7 @@ Seed & 42 \\
 \end{center}
 
 \paragraph{Baseline so sánh.}
-Đồ án \emph{huấn luyện lại} CDDFuse từ đầu với quy trình paper-faithful trên cùng dữ liệu (gọi là \textbf{CDDFuse}), đóng vai trò baseline tham chiếu chính. Hai mô hình dùng cùng hạ tầng, cùng dữ liệu, cùng split, cùng hyperparameters --- chênh lệch chỉ phản ánh đóng góp của asymmetric fusion rule:
+Đồ án huấn luyện lại CDDFuse từ đầu với quy trình paper-faithful trên cùng dữ liệu (gọi là \textbf{CDDFuse}), đóng vai trò baseline tham chiếu chính. Hai mô hình dùng cùng hạ tầng, cùng dữ liệu, cùng split, cùng hyperparameters --- chênh lệch chỉ phản ánh đóng góp của asymmetric fusion rule:
 \begin{equation*}
 \boxed{\textbf{CDDFuse-AG (Ours)} \quad \text{vs} \quad \textbf{CDDFuse (baseline)}}
 \end{equation*}
@@ -99,19 +99,19 @@ Hàm mất mát gồm ba thành phần:
 \mathcal{L} = \mathcal{L}_{\mathrm{int}} + \mathcal{L}_{\mathrm{grad}} + \alpha_4\,\mathcal{L}_{\mathrm{decomp}}
 \end{equation}
 \begin{itemize}\itemsep2pt
-    \item $\mathcal{L}_{\mathrm{int}}$ \textbf{(intensity loss)}: đo sai lệch cường độ pixel giữa ảnh tổng hợp $F$ và hai ảnh nguồn $I, V$. Khuyến khích $F$ giữ nguyên độ sáng trung bình từ cả hai modality:
+    \item $\mathcal{L}_{\mathrm{int}}$ (intensity loss): đo sai lệch cường độ pixel giữa ảnh tổng hợp $F$ và hai ảnh nguồn $I, V$. Khuyến khích $F$ giữ nguyên độ sáng trung bình từ cả hai modality:
     \begin{equation}
     \mathcal{L}_{\mathrm{int}} = \bigl\|F - \max(I,\,V)\bigr\|_1
     \end{equation}
     Phép $\max$ theo pixel đảm bảo thông tin cường độ cao nhất từ mỗi modality được bảo toàn.
 
-    \item $\mathcal{L}_{\mathrm{grad}}$ \textbf{(gradient loss)}: đo sai lệch gradient không gian, buộc ảnh tổng hợp giữ nguyên cạnh và texture từ nguồn sắc nét hơn:
+    \item $\mathcal{L}_{\mathrm{grad}}$ (gradient loss): đo sai lệch gradient không gian, buộc ảnh tổng hợp giữ nguyên cạnh và texture từ nguồn sắc nét hơn:
     \begin{equation}
     \mathcal{L}_{\mathrm{grad}} = \bigl\|\nabla F - \max(\nabla I,\,\nabla V)\bigr\|_1
     \end{equation}
     trong đó $\nabla$ là toán tử Sobel. Thành phần này quan trọng đặc biệt để SML refine Conv học được biểu diễn phù hợp với lựa chọn cạnh.
 
-    \item $\mathcal{L}_{\mathrm{decomp}}$ \textbf{(decomposition loss)}: ràng buộc Encoder phân rã đặc trưng thành hai nhánh Base và Detail độc lập và nhất quán, giúp WAvg và SML hoạt động trên đúng loại thông tin mà chúng được thiết kế để xử lý. Trọng số $\alpha_4 = 2$ (theo cấu hình gốc CDDFuse).
+    \item $\mathcal{L}_{\mathrm{decomp}}$ (decomposition loss): ràng buộc Encoder phân rã đặc trưng thành hai nhánh Base và Detail độc lập và nhất quán, giúp WAvg và SML hoạt động trên đúng loại thông tin mà chúng được thiết kế để xử lý. Trọng số $\alpha_4 = 2$ (theo cấu hình gốc CDDFuse).
 \end{itemize}
 
 \paragraph{Pha I --- Tiền huấn luyện phân rã.}
@@ -126,7 +126,7 @@ Toàn bộ $1{,}192{,}433$ tham số được mở khóa. WAvg scalar $\theta$ k
 \section{So sánh Z-score theo modality}
 \label{sec:zscore-per-modal}
 
-Bảng~\ref{tab:zscore-sota-modal} trình bày Z-score của CDDFuse-AG (Ours) và 5 phương pháp SOTA đại diện, \textbf{tách biệt theo từng modality} (CT, PET, SPECT). Z-score được tính trên 8 chỉ số: SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI.
+Bảng~\ref{tab:zscore-sota-modal} trình bày Z-score của CDDFuse-AG (Ours) và 5 phương pháp SOTA đại diện, tách biệt theo từng modality (CT, PET, SPECT). Z-score được tính trên 8 chỉ số: SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI.
 
 \begin{table}[H]
 \centering
@@ -150,7 +150,7 @@ CDDFuse~\cite{zhao2023cddfuse}  & $-0.014$ & \textbf{+0.432} & +0.440 & +0.286 \
 \end{table}
 
 \paragraph{Nhận xét.}
-Kết quả xác nhận giả thuyết \emph{asymmetric fusion}: WeightedAvg phù hợp với Base (tần số thấp, tương quan cao) và SML phù hợp với Detail (tần số cao, bổ trợ nhau --- nên lựa chọn thay vì trung bình). Trên CT, hai modality có cạnh đặc thù ở các vùng khác nhau (xương, mô mềm), SML phân biệt chính xác nguồn nào mang tần số cao hữu ích tại từng điểm ảnh. Trên PET, kênh Y sau chuyển đổi YCbCr có gradient ít rõ nét hơn CT, khiến SML khó phân biệt cạnh thực với nhiễu màu giả, làm giảm lợi thế. Trên SPECT, tương phản trao đổi chất cao tạo gradient mạnh và rõ ràng --- SML hoạt động hiệu quả nhất trong 3 modality.
+Kết quả xác nhận giả thuyết asymmetric fusion: WeightedAvg phù hợp với Base (tần số thấp, tương quan cao) và SML phù hợp với Detail (tần số cao, bổ trợ nhau --- nên lựa chọn thay vì trung bình). Trên CT, hai modality có cạnh đặc thù ở các vùng khác nhau (xương, mô mềm), SML phân biệt chính xác nguồn nào mang tần số cao hữu ích tại từng điểm ảnh. Trên PET, kênh Y sau chuyển đổi YCbCr có gradient ít rõ nét hơn CT, khiến SML khó phân biệt cạnh thực với nhiễu màu giả, làm giảm lợi thế. Trên SPECT, tương phản trao đổi chất cao tạo gradient mạnh và rõ ràng --- SML hoạt động hiệu quả nhất trong 3 modality.
 
 % ================================================================
 % SECTION 6: SO SÁNH KẾT QUẢ VỚI SOTA (6 THANG ĐO CHÍNH)
@@ -241,7 +241,7 @@ CDDFuse-AG dẫn đầu về \textbf{SF} và \textbf{Qabf} trên cả 3 modality
 \section{Các thang đo tốt nhất của phương pháp đề xuất}
 \label{sec:best-6metrics}
 
-CDDFuse-AG (Ours) đứng \textbf{\#1 trên 6 chỉ số}: SF, Qabf, AG, EI, QM, QMI --- đây đều là chỉ số nhóm \textbf{texture/edge/information}: SF, AG, EI phản ánh mức độ chi tiết cạnh; Qabf đo truyền thông tin cạnh từ nguồn vào fused; QM là chỉ số wavelet đo chi tiết tần số cao; QMI đo thông tin chung được bảo toàn. Kết quả phản ánh đúng đóng góp của \textbf{SML Detail rule}.
+CDDFuse-AG (Ours) đứng \#1 trên 6 chỉ số: SF, Qabf, AG, EI, QM, QMI --- đây đều là chỉ số nhóm texture/edge/information: SF, AG, EI phản ánh mức độ chi tiết cạnh; Qabf đo truyền thông tin cạnh từ nguồn vào fused; QM là chỉ số wavelet đo chi tiết tần số cao; QMI đo thông tin chung được bảo toàn. Kết quả phản ánh đúng đóng góp của SML Detail rule.
 
 Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt đối riêng từng modality (không gộp chung), $\uparrow$ cao tốt hơn, \textbf{in đậm} = tốt nhất.
 
@@ -312,7 +312,7 @@ Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt 
 \end{table}
 
 \paragraph{Nhận xét.}
-Kết quả nhất quán với cơ chế hoạt động của từng rule. Trên CT, vùng cạnh xương và mô mềm không chồng lấp --- SML lựa chọn có chọn lọc, bảo toàn cạnh từ cả hai nguồn thay vì trung bình làm mờ. Trên PET, CDDFuse (Sum) thắng QMI vì phép cộng giữ nguyên phân phối thông tin chung; SML lựa chọn chọn lọc làm giảm nhẹ thông tin chung đo bởi QMI. Trên SPECT, GeSeNet dẫn SF/AG/EI nhờ cơ chế semantic-edge fusion; CDDFuse-AG dẫn Qabf/QM/QMI nhờ SML bảo toàn chi tiết tần số cao phù hợp hơn với chỉ số đo thông tin. \textbf{Trade-off:} SML nhạy với artifact từ mã hóa màu giả của PET, làm tăng nhẹ NABF --- cái giá của rule không tham số thay vì rule học được.
+Kết quả nhất quán với cơ chế hoạt động của từng rule. Trên CT, vùng cạnh xương và mô mềm không chồng lấp --- SML lựa chọn có chọn lọc, bảo toàn cạnh từ cả hai nguồn thay vì trung bình làm mờ. Trên PET, CDDFuse (Sum) thắng QMI vì phép cộng giữ nguyên phân phối thông tin chung; SML lựa chọn chọn lọc làm giảm nhẹ thông tin chung đo bởi QMI. Trên SPECT, GeSeNet dẫn SF/AG/EI nhờ cơ chế semantic-edge fusion; CDDFuse-AG dẫn Qabf/QM/QMI nhờ SML bảo toàn chi tiết tần số cao phù hợp hơn với chỉ số đo thông tin. Trade-off: SML nhạy với artifact từ mã hóa màu giả của PET, làm tăng nhẹ NABF --- cái giá của rule không tham số thay vì rule học được.
 
 % ── Visual comparison ─────────────────────────────────────────────────────────
 \begin{figure}[H]
@@ -335,7 +335,7 @@ Kết quả nhất quán với cơ chế hoạt động của từng rule. Trên
 \section{Ablation Study: Asymmetric Fusion Rule}
 \label{sec:ablation-moduleD}
 
-Thực nghiệm khảo sát việc áp dụng \emph{fusion rule khác nhau cho nhánh Base và nhánh Detail} thay vì dùng cùng phép cộng Sum cho cả hai. Các rule được chọn từ tài liệu fusion kinh điển: L1-norm và Weighted Average từ DenseFuse~\cite{li2018densefuse}, Local Energy từ Laplacian pyramid~\cite{burt1983laplacian}, Visual Saliency Map~\cite{wang2008vsm}, SML từ Huang \& Jing~\cite{huang2007sml}, Spatial Frequency~\cite{eskicioglu1995sf}, PCNN từ Eckhorn et al.~\cite{eckhorn1990pcnn}, Adaptive Gating từ NestFuse~\cite{li2020nestfuse}, và Saliency-based selection~\cite{liu2016saliency}. Thực nghiệm chia thành 3 giai đoạn: (1) quét Base rule, (2) quét Detail rule, (3) kết hợp asymmetric. Đánh giá bằng \textbf{Composite Z-score} trên 8 chỉ số chính (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI), baseline = CDDFuse~\cite{zhao2023cddfuse}.
+Thực nghiệm khảo sát việc áp dụng fusion rule khác nhau cho nhánh Base và nhánh Detail thay vì dùng cùng phép cộng Sum cho cả hai. Các rule được chọn từ tài liệu fusion kinh điển: L1-norm và Weighted Average từ DenseFuse~\cite{li2018densefuse}, Local Energy từ Laplacian pyramid~\cite{burt1983laplacian}, Visual Saliency Map~\cite{wang2008vsm}, SML từ Huang \& Jing~\cite{huang2007sml}, Spatial Frequency~\cite{eskicioglu1995sf}, PCNN từ Eckhorn et al.~\cite{eckhorn1990pcnn}, Adaptive Gating từ NestFuse~\cite{li2020nestfuse}, và Saliency-based selection~\cite{liu2016saliency}. Thực nghiệm chia thành 3 giai đoạn: (1) quét Base rule, (2) quét Detail rule, (3) kết hợp asymmetric. Đánh giá bằng Composite Z-score trên 8 chỉ số chính (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI), baseline = CDDFuse~\cite{zhao2023cddfuse}.
 
 % ─── Stage 1 ──────────────────────────────────────────────────────────────────
 \subsection{Stage 1 --- Base Rule Ablation}
@@ -363,7 +363,7 @@ DB.5 LocalEntropy~\cite{liu2018survey}     & $-0.421$ & $-1.075$ & $-1.472$ & $-
 \end{table}
 
 \paragraph{Nhận xét.}
-Nhánh Base mang thông tin tần số thấp --- tức cấu trúc tổng thể chung giữa hai modality. Phép cộng Sum cố định đóng góp bằng nhau cho cả hai nguồn, trong khi \textbf{WeightedAvg} học được tỉ lệ đóng góp tối ưu $\alpha$ theo dữ liệu, cho phép ưu tiên modality có thông tin cấu trúc tin cậy hơn tại mỗi cặp ảnh cụ thể. Trên CT-MRI, nơi hai modality có độ tương phản rất khác nhau (xương trắng trên CT, mô mềm trên MRI), khả năng điều chỉnh trọng số giúp ảnh tổng hợp cân bằng hơn so với trung bình cứng nhắc. \textbf{DB.6 WeightedAvg} được chọn làm winner Stage 1.
+Nhánh Base mang thông tin tần số thấp --- tức cấu trúc tổng thể chung giữa hai modality. Phép cộng Sum cố định đóng góp bằng nhau cho cả hai nguồn, trong khi WeightedAvg học được tỉ lệ đóng góp tối ưu $\alpha$ theo dữ liệu, cho phép ưu tiên modality có thông tin cấu trúc tin cậy hơn tại mỗi cặp ảnh cụ thể. Trên CT-MRI, nơi hai modality có độ tương phản rất khác nhau (xương trắng trên CT, mô mềm trên MRI), khả năng điều chỉnh trọng số giúp ảnh tổng hợp cân bằng hơn so với trung bình cứng nhắc. DB.6 WeightedAvg được chọn làm winner Stage 1.
 
 % ─── Stage 2 ──────────────────────────────────────────────────────────────────
 \subsection{Stage 2 --- Detail Rule Ablation}
@@ -394,13 +394,13 @@ DD.3 Saliency~\cite{liu2016saliency}       & \textbf{+0.541} & $-1.341$ & $-0.03
 \end{table}
 
 \paragraph{Nhận xét.}
-Nhánh Detail mang thông tin tần số cao --- tức cạnh và texture đặc thù của từng modality. Nguyên tắc lý tưởng là \emph{tại mỗi vị trí ảnh, chọn modality nào có cạnh sắc nét hơn}. \textbf{SML} (Sum of Modified Laplacian) thực hiện điều này bằng cách đo độ sắc nét cục bộ qua đạo hàm bậc hai theo cả hai chiều, sau đó tính trọng số lựa chọn tỉ lệ với độ sắc nét tương đối --- không phụ thuộc vào tham số học, đảm bảo tính tổng quát hóa tốt qua nhiều modality. Saliency dù mạnh trên CT nhưng sụp đổ trên PET vì bản đồ nổi bật không ổn định khi ảnh nguồn có nhiễu màu giả. \textbf{DD.6 SML được chọn làm winner Stage 2}.
+Nhánh Detail mang thông tin tần số cao --- tức cạnh và texture đặc thù của từng modality. Nguyên tắc lý tưởng là tại mỗi vị trí ảnh, chọn modality nào có cạnh sắc nét hơn. SML (Sum of Modified Laplacian) thực hiện điều này bằng cách đo độ sắc nét cục bộ qua đạo hàm bậc hai theo cả hai chiều, sau đó tính trọng số lựa chọn tỉ lệ với độ sắc nét tương đối --- không phụ thuộc vào tham số học, đảm bảo tính tổng quát hóa tốt qua nhiều modality. Saliency dù mạnh trên CT nhưng sụp đổ trên PET vì bản đồ nổi bật không ổn định khi ảnh nguồn có nhiễu màu giả. DD.6 SML được chọn làm winner Stage 2.
 
 % ─── Stage 3 ──────────────────────────────────────────────────────────────────
 \subsection{Stage 3 --- Asymmetric Combined (Base $\neq$ Detail)}
 \label{ssec:ablation-stage3}
 
-Kết hợp winner 2 giai đoạn trước: Base = WeightedAvg, Detail thử SML / L1Norm / Gated --- tạo biến thể \emph{asymmetric} (Base rule $\neq$ Detail rule).
+Kết hợp winner 2 giai đoạn trước: Base = WeightedAvg, Detail thử SML / L1Norm / Gated --- tạo biến thể asymmetric (Base rule $\neq$ Detail rule).
 
 \begin{table}[H]
 \centering
@@ -421,7 +421,7 @@ Sym-AG (symmetric Adaptive Gating) & $-0.042$ & $-0.047$ & $-0.479$ & $-0.189$ \
 \end{table}
 
 \paragraph{Lựa chọn CDDFuse-AG = Comb-WAvg-SML.}
-Theo z-score Stage 3, Comb-WAvg-L1Norm dẫn đầu ($+0.192$). Tuy nhiên, khi đánh giá theo \textbf{6 thang đo paper chính} (EN, SD, SF, MI, Qabf, SSIM) trực tiếp trên 3 modality, Comb-WAvg-SML thắng \textbf{10/18 trường hợp} so với L1Norm thắng 8/18. Ngoài ra, Comb-WAvg-SML đứng \textbf{\#1 mean rank} toàn bộ ablation và ổn định hơn trên PET-MRI. Do đó, \textbf{Comb-WAvg-SML được chọn làm CDDFuse-AG (Ours)}.
+Theo z-score Stage 3, Comb-WAvg-L1Norm dẫn đầu ($+0.192$). Tuy nhiên, khi đánh giá theo 6 thang đo paper chính (EN, SD, SF, MI, Qabf, SSIM) trực tiếp trên 3 modality, Comb-WAvg-SML thắng \textbf{10/18} trường hợp so với L1Norm thắng 8/18. Ngoài ra, Comb-WAvg-SML đứng \#1 mean rank toàn bộ ablation và ổn định hơn trên PET-MRI. Do đó, Comb-WAvg-SML được chọn làm \textbf{CDDFuse-AG} (Ours).
 
 \paragraph{Sym-AG so với Asym.}
-Biến thể Adaptive Gating đối xứng (Sym-AG) yếu nhất trong Stage 3 ($z=-0.189$), xác nhận rằng \textbf{asymmetric rule hiệu quả hơn symmetric gating} khi không fine-tune lại Encoder/Decoder.
+Biến thể Adaptive Gating đối xứng (Sym-AG) yếu nhất trong Stage 3 ($z=-0.189$), xác nhận rằng asymmetric rule hiệu quả hơn symmetric gating khi không fine-tune lại Encoder/Decoder.

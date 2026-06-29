@@ -1,7 +1,7 @@
 \section{Tổng kết kết quả}
 \label{sec:summary}
 
-Đồ án đề xuất CDDFuse-AG --- cải tiến CDDFuse thông qua chiến lược \textbf{quy tắc tổng hợp bất đối xứng} cho hai nhánh Base và Detail. Thực nghiệm trên Harvard Medical Image Fusion (72 cặp kiểm thử, 3 modality) cho thấy hầu hết các thang đo vượt trội đều tập trung vào nhóm chỉ số phản ánh \textbf{chi tiết và tần số cao}: SF, AG, EI, Qabf, QM --- cho thấy mô hình đề xuất có khả năng \emph{giữ chi tiết thông tin tốt hơn} so với các phương pháp so sánh.
+Đồ án đề xuất \textbf{CDDFuse-AG} --- cải tiến CDDFuse thông qua chiến lược quy tắc tổng hợp bất đối xứng cho hai nhánh Base và Detail. Thực nghiệm trên Harvard Medical Image Fusion (72 cặp kiểm thử, 3 modality) cho thấy hầu hết các thang đo vượt trội đều tập trung vào nhóm chỉ số phản ánh chi tiết và tần số cao: SF, AG, EI, Qabf, QM --- cho thấy mô hình đề xuất có khả năng giữ chi tiết thông tin tốt hơn so với các phương pháp so sánh.
 
 Điều này phản ánh đúng cơ chế thiết kế: quy tắc SML ở nhánh Detail chủ động lựa chọn tại mỗi vị trí ảnh modality nào có cạnh và kết cấu sắc nét hơn, thay vì trung bình cả hai như phép cộng đơn thuần. Kết quả là ảnh tổng hợp giữ được nhiều thông tin chi tiết có ích từ cả hai nguồn hơn, đặc biệt ở các vùng giàu cạnh như biên xương (CT), mô não (MRI) và vùng hoạt động trao đổi chất cao (PET/SPECT).
 
