@@ -20,7 +20,7 @@ Trong y học hiện đại, chẩn đoán chính xác đóng vai trò quyết �
 
 Khác với các bài toán thị giác máy tính thông thường, tổng hợp ảnh y tế đối mặt với một thách thức cơ bản: \textbf{không tồn tại ảnh tổng hợp chuẩn} (ground-truth fused image) trong thực tế lâm sàng. Không có thiết bị y tế nào tạo ra trực tiếp ảnh kết hợp đồng thời thông tin CT và MRI tại cùng một thời điểm, do đó không thể xây dựng nhãn giám sát theo cách thông thường. Điều này đòi hỏi các phương pháp học sâu phải thiết kế hàm mất mát không cần nhãn, dựa trên các ràng buộc về bảo toàn thông tin và chất lượng thị giác.
 
-Bên cạnh đó, dữ liệu ảnh y tế có tính phân bố không đồng nhất cao giữa các bệnh nhân, thiết bị và cơ sở y tế khác nhau, trong khi quy mô dataset thường nhỏ hơn nhiều so với các bài toán thị giác thông thường. Đây là những ràng buộc quan trọng định hướng thiết kế mô hình theo hướng \emph{nhẹ, hiệu quả tham số và không phụ thuộc vào nhãn đầu ra} (Hình~\ref{fig:no-gt}).
+Bên cạnh đó, dữ liệu ảnh y tế có tính phân bố không đồng nhất cao giữa các bệnh nhân, thiết bị và cơ sở y tế khác nhau, trong khi quy mô dataset thường nhỏ hơn nhiều so với các bài toán thị giác thông thường. Đây là những ràng buộc quan trọng định hướng thiết kế mô hình theo hướng \emph{hiệu quả tham số và không phụ thuộc vào nhãn đầu ra} (Hình~\ref{fig:no-gt}).
 
 \begin{figure}[H]
     \centering
