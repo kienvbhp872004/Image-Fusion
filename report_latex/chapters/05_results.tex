@@ -121,39 +121,7 @@ Chỉ Encoder và Decoder được cập nhật; BaseFuseLayer, DetailFuseLayer 
 Toàn bộ $1{,}192{,}433$ tham số được mở khóa. WAvg scalar $\theta$ khởi tạo $= 0$ ($\alpha = 0{,}5$, tương đương trung bình đều) và SML refine Conv khởi tạo theo Xavier, đảm bảo bước chuyển pha không gây bất ổn. Hàm loss giữ nguyên; mô hình dần học quy tắc tổng hợp tối ưu trên nền đặc trưng đã ổn định từ Pha I.
 
 % ================================================================
-% SECTION 5: SO SÁNH Z-SCORE THEO MODALITY (KẾT QUẢ CHÍNH)
-% ================================================================
-\section{So sánh Z-score theo modality}
-\label{sec:zscore-per-modal}
-
-Bảng~\ref{tab:zscore-sota-modal} trình bày Z-score của CDDFuse-AG (Ours) và 5 phương pháp SOTA đại diện, tách biệt theo từng modality (CT, PET, SPECT). Z-score được tính trên 8 chỉ số: SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI.
-
-\begin{table}[H]
-\centering
-\small
-\caption{So sánh Z-score theo từng modality (8 chỉ số, 24 cặp test mỗi modality). Z cao hơn = tốt hơn. \textbf{In đậm} = tốt nhất cột.}
-\label{tab:zscore-sota-modal}
-\begin{tabular}{lcccc}
-\toprule
-\textbf{Phương pháp} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z Avg} \\
-\midrule
-NestFuse~\cite{li2020nestfuse}   & $-0.352$ & $-0.388$ & $-0.790$ & $-0.510$ \\
-TUFusion~\cite{zhao2024tufusion} & $-0.528$ & +0.160 & $-0.110$ & $-0.159$ \\
-WaveFusion~\cite{wang2025wavefusion} & +0.126 & $-0.017$ & +0.059 & +0.056 \\
-DDBFusion~\cite{zhang2025ddbfusion}  & \textbf{+0.369} & $-0.108$ & +0.175 & +0.145 \\
-GeSeNet~\cite{li2023gesenet}    & +0.089 & $-0.327$ & $-0.248$ & $-0.162$ \\
-\midrule
-CDDFuse~\cite{zhao2023cddfuse}  & $-0.014$ & \textbf{+0.432} & +0.440 & +0.286 \\
-\textbf{CDDFuse-AG (Ours)} & +0.309 & +0.248 & \textbf{+0.475} & \textbf{+0.344} \\
-\bottomrule
-\end{tabular}
-\end{table}
-
-\paragraph{Nhận xét.}
-Kết quả xác nhận giả thuyết asymmetric fusion: WeightedAvg phù hợp với Base (tần số thấp, tương quan cao) và SML phù hợp với Detail (tần số cao, bổ trợ nhau --- nên lựa chọn thay vì trung bình). Trên CT, hai modality có cạnh đặc thù ở các vùng khác nhau (xương, mô mềm), SML phân biệt chính xác nguồn nào mang tần số cao hữu ích tại từng điểm ảnh. Trên PET, kênh Y sau chuyển đổi YCbCr có gradient ít rõ nét hơn CT, khiến SML khó phân biệt cạnh thực với nhiễu màu giả, làm giảm lợi thế. Trên SPECT, tương phản trao đổi chất cao tạo gradient mạnh và rõ ràng --- SML hoạt động hiệu quả nhất trong 3 modality.
-
-% ================================================================
-% SECTION 6: SO SÁNH KẾT QUẢ VỚI SOTA (6 THANG ĐO CHÍNH)
+% SECTION 5: SO SÁNH KẾT QUẢ VỚI SOTA (6 THANG ĐO CHÍNH)
 % ================================================================
 \section{So sánh kết quả với các phương pháp SOTA}
 \label{sec:paper-6metrics}
@@ -236,14 +204,12 @@ CDDFuse~\cite{zhao2023cddfuse}  & 4.970 & 7.337 & 21.845 & 2.715 & 0.750 & 1.403
 CDDFuse-AG dẫn đầu về \textbf{SF} và \textbf{Qabf} trên cả 3 modality vì hai chỉ số này đo trực tiếp mức độ bảo toàn cạnh và tần số cao --- đúng lớp thông tin mà SML Detail rule được thiết kế để khai thác. SML lựa chọn tại mỗi pixel modality nào có đạo hàm bậc hai lớn hơn, tức ưu tiên nguồn có cạnh sắc nét hơn; kết quả là ảnh tổng hợp giữ được nhiều chi tiết tần số cao hơn so với phép cộng Sum cố định của CDDFuse gốc.
 
 % ================================================================
-% SECTION 7: 6 THANG ĐO TỐT NHẤT CỦA ĐỀ XUẤT
+% SECTION 6: CHỈ SỐ CHI TIẾT CẠNH
 % ================================================================
-\section{Các thang đo tốt nhất của phương pháp đề xuất}
+\section{Phân tích chỉ số chi tiết: AG, EI, QM, QMI}
 \label{sec:best-6metrics}
 
-CDDFuse-AG (Ours) đứng \#1 trên 6 chỉ số: SF, Qabf, AG, EI, QM, QMI --- đây đều là chỉ số nhóm texture/edge/information: SF, AG, EI phản ánh mức độ chi tiết cạnh; Qabf đo truyền thông tin cạnh từ nguồn vào fused; QM là chỉ số wavelet đo chi tiết tần số cao; QMI đo thông tin chung được bảo toàn. Kết quả phản ánh đúng đóng góp của SML Detail rule.
-
-Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt đối riêng từng modality (không gộp chung), $\uparrow$ cao tốt hơn, \textbf{in đậm} = tốt nhất.
+Mục~\ref{sec:paper-6metrics} so sánh theo 6 chỉ số chuẩn của CDDFuse paper. Phần này phân tích thêm bốn chỉ số chi tiết cạnh --- AG (Average Gradient), EI (Edge Intensity), QM (chỉ số Wavelet) và QMI (Mutual Information theo chất lượng) --- vốn không có trong 6 chỉ số chuẩn nhưng phản ánh trực tiếp khả năng bảo toàn thông tin tần số cao, đúng với mục tiêu thiết kế của SML Detail rule. Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt đối riêng từng modality, $\uparrow$ cao tốt hơn, \textbf{in đậm} = tốt nhất.
 
 % ── CT ────────────────────────────────────────────────────────────────────────
 \begin{table}[H]
@@ -313,6 +279,38 @@ Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt 
 
 \paragraph{Nhận xét.}
 Kết quả nhất quán với cơ chế hoạt động của từng rule. Trên CT, vùng cạnh xương và mô mềm không chồng lấp --- SML lựa chọn có chọn lọc, bảo toàn cạnh từ cả hai nguồn thay vì trung bình làm mờ. Trên PET, CDDFuse (Sum) thắng QMI vì phép cộng giữ nguyên phân phối thông tin chung; SML lựa chọn chọn lọc làm giảm nhẹ thông tin chung đo bởi QMI. Trên SPECT, GeSeNet dẫn SF/AG/EI nhờ cơ chế semantic-edge fusion; CDDFuse-AG dẫn Qabf/QM/QMI nhờ SML bảo toàn chi tiết tần số cao phù hợp hơn với chỉ số đo thông tin. Trade-off: SML nhạy với artifact từ mã hóa màu giả của PET, làm tăng nhẹ NABF --- cái giá của rule không tham số thay vì rule học được.
+
+% ================================================================
+% SECTION 7: ĐÁNH GIÁ TỔNG THỂ QUA COMPOSITE Z-SCORE
+% ================================================================
+\section{Đánh giá tổng thể qua Composite Z-score}
+\label{sec:zscore-per-modal}
+
+Sau khi xem xét từng nhóm chỉ số riêng lẻ ở hai mục trên, Bảng~\ref{tab:zscore-sota-modal} tổng hợp xếp hạng các phương pháp qua Composite Z-score --- trung bình z-score chuẩn hóa trên 8 chỉ số tổng hợp (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI) theo từng modality. Z-score dương nghĩa phương pháp tốt hơn trung bình nhóm; Z-score âm là kém hơn. Chỉ số này giúp đánh giá cân bằng mà không bị chi phối bởi đơn vị của từng thang đo riêng lẻ.
+
+\begin{table}[H]
+\centering
+\small
+\caption{Composite Z-score theo từng modality (8 chỉ số, 24 cặp test mỗi modality). Z cao hơn = tốt hơn tổng thể. \textbf{In đậm} = tốt nhất cột.}
+\label{tab:zscore-sota-modal}
+\begin{tabular}{lcccc}
+\toprule
+\textbf{Phương pháp} & \textbf{z CT} & \textbf{z PET} & \textbf{z SPECT} & \textbf{z Avg} \\
+\midrule
+NestFuse~\cite{li2020nestfuse}   & $-0.352$ & $-0.388$ & $-0.790$ & $-0.510$ \\
+TUFusion~\cite{zhao2024tufusion} & $-0.528$ & +0.160 & $-0.110$ & $-0.159$ \\
+WaveFusion~\cite{wang2025wavefusion} & +0.126 & $-0.017$ & +0.059 & +0.056 \\
+DDBFusion~\cite{zhang2025ddbfusion}  & \textbf{+0.369} & $-0.108$ & +0.175 & +0.145 \\
+GeSeNet~\cite{li2023gesenet}    & +0.089 & $-0.327$ & $-0.248$ & $-0.162$ \\
+\midrule
+CDDFuse~\cite{zhao2023cddfuse}  & $-0.014$ & \textbf{+0.432} & +0.440 & +0.286 \\
+\textbf{CDDFuse-AG (Ours)} & +0.309 & +0.248 & \textbf{+0.475} & \textbf{+0.344} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\paragraph{Nhận xét.}
+CDDFuse-AG đạt z~avg cao nhất ($+0.344$) so với CDDFuse baseline ($+0.286$) và tất cả SOTA khảo sát. Đây là kết quả nhất quán với phân tích từng chỉ số ở các mục trước: lợi thế tập trung ở CT và SPECT --- hai modality mà gradient tần số cao giữa hai nguồn có độ tương phản rõ ràng, giúp SML phân biệt chính xác vị trí nào nên ưu tiên modality nào. Trên PET, kênh Y sau chuyển đổi YCbCr có gradient ít rõ nét hơn do mã hóa màu giả, khiến SML khó phân biệt cạnh thực với nhiễu, nên lợi thế so với CDDFuse gốc giảm đi. Kết quả tổng hợp xác nhận giả thuyết asymmetric fusion: Base và Detail có bản chất khác nhau nên cần quy tắc kết hợp khác nhau.
 
 % ── Visual comparison ─────────────────────────────────────────────────────────
 \begin{figure}[H]
