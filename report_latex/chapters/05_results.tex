@@ -189,10 +189,10 @@ Kết hợp hai quy tắc, CDDFuse-AG chỉ thêm \textbf{4.161 tham số} ($\ap
 % ================================================================
 % SECTION 2: ABLATION STUDY
 % ================================================================
-\section{Ablation Study: Module D --- Asymmetric Fusion Rule}
+\section{Ablation Study: Asymmetric Fusion Rule}
 \label{sec:ablation-moduleD}
 
-Module D khảo sát việc áp dụng \emph{fusion rule khác nhau cho nhánh Base và nhánh Detail} thay vì dùng cùng phép cộng Sum cho cả hai. Các rule được chọn từ tài liệu fusion kinh điển: L1-norm và Weighted Average từ DenseFuse~\cite{li2018densefuse}, Local Energy từ Laplacian pyramid~\cite{burt1983laplacian}, Visual Saliency Map~\cite{wang2008vsm}, SML từ Huang \& Jing~\cite{huang2007sml}, Spatial Frequency~\cite{eskicioglu1995sf}, PCNN từ Eckhorn et al.~\cite{eckhorn1990pcnn}, Adaptive Gating từ NestFuse~\cite{li2020nestfuse}, và Saliency-based selection~\cite{liu2016saliency}. Thực nghiệm chia thành 3 giai đoạn: (1) quét Base rule, (2) quét Detail rule, (3) kết hợp asymmetric. Đánh giá bằng \textbf{Composite Z-score} trên 8 chỉ số chính (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI), baseline = CDDFuse~\cite{zhao2023cddfuse}.
+Thực nghiệm khảo sát việc áp dụng \emph{fusion rule khác nhau cho nhánh Base và nhánh Detail} thay vì dùng cùng phép cộng Sum cho cả hai. Các rule được chọn từ tài liệu fusion kinh điển: L1-norm và Weighted Average từ DenseFuse~\cite{li2018densefuse}, Local Energy từ Laplacian pyramid~\cite{burt1983laplacian}, Visual Saliency Map~\cite{wang2008vsm}, SML từ Huang \& Jing~\cite{huang2007sml}, Spatial Frequency~\cite{eskicioglu1995sf}, PCNN từ Eckhorn et al.~\cite{eckhorn1990pcnn}, Adaptive Gating từ NestFuse~\cite{li2020nestfuse}, và Saliency-based selection~\cite{liu2016saliency}. Thực nghiệm chia thành 3 giai đoạn: (1) quét Base rule, (2) quét Detail rule, (3) kết hợp asymmetric. Đánh giá bằng \textbf{Composite Z-score} trên 8 chỉ số chính (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI), baseline = CDDFuse~\cite{zhao2023cddfuse}.
 
 % ─── Stage 1 ──────────────────────────────────────────────────────────────────
 \subsection{Stage 1 --- Base Rule Ablation}
