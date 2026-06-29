@@ -34,17 +34,38 @@ Trong bối cảnh này, CDDFuse~\cite{zhao2023cddfuse} (CVPR 2023) là một ph
 \section{Các nghiên cứu liên quan}
 \label{sec:related}
 
-Tổng hợp ảnh y tế đa phương thức đã phát triển qua bốn hướng tiếp cận chính:
+\subsection{Phương pháp truyền thống (trước 2017)}
+\label{ssec:related-traditional}
 
-Phương pháp truyền thống. Các kỹ thuật biến đổi đa tỉ lệ như Wavelet, Curvelet và biểu diễn thưa thớt (sparse representation)~\cite{liu2018survey} phân rã ảnh thành các thành phần tần số khác nhau, sau đó kết hợp theo quy tắc thiết kế thủ công như max-pooling hoặc trung bình có trọng số. Nhóm phương pháp này có cơ sở lý thuyết vững chắc nhưng phụ thuộc nặng vào đặc trưng thiết kế tay, khó khái quát hóa cho các cặp modality đa dạng trong y tế.
+Trước khi học sâu trở nên phổ biến, tổng hợp ảnh y tế chủ yếu dựa trên các biến đổi đa tỉ lệ. Burt và Adelson~\cite{burt1983laplacian} đề xuất phân rã ảnh theo kim tự tháp Laplacian và kết hợp ở từng mức độ phân giải --- đây là nền tảng của hầu hết các phương pháp truyền thống sau này. Biến đổi Wavelet~\cite{li1995wavelet} cải thiện vấn đề méo khối của kim tự tháp, phân tách ảnh thành các dải tần số ngang, dọc và chéo với tính định hướng tốt hơn. Biểu diễn thưa thớt~\cite{liu2018survey} tiếp tục nâng cao chất lượng bằng cách học từ điển biểu diễn từ dữ liệu, thay vì dùng bộ lọc cố định.
 
-Học biểu diễn (Representation Learning). Các phương pháp học đặc trưng không giám sát như Autoencoder và Variational Autoencoder học cách nén và tái tạo ảnh từ không gian tiềm ẩn. DenseFuse~\cite{li2019densefuse} và NestFuse áp dụng kiến trúc Encoder--Decoder dựa trên DenseNet, huấn luyện qua hàm mất mát tái tạo không cần nhãn, cho phép trích xuất đặc trưng giàu ngữ nghĩa hơn so với phương pháp truyền thống.
+Tuy nhiên, nhóm phương pháp này có hai hạn chế cơ bản. Thứ nhất, quy tắc kết hợp đặc trưng --- như lấy giá trị lớn nhất (max-abs), trung bình, hoặc trọng số theo độ tương phản --- đều được thiết kế thủ công, không thích ứng theo nội dung ảnh. Thứ hai, các biến đổi tần số cổ điển không học được biểu diễn ngữ nghĩa cao cấp, dẫn đến hiệu năng kém khi hai modality có phân bố pixel rất khác nhau như PET--MRI hay SPECT--MRI.
 
-Học sâu với CNN, Attention và Transformer. Sự phát triển của mạng tích chập và cơ chế chú ý đã thúc đẩy thế hệ phương pháp mạnh hơn, học trực tiếp quy tắc tổng hợp từ dữ liệu. U2Fusion và RFN-Nest khai thác kiến trúc đa tỉ lệ với cơ chế attention để tập trung vào vùng thông tin quan trọng. Sự ra đời của Transformer mở rộng khả năng nắm bắt phụ thuộc tầm xa: CDDFuse~\cite{zhao2023cddfuse} kết hợp Restormer Encoder với Invertible Neural Network để phân rã đặc trưng thành nhánh Base và Detail; APGFusion~\cite{hu2024apgfusion} bổ sung cơ chế Adaptive Pooling Guided cải thiện tổng hợp thông tin không gian đa tỉ lệ.
+\subsection{Phương pháp học sâu: CNN và học biểu diễn (2017--2021)}
+\label{ssec:related-cnn}
 
-Mô hình sinh (Generative AI). Hướng mới nhất ứng dụng Diffusion Model và Foundation Model vào bài toán MIF. Các phương pháp dựa trên Diffusion như DDFM mô hình hóa quá trình tổng hợp như một bài toán suy diễn xác suất, tạo ra ảnh tổng hợp chất lượng cao về mặt thị giác. Foundation Model với pretrained trên dữ liệu lớn mở ra hướng transfer learning cho y tế, tuy nhiên chi phí tính toán và yêu cầu dữ liệu lớn vẫn là rào cản thực tiễn.
+Sự ra đời của các mạng Encoder--Decoder sâu mở ra giai đoạn mới cho MIF. DeepFuse~\cite{prabhakar2017deepfuse} là một trong những phương pháp đầu tiên dùng CNN để trích xuất đặc trưng cho bài toán fusion ảnh đa phơi sáng. DenseFuse~\cite{li2019densefuse} đưa cấu trúc kết nối dày đặc (DenseNet) vào Encoder--Decoder cho ảnh hồng ngoại và khả kiến, học đặc trưng đa tỉ lệ phong phú hơn. NestFuse~\cite{li2020nestfuse} mở rộng thêm cơ chế attention không gian và kênh để tập trung vào vùng quan trọng. U2Fusion~\cite{xu2020u2fusion} đề xuất khung thống nhất xử lý nhiều bài toán fusion khác nhau trong một mô hình duy nhất. RFN-Nest~\cite{li2021rfnnest} tiến một bước xa hơn: thay vì thiết kế thủ công quy tắc kết hợp, tác giả huấn luyện một mạng con nhỏ (Residual Fusion Network) để học quy tắc đó từ dữ liệu.
 
-Mặc dù có nhiều cải tiến theo từng hướng, hầu hết các phương pháp vẫn áp dụng quy tắc tổng hợp đối xứng cho mọi thành phần đặc trưng. Tác động của việc thiết kế quy tắc tổng hợp bất đối xứng --- khác nhau cho nhánh Base và Detail --- chưa được khảo sát có hệ thống. Đây chính là khoảng trống mà đồ án hướng đến.
+Dù đặc trưng được học từ dữ liệu, nhóm phương pháp CNN này vẫn có điểm yếu chung: quy tắc kết hợp đặc trưng áp dụng đồng nhất cho mọi thành phần --- không phân biệt đặc trưng cấu trúc tổng thể (tần số thấp) với đặc trưng chi tiết cạnh (tần số cao). Ngoài ra, CNN có vùng tiếp nhận hữu hạn, khó nắm bắt phụ thuộc tầm xa quan trọng trong ảnh y tế kích thước lớn.
+
+\subsection{Phương pháp GAN (2019--2022)}
+\label{ssec:related-gan}
+
+FusionGAN~\cite{ma2019fusiongan} đưa mạng đối kháng sinh (GAN) vào bài toán MIF: bộ sinh (generator) tạo ảnh tổng hợp, bộ phân biệt (discriminator) ép ảnh tổng hợp giống phân phối ảnh khả kiến để bảo toàn chi tiết texture. Phương pháp GAN mang lại chất lượng thị giác tốt hơn so với CNN thuần túy.
+
+Song, GAN tồn tại những hạn chế nghiêm trọng trong ngữ cảnh y tế. Vì bộ phân biệt chỉ học từ một modality (ảnh khả kiến), bộ sinh bị lệch về phía phân phối đó và có xu hướng bỏ qua thông tin từ modality còn lại --- điều cực kỳ nguy hiểm trong chẩn đoán, khi thông tin CT hoặc PET bị mất mát có thể dẫn đến sai sót. Bên cạnh đó, huấn luyện GAN không ổn định (dễ sụp đổ chế độ --- mode collapse), không có cơ chế đảm bảo bảo toàn thông tin định lượng từ cả hai nguồn.
+
+\subsection{Phương pháp Transformer và mô hình sinh (2022--nay)}
+\label{ssec:related-transformer}
+
+Transformer khắc phục giới hạn tầm xa của CNN thông qua cơ chế self-attention. SwinFusion~\cite{ma2022swinfusion} áp dụng Swin Transformer cho fusion ảnh đa miền, mô hình hóa phụ thuộc tầm xa hiệu quả hơn. CDDFuse~\cite{zhao2023cddfuse} (CVPR 2023) đạt bước tiến quan trọng nhất: phân rã đặc trưng thành nhánh Base (tần số thấp, dùng khối Lite Transformer) và nhánh Detail (tần số cao, dùng mạng khả nghịch INN), với hàm mất mát ràng buộc hai nhánh học thông tin bổ trợ nhau. TUFusion~\cite{zhao2024tufusion} và APGFusion~\cite{hu2024apgfusion} tiếp tục cải thiện bằng cơ chế attention tổng hợp và Adaptive Pooling Guided. Ở hướng mô hình sinh, DDFM~\cite{zhao2023ddfm} (ICCV 2023) công thức hóa fusion như bài toán suy diễn xác suất dưới DDPM, tạo ảnh tổng hợp chất lượng thị giác cao --- nhưng thời gian suy diễn hàng trăm bước khiến phương pháp này chưa thực tế cho lâm sàng.
+
+\subsection{Khoảng trống nghiên cứu}
+\label{ssec:related-gap}
+
+Nhìn lại toàn bộ lịch sử phát triển, một điểm chung nổi bật xuyên suốt tất cả các thế hệ phương pháp: từ CNN (DenseFuse, NestFuse, U2Fusion) đến Transformer (SwinFusion, TUFusion) đến cả CDDFuse --- mô hình đỉnh cao nhất với thiết kế hai nhánh rõ ràng --- đều áp dụng cùng một phép kết hợp đối xứng cho cả nhánh Base lẫn nhánh Detail. Cụ thể, CDDFuse dùng phép cộng đơn giản $f_F = f_V + f_I$ trước cả hai lớp BaseFuseLayer và DetailFuseLayer, bất chấp sự khác biệt bản chất giữa hai nhánh.
+
+Điều này đặt ra câu hỏi chưa được trả lời có hệ thống: \emph{liệu hai nhánh có bản chất khác nhau có thực sự cần hai quy tắc kết hợp khác nhau?} Thành phần Base mang thông tin cấu trúc toàn cục, tương quan cao giữa hai modality --- phép trung bình hóa là hợp lý. Thành phần Detail mang cạnh và texture đặc thù từng modality, bổ trợ nhau --- lựa chọn theo độ sắc nét cục bộ mới là chiến lược phù hợp. Không một nghiên cứu nào khảo sát có kiểm soát tác động của việc áp dụng quy tắc bất đối xứng này. Đây chính là khoảng trống mà đồ án hướng đến lấp đầy.
 
 \section{Mục tiêu và Đóng góp của Đồ án}
 \label{sec:goal}
