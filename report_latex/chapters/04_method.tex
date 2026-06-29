@@ -1,4 +1,31 @@
 % ================================================================
+\section{Đặt vấn đề hình thức}
+\label{sec:formal-problem}
+
+Bài toán tổng hợp ảnh y tế đa phương thức được định nghĩa như sau. Cho hai ảnh nguồn $I_V, I_I \in \mathbb{R}^{H \times W}$ từ hai phương thức khác nhau (ví dụ $I_V$ là MRI, $I_I$ là CT), cần tìm ảnh tổng hợp $F \in \mathbb{R}^{H \times W}$ thỏa mãn hai ràng buộc đồng thời:
+\begin{enumerate}\itemsep2pt
+    \item Bảo toàn cấu trúc: $F$ phải giữ lại thông tin cấu trúc giải phẫu chung từ cả hai modality, phản ánh qua các chỉ số cường độ (SSIM, PSNR, MI).
+    \item Bảo toàn chi tiết: $F$ phải giữ lại các cạnh và texture đặc thù từng modality, phản ánh qua các chỉ số tần số không gian (SF, AG, EI, Qabf).
+\end{enumerate}
+
+Trong kiến trúc CDDFuse, hai ràng buộc này được xử lý qua hai luồng song song trong Fusion Layer. Gọi $\Phi_{\mathrm{enc}}$ là Encoder dùng chung trọng số, với đầu ra:
+\begin{align}
+(f_V^B,\, f_V^D) &= \Phi_{\mathrm{enc}}(I_V) \\
+(f_I^B,\, f_I^D) &= \Phi_{\mathrm{enc}}(I_I)
+\end{align}
+trong đó $f^B \in \mathbb{R}^{H' \times W' \times C}$ là đặc trưng Base (tần số thấp, tương quan cao) và $f^D \in \mathbb{R}^{H' \times W' \times C}$ là đặc trưng Detail (tần số cao, tương quan thấp). Quá trình tổng hợp được thực hiện độc lập trên hai nhánh:
+\begin{align}
+f_F^B &= \Psi_B\!\left(R_B(f_V^B,\, f_I^B)\right) \\
+f_F^D &= \Psi_D\!\left(R_D(f_V^D,\, f_I^D)\right)
+\end{align}
+trong đó $R_B, R_D$ là quy tắc tiền tổng hợp và $\Psi_B, \Psi_D$ là BaseFuseLayer và DetailFuseLayer. Ảnh đầu ra được tái tạo bởi Decoder $\Phi_{\mathrm{dec}}$:
+\begin{equation}
+F = \Phi_{\mathrm{dec}}\!\left(\mathrm{Conv}_{1\times1}\!\left(\mathrm{cat}(f_F^B,\, f_F^D)\right)\right)
+\end{equation}
+
+CDDFuse gốc dùng $R_B = R_D = \text{Sum}$ (phép cộng). Đồ án đề xuất thay bằng $R_B = R_{\mathrm{WAvg}}$ và $R_D = R_{\mathrm{SML}}$, giữ nguyên toàn bộ $\Phi_{\mathrm{enc}}$, $\Psi_B$, $\Psi_D$, $\Phi_{\mathrm{dec}}$.
+
+% ================================================================
 \section{Kiến trúc CDDFuse-AG}
 \label{sec:cddfuse-ag-arch}
 
@@ -61,11 +88,32 @@ So với CDDFuse baseline ($1{,}188{,}272$ tham số), CDDFuse-AG chỉ thêm \t
 
 Kiến trúc CDDFuse gồm ba khối tuần tự: Encoder $\to$ Fusion Layer $\to$ Decoder (Mục~\ref{ssec:cddfuse-arch}). Encoder và Decoder đã được tối ưu hóa để phân rã và tái tạo ảnh một cách ổn định. Điểm can thiệp duy nhất của đề xuất là Fusion Layer --- cụ thể là phép cộng $f_I + f_V$ được dùng mặc định ở đầu mỗi nhánh trước BaseFuseLayer và DetailFuseLayer.
 
-Phép cộng đơn giản (Sum) không phân biệt tầm quan trọng giữa hai modality và không khai thác sự bổ trợ cấu trúc khác nhau giữa nhánh Base và nhánh Detail. Đề xuất của đồ án: thay thế phép cộng bằng các quy tắc tổng hợp chuyên biệt, khác nhau giữa nhánh Base và nhánh Detail, giữ nguyên toàn bộ Encoder và Decoder. Điều này cho phép:
-\begin{itemize}\itemsep0pt
-    \item So sánh công bằng: mọi sai biệt kết quả đến từ quy tắc tổng hợp, không phải từ thay đổi encoder/decoder.
-    \item Tận dụng pretrained weights của CDDFuse gốc.
-    \item Số tham số mới rất nhỏ, huấn luyện nhanh.
+\subsection{Vì sao phép cộng Sum làm giảm chất lượng chi tiết}
+\label{ssec:sum-analysis}
+
+Xét hai đặc trưng Detail $f_V^D$ và $f_I^D$ tại một vị trí không gian $(i,j)$ cụ thể. Giả sử modality $V$ (MRI) có cạnh sắc nét tại đó --- tức $|f_V^D|_{ij} \gg |f_I^D|_{ij}$ --- trong khi modality $I$ (CT) không có cạnh tương ứng. Phép cộng Sum cho ra:
+\begin{equation}
+(f_V^D + f_I^D)_{ij} = f_{V,ij}^D + f_{I,ij}^D
+\end{equation}
+Vì $f_{I,ij}^D$ mang nhiễu nền hoặc thông tin không liên quan đến cạnh tại vị trí đó, tổng thu được sẽ sai lệch so với giá trị gốc $f_{V,ij}^D$. Quan trọng hơn, hệ số nhân bằng $1$ cho cả hai modality nghĩa là CT ``pha loãng'' thông tin cạnh MRI một cách không có kiểm soát. Nếu $f_{I,ij}^D$ ngẫu nhiên trái dấu với $f_{V,ij}^D$, cạnh MRI bị triệt tiêu một phần.
+
+Ngược lại, quy tắc SML tính trọng số $w_a$ dựa trên độ sắc nét cục bộ: nếu MRI có cạnh mạnh hơn CT tại $(i,j)$, thì $w_a \approx 1$ và kết quả tổng hợp xấp xỉ $2 f_{V,ij}^D$ --- giữ nguyên cạnh MRI mà không bị pha loãng bởi CT.
+
+Phân tích tần số lượng hóa điều này: phép cộng hai tín hiệu $s_V$ và $s_I$ tại miền tần số tương đương với:
+\begin{equation}
+\mathcal{F}(s_V + s_I) = \mathcal{F}(s_V) + \mathcal{F}(s_I)
+\end{equation}
+Năng lượng tần số cao trong $\mathcal{F}(s_V + s_I)$ phụ thuộc vào pha tương đối giữa hai tín hiệu. Nếu hai modality có cạnh không cùng pha (điều phổ biến trong CT--MRI do cơ chế vật lý khác nhau), cộng tuyến tính khuếch đại một số tần số nhưng triệt tiêu số khác --- kết quả không dự đoán được và phụ thuộc vào từng cặp ảnh cụ thể. Ngược lại, SML lựa chọn dựa trên biên độ cục bộ, không bị ảnh hưởng bởi thông tin pha.
+
+\subsection{Lý do chỉ can thiệp tại Fusion Layer}
+\label{ssec:why-fusion-layer}
+
+Đề xuất của đồ án giữ nguyên toàn bộ Encoder và Decoder, chỉ thay thế quy tắc tiền tổng hợp $R_B$ và $R_D$. Lựa chọn này có ba lý do:
+
+\begin{itemize}\itemsep2pt
+    \item So sánh công bằng: mọi sai biệt kết quả đến trực tiếp từ quy tắc tổng hợp, loại bỏ ảnh hưởng của kiến trúc encoder/decoder.
+    \item Tận dụng pretrained weights: CDDFuse đã được huấn luyện hội tụ trên tập Harvard MIF; khởi tạo từ checkpoint này giúp CDDFuse-AG hội tụ nhanh hơn đáng kể so với train từ đầu.
+    \item Kiểm soát số tham số: toàn bộ đóng góp mới chỉ là \textbf{4.161 tham số}, cho phép kết luận rõ ràng rằng cải thiện đến từ thiết kế quy tắc, không phải từ tăng dung lượng mô hình.
 \end{itemize}
 
 % ================================================================
@@ -166,3 +214,61 @@ trong đó $a = f_V^D$, $b = f_I^D$ là đặc trưng Detail, $\epsilon$ là h�
     \item Lựa chọn theo vị trí (spatially adaptive): tại mỗi điểm ảnh, modality nào có cạnh sắc nét hơn sẽ được ưu tiên --- khai thác tính bổ trợ giữa MRI (mô mềm) và CT/PET/SPECT (cấu trúc đặc thù).
     \item Không có tham số học: quy tắc hoàn toàn dựa trên đặc trưng đầu vào, không phụ thuộc vào khởi tạo hay dữ liệu huấn luyện --- tính tổng quát hóa cao.
 \end{itemize}
+
+% ================================================================
+\section{Phân tích tham số WAvg và ý nghĩa lâm sàng}
+\label{sec:wavg-analysis}
+
+\subsection{Ý nghĩa của tham số $\alpha$}
+\label{ssec:alpha-meaning}
+
+Tham số duy nhất của quy tắc WAvg là $\theta \in \mathbb{R}$, được chuyển sang $\alpha = \sigma(\theta) \in (0,1)$ qua hàm sigmoid. Sau khi huấn luyện hội tụ, $\alpha$ phản ánh tỷ lệ đóng góp tối ưu giữa hai modality cho thành phần cấu trúc tổng thể:
+
+\begin{itemize}\itemsep2pt
+    \item $\alpha > 0{,}5$: mô hình đặt trọng số cao hơn cho modality $V$ (MRI) trong thành phần Base --- hợp lý khi MRI cung cấp cấu trúc mô mềm chi tiết hơn CT/PET/SPECT cho hầu hết vùng não.
+    \item $\alpha < 0{,}5$: mô hình ưu tiên modality $I$ (CT/PET/SPECT) --- xảy ra khi thành phần tần số thấp của nguồn thứ hai mang nhiều thông tin cấu trúc hơn.
+    \item $\alpha = 0{,}5$: tương đương phép cộng Sum gốc (sau khi chia 2) --- tức CDDFuse gốc là trường hợp đặc biệt của CDDFuse-AG với $\theta = 0$.
+\end{itemize}
+
+Điều này có ý nghĩa lâm sàng trực tiếp: mô hình tự học được modality nào cần được ưu tiên cho thành phần cấu trúc trên tập dữ liệu cụ thể, thay vì lập trình cứng tỷ lệ $50\text{--}50$.
+
+\subsection{Khởi tạo và hội tụ}
+\label{ssec:alpha-convergence}
+
+$\theta$ được khởi tạo bằng $0$ ($\alpha_0 = 0{,}5$), đảm bảo điểm xuất phát là phép cộng đối xứng --- tương tự CDDFuse gốc. Trong Pha~I (đóng băng WAvg), $\theta$ không thay đổi. Trong Pha~II (huấn luyện end-to-end), gradient từ hàm mất mát $\mathcal{L}_{\mathrm{int}}$ và $\mathcal{L}_{\mathrm{grad}}$ điều chỉnh $\theta$ để tối ưu hóa chất lượng ảnh tổng hợp trên tập huấn luyện Harvard MIF.
+
+Vì WAvg chỉ có một bậc tự do và $\sigma(\cdot)$ liên tục, gradient luôn tồn tại và $\alpha$ hội tụ nhanh mà không gây bất ổn định quá trình huấn luyện --- đây là lợi thế so với các quy tắc Base phức tạp hơn (VSM, LocalEnergy) đòi hỏi tính toán nặng hơn và dễ gây bất ổn khi tích hợp vào pipeline end-to-end.
+
+% ================================================================
+\section{Phân tích độ phức tạp tính toán}
+\label{sec:complexity}
+
+So với CDDFuse gốc, CDDFuse-AG chỉ thêm hai thao tác nhỏ tại Fusion Layer trong quá trình suy diễn (inference):
+
+\begin{enumerate}\itemsep2pt
+    \item Tính WAvg cho nhánh Base: một phép nhân vô hướng và cộng vector --- chi phí $O(H'W'C)$, không đáng kể so với BaseFuseLayer ($O(H'W'C^2)$ với self-attention).
+    \item Tính SML cho nhánh Detail: tính Modified Laplacian qua tích chập $3\times3$ và tổng hợp vùng lân cận $3\times3$ --- chi phí $O(H'W'C)$ với hằng số nhỏ (hai phép tích chập $3\times3$ với kernel cố định).
+\end{enumerate}
+
+Bảng~\ref{tab:complexity} tóm tắt so sánh giữa CDDFuse và CDDFuse-AG:
+
+\begin{table}[H]
+\centering
+\small
+\caption{So sánh số tham số và overhead tính toán giữa CDDFuse và CDDFuse-AG.}
+\label{tab:complexity}
+\setlength{\tabcolsep}{10pt}
+\begin{tabular}{lcc}
+\toprule
+& CDDFuse & CDDFuse-AG \\
+\midrule
+Tổng tham số & $1{,}188{,}272$ & $1{,}192{,}433$ \\
+Tham số thêm & --- & $4{,}161$ ($+0{,}35\%$) \\
+Overhead WAvg & --- & $O(H'W'C)$, 1 phép nhân \\
+Overhead SML & --- & $O(H'W'C)$, 2 tích chập $3{\times}3$ cố định \\
+Thời gian inference & $t_0$ & $t_0 + \Delta t \approx t_0$ \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Overhead thực tế của SML là không đáng kể vì kernel $3\times3$ với hệ số cố định $[0, -1, 0; -1, 4, -1; 0, -1, 0]$ được thực hiện song song trên GPU trong một lần forward pass. Toàn bộ cải thiện chất lượng đến từ chiến lược lựa chọn thông tin, không phải từ tăng dung lượng mô hình hay chi phí tính toán.
