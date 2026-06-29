@@ -26,16 +26,16 @@ Seed & 42 \\
 \end{center}
 
 \paragraph{Dữ liệu.}
-Tập dữ liệu \emph{Harvard Medical Image Fusion} \cite{zhao2023cddfuse} đã được chia sẵn train/test:
+Tập dữ liệu \emph{Harvard Medical Image Fusion}~\cite{johnson1999harvard} --- được sử dụng rộng rãi trong các nghiên cứu MIF~\cite{ma2019fusiongan,zhao2023cddfuse} --- đã được chia sẵn train/test:
 \begin{itemize}\itemsep0pt
     \item \textbf{Huấn luyện}: 738 cặp ảnh ($160$ CT-MRI + $245$ PET-MRI + $333$ SPECT-MRI). Sau khi crop patch $128 \times 128$ với stride $64$ và loại bỏ patch low-contrast, còn lại $\sim 6000$--$8000$ patches dùng cho training.
-    \item \textbf{Đánh giá}: 72 cặp test (24 mỗi modality CT, PET, SPECT), dùng chung với các phương pháp SOTA trong Bảng~\ref{tab:sota-ct}--\ref{tab:sota-spect}.
+    \item \textbf{Đánh giá}: 72 cặp test (24 mỗi modality CT, PET, SPECT), dùng chung với các phương pháp SOTA trong Bảng~\ref{tab:sota-ct}--\ref{tab:sota-spect}. Bộ chỉ số đánh giá tuân theo chuẩn VIFB~\cite{liu2020vifb}.
 \end{itemize}
 
 \section{Tiền xử lý dữ liệu huấn luyện}
 \label{sec:dataflow}
 
-Dữ liệu đầu vào là 738 cặp ảnh (MRI + CT/PET/SPECT) từ Harvard MIF, được xử lý qua 4 bước:
+Dữ liệu đầu vào là 738 cặp ảnh (MRI + CT/PET/SPECT) từ Harvard MIF~\cite{johnson1999harvard}, được xử lý qua 4 bước:
 
 \begin{enumerate}\itemsep2pt
     \item \textbf{Chuẩn hóa modality}: CT/MRI (grayscale) chuẩn hóa trực tiếp về $[0,1]$. PET/SPECT (RGB pseudo-color) chuyển sang YCbCr, lấy kênh $Y = 0.299R + 0.587G + 0.114B$; hai kênh $C_b, C_r$ giữ lại để khôi phục màu khi xuất kết quả.
