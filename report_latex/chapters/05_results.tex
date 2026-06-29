@@ -4,11 +4,30 @@
 \section{Tập dữ liệu}
 \label{sec:dataset}
 
-Tập dữ liệu \emph{Harvard Medical Image Fusion}~\cite{johnson1999harvard} --- được sử dụng rộng rãi trong các nghiên cứu MIF~\cite{ma2019fusiongan,zhao2023cddfuse} --- đã được chia sẵn train/test:
-\begin{itemize}\itemsep0pt
-    \item \textbf{Huấn luyện}: 738 cặp ảnh ($160$ CT-MRI + $245$ PET-MRI + $333$ SPECT-MRI).
-    \item \textbf{Đánh giá}: 72 cặp test (24 mỗi modality CT, PET, SPECT), dùng chung với các phương pháp SOTA trong Bảng~\ref{tab:sota-ct}--\ref{tab:sota-spect}.
+Đồ án sử dụng tập dữ liệu \textbf{Harvard Medical Image Fusion}~\cite{johnson1999harvard} --- bộ dữ liệu chuẩn được sử dụng rộng rãi trong cộng đồng nghiên cứu MIF~\cite{ma2019fusiongan,zhao2023cddfuse}. Tập dữ liệu gồm các cặp ảnh não người thật, được thu thập và công bố bởi Wellesley College Brain Imaging Center.
+
+\paragraph{Cấu trúc dữ liệu.}
+Toàn bộ dữ liệu được sắp xếp theo ba cặp modality:
+\begin{itemize}\itemsep2pt
+    \item \textbf{CT--MRI}: 768 cặp ảnh (cấu trúc xương + mô mềm não).
+    \item \textbf{PET--MRI}: 768 cặp ảnh (phân bố glucose + giải phẫu).
+    \item \textbf{SPECT--MRI}: 480 cặp ảnh (lưu lượng máu não + giải phẫu).
 \end{itemize}
+
+\paragraph{Phân chia train/test.}
+\begin{itemize}\itemsep2pt
+    \item \textbf{Tập huấn luyện}: 738 cặp ảnh ($160$ CT-MRI + $245$ PET-MRI + $333$ SPECT-MRI).
+    \item \textbf{Tập kiểm thử}: 72 cặp ảnh (24 mỗi modality), được giữ cố định cho tất cả thực nghiệm và dùng chung với các phương pháp SOTA trong Bảng~\ref{tab:sota-ct}--\ref{tab:sota-spect}.
+\end{itemize}
+
+Kích thước ảnh gốc thay đổi từ $182\times218$ đến $256\times256$ pixel. Tất cả ảnh đã được đăng ký (registered) --- từng pixel trong ảnh CT/PET/SPECT tương ứng chính xác với cùng vị trí giải phẫu trong ảnh MRI. Hình~\ref{fig:harvard-grid} minh họa sự đa dạng về cấu trúc não giữa các bệnh nhân trong tập kiểm thử.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.88\textwidth]{figures/fig_harvard_grid.png}
+    \caption{Mẫu ảnh từ tập kiểm thử Harvard: 5 bệnh nhân $\times$ 4 modality (CT, MRI, PET, SPECT).}
+    \label{fig:harvard-grid}
+\end{figure}
 
 \paragraph{Tiền xử lý.}
 Dữ liệu đầu vào được xử lý qua 4 bước:

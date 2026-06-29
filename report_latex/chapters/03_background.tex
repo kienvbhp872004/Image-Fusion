@@ -112,35 +112,6 @@ Lưu lượng máu não và tim. Chi phí thấp hơn PET, thiết bị phổ bi
 Sự bổ trợ thông tin giữa các modality tạo ra nhu cầu tự nhiên cho bài toán tổng hợp: CT--MRI kết hợp cấu trúc xương (CT) với cấu trúc mô mềm (MRI); PET--MRI và SPECT--MRI kết hợp thông tin chức năng (PET/SPECT) với thông tin giải phẫu (MRI).
 
 % ----------------------------------------------------------------
-\subsection{Tập dữ liệu Harvard Medical Image Fusion}
-\label{ssec:harvard}
-
-Đồ án sử dụng tập dữ liệu \textbf{Harvard Medical Image Fusion}~\cite{zhao2023cddfuse}, bộ dữ liệu chuẩn được sử dụng rộng rãi trong cộng đồng nghiên cứu MIF. Tập dữ liệu gồm các cặp ảnh não người thật, được thu thập và công bố bởi Wellesley College Brain Imaging Center.
-
-\paragraph{Cấu trúc dữ liệu.}
-Toàn bộ dữ liệu được sắp xếp theo ba cặp modality:
-\begin{itemize}\itemsep2pt
-    \item \textbf{CT--MRI}: 768 cặp ảnh (cấu trúc xương + mô mềm não).
-    \item \textbf{PET--MRI}: 768 cặp ảnh (phân bố glucose + giải phẫu).
-    \item \textbf{SPECT--MRI}: 480 cặp ảnh (lưu lượng máu não + giải phẫu).
-\end{itemize}
-
-\paragraph{Phân chia train/test.}
-Đồ án dùng phân chia:
-\begin{itemize}\itemsep2pt
-    \item \textbf{Tập huấn luyện}: 738 cặp ảnh (246 mỗi modality CT/PET/SPECT).
-    \item \textbf{Tập kiểm thử}: 72 cặp ảnh (24 mỗi modality), được giữ cố định cho tất cả thực nghiệm.
-\end{itemize}
-
-Kích thước ảnh gốc thay đổi từ $182\times218$ đến $256\times256$ pixel. Hình~\ref{fig:harvard-grid} minh họa sự đa dạng về cấu trúc não và chất lượng ảnh giữa các bệnh nhân trong tập kiểm thử.
-
-\begin{figure}[H]
-    \centering
-    \includegraphics[width=0.88\textwidth]{figures/fig_harvard_grid.png}
-    \caption{Mẫu ảnh từ tập kiểm thử Harvard: 5 bệnh nhân × 4 modality (CT, MRI, PET, SPECT).}
-    \label{fig:harvard-grid}
-\end{figure} Tất cả ảnh đều đã được đăng ký (registered) --- tức là hai ảnh trong mỗi cặp đã được căn chỉnh không gian, đảm bảo từng pixel trong ảnh CT/PET/SPECT tương ứng chính xác với cùng vị trí giải phẫu trong ảnh MRI.
-
 % ================================================================
 \section{Nền tảng kiến trúc học sâu}
 \label{sec:bg-dl}
