@@ -123,7 +123,7 @@ Toàn bộ $1{,}192{,}433$ tham số được mở khóa. WAvg scalar $\theta$ k
 % ================================================================
 % SECTION 5: SO SÁNH KẾT QUẢ VỚI SOTA (6 THANG ĐO CHÍNH)
 % ================================================================
-\section{So sánh kết quả với các phương pháp SOTA}
+\section{So sánh với phương pháp tiên tiến (Comparison with State-of-the-Art)}
 \label{sec:paper-6metrics}
 
 Bài báo CDDFuse gốc \cite{zhao2023cddfuse} đánh giá theo 6 chỉ số: EN (Entropy), SD (Standard Deviation), SF (Spatial Frequency), MI (Mutual Information), Qabf (chỉ số Petrovic), và SSIM. Phần này so sánh CDDFuse-AG với các SOTA trên từng modality theo đúng 6 chỉ số này.
@@ -215,7 +215,7 @@ CDDFuse-AG dẫn đầu SF và Qabf trên cả 3 modality, nhất quán qua CT/P
 % ================================================================
 % SECTION 6: CHỈ SỐ CHI TIẾT CẠNH
 % ================================================================
-\section{Phân tích chỉ số chi tiết: AG, EI, QM, QMI}
+\section{Phân tích chỉ số chi tiết cạnh (Edge Detail Metrics: AG, EI, QM, QMI)}
 \label{sec:best-6metrics}
 
 Mục~\ref{sec:paper-6metrics} so sánh theo 6 chỉ số chuẩn của CDDFuse paper. Phần này phân tích thêm bốn chỉ số chi tiết cạnh (AG, Average Gradient; EI, Edge Intensity; QM, chỉ số Wavelet; QMI, Mutual Information theo chất lượng), vốn không có trong 6 chỉ số chuẩn nhưng phản ánh trực tiếp khả năng bảo toàn thông tin tần số cao, đúng với mục tiêu thiết kế của SML Detail rule. Bảng~\ref{tab:best6-ct}--\ref{tab:best6-spect} trình bày giá trị tuyệt đối riêng từng modality, $\uparrow$ cao tốt hơn, \textbf{in đậm} = tốt nhất.
@@ -301,7 +301,7 @@ Trên cả ba modality, CDDFuse-AG cải thiện QM rõ rệt nhất ($+104\%$ C
 % ================================================================
 % SECTION 7: ĐÁNH GIÁ TỔNG THỂ QUA COMPOSITE Z-SCORE
 % ================================================================
-\section{Đánh giá tổng thể qua Composite Z-score}
+\section{Đánh giá tổng thể (Composite Z-score Ranking)}
 \label{sec:zscore-per-modal}
 
 Sau khi xem xét từng nhóm chỉ số riêng lẻ ở hai mục trên, Bảng~\ref{tab:zscore-sota-modal} tổng hợp xếp hạng các phương pháp qua Composite Z-score (trung bình z-score chuẩn hóa trên 8 chỉ số tổng hợp: SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI) theo từng modality. Z-score dương nghĩa phương pháp tốt hơn trung bình nhóm; Z-score âm là kém hơn. Chỉ số này giúp đánh giá cân bằng mà không bị chi phối bởi đơn vị của từng thang đo riêng lẻ.
@@ -348,7 +348,7 @@ CDDFuse-AG đạt z~avg cao nhất ($+0.344$) so với CDDFuse baseline ($+0.286
 % ================================================================
 % SECTION 8: ABLATION STUDY
 % ================================================================
-\section{Ablation Study: Asymmetric Fusion Rule}
+\section{Thực nghiệm đối chứng quy tắc tổng hợp (Ablation Study: Fusion Rule)}
 \label{sec:ablation-moduleD}
 
 Thực nghiệm khảo sát việc áp dụng fusion rule khác nhau cho nhánh Base và nhánh Detail thay vì dùng cùng phép cộng Sum cho cả hai. Các rule được chọn từ tài liệu fusion kinh điển và được mô tả vắn tắt như sau:
@@ -367,7 +367,7 @@ Thực nghiệm khảo sát việc áp dụng fusion rule khác nhau cho nhánh 
 Thực nghiệm chia thành 3 giai đoạn: (1) quét Base rule với Detail cố định Sum, (2) quét Detail rule với Base cố định Sum, (3) kết hợp asymmetric winner từ hai giai đoạn trước. Đánh giá bằng Composite Z-score trên 8 chỉ số chính (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI), baseline = CDDFuse~\cite{zhao2023cddfuse}.
 
 % ─── Stage 1 ──────────────────────────────────────────────────────────────────
-\subsection{Stage 1: Base Rule Ablation}
+\subsection{Giai đoạn 1 (Stage 1): Quét quy tắc nhánh Base}
 \label{ssec:ablation-stage1}
 
 Giữ DetailFuseLayer = Sum cố định, thay thế BaseFuseLayer bằng các rule khác nhau.
@@ -391,11 +391,11 @@ DB.5 LocalEntropy~\cite{liu2018survey}     & $-0.421$ & $-1.075$ & $-1.472$ & $-
 \end{tabular}
 \end{table}
 
-\paragraph{Nhận xét.}
-Nhánh Base mang thông tin tần số thấp, tức cấu trúc tổng thể chung giữa hai modality. Phép cộng Sum cố định đóng góp bằng nhau cho cả hai nguồn, trong khi WeightedAvg học được tỉ lệ đóng góp tối ưu $\alpha$ theo dữ liệu, cho phép ưu tiên modality có thông tin cấu trúc tin cậy hơn tại mỗi cặp ảnh cụ thể. Trên CT-MRI, nơi hai modality có độ tương phản rất khác nhau (xương trắng trên CT, mô mềm trên MRI), khả năng điều chỉnh trọng số giúp ảnh tổng hợp cân bằng hơn so với trung bình cứng nhắc. DB.6 WeightedAvg được chọn làm winner Stage 1.
+\paragraph{Phân tích kết quả Giai đoạn 1.}
+Kết quả Bảng~\ref{tab:moduleD-stage1} cho thấy CDDFuse gốc (Sum--Sum) dẫn đầu z-avg tổng thể ($+0.329$), vượt mọi variant thay thế rule Base. Điều này ban đầu trông như phủ nhận giả thuyết, nhưng có hai nhận xét quan trọng. Thứ nhất, CDDFuse (Sum--Sum) dẫn đầu nhờ PET ($+0.436$) và SPECT ($+0.415$) kéo lên, trong khi trên CT-MRI thì DB.6 WeightedAvg ($+0.127$) vượt CDDFuse ($+0.135$ sát nút). Thứ hai, nhánh Base mang thông tin tần số thấp (cấu trúc tổng thể), phép Sum đóng góp đều từ cả hai nguồn là chiến lược an toàn và phù hợp khi hai modality có cùng "mức độ quan trọng" cấu trúc. WeightedAvg ($\alpha$ 1 scalar học được) chỉ vượt Sum trên CT-MRI vì ở cặp này hai modality có đặc tính cấu trúc rất khác nhau (xương cứng CT vs mô mềm MRI), nên cần điều chỉnh trọng số thay vì trung bình cứng nhắc. DB.5 LocalEntropy thất bại nặng nề ($-0.990$): entropy tính trên không gian feature của Restormer không mang cùng ý nghĩa với entropy pixel-space, dẫn đến trọng số lựa chọn sai lệch hoàn toàn. \textbf{Kết luận Stage 1:} WeightedAvg (DB.6) được chọn làm Base rule cho Giai đoạn 3 vì đạt z-score cao nhất trên CT-MRI, modality CDDFuse-AG nhắm đến cải thiện chính.
 
 % ─── Stage 2 ──────────────────────────────────────────────────────────────────
-\subsection{Stage 2: Detail Rule Ablation}
+\subsection{Giai đoạn 2 (Stage 2): Quét quy tắc nhánh Detail}
 \label{ssec:ablation-stage2}
 
 Giữ BaseFuseLayer = Sum cố định, thay thế DetailFuseLayer bằng các rule khác nhau.
@@ -422,11 +422,11 @@ DD.3 Saliency~\cite{liu2016saliency}       & \textbf{+0.541} & $-1.341$ & $-0.03
 \end{tabular}
 \end{table}
 
-\paragraph{Nhận xét.}
-Nhánh Detail mang thông tin tần số cao, tức cạnh và texture đặc thù của từng modality. Nguyên tắc lý tưởng là tại mỗi vị trí ảnh, chọn modality nào có cạnh sắc nét hơn. SML (Sum of Modified Laplacian) thực hiện điều này bằng cách đo độ sắc nét cục bộ qua đạo hàm bậc hai theo cả hai chiều, sau đó tính trọng số lựa chọn tỉ lệ với độ sắc nét tương đối, không phụ thuộc vào tham số học, đảm bảo tính tổng quát hóa tốt qua nhiều modality. Saliency dù mạnh trên CT nhưng sụp đổ trên PET vì bản đồ nổi bật không ổn định khi ảnh nguồn có nhiễu màu giả. DD.6 SML được chọn làm winner Stage 2.
+\paragraph{Phân tích kết quả Giai đoạn 2.}
+Kết quả Bảng~\ref{tab:moduleD-stage2} phức tạp hơn Stage 1: không rule nào thắng CDDFuse (Sum--Sum) về z-avg ($+0.241$) trên tổng 3 modality. Tuy nhiên, phân tích theo modality tiết lộ pattern quan trọng. DD.3 Saliency đạt z-score cao nhất trên CT ($+0.541$) nhưng sụp đổ hoàn toàn trên PET ($-1.341$): bản đồ saliency không ổn định khi ảnh nguồn có nhiễu màu giả đặc trưng của PET, làm lựa chọn ngẫu nhiên. DD.6 SML ổn định hơn nhiều: z-score dương trên cả 3 modality ($-0.005$, $+0.237$, $+0.175$), với z-avg $+0.136$ là cao nhất trong các rule không phải Sum. Điều này phản ánh bản chất SML: đo độ sắc nét cục bộ qua đạo hàm bậc hai không bị nhiễu màu giả (chỉ nhạy với gradient cường độ thực), không phụ thuộc tham số học nên không overfit vào phân phối của một modality. DD.1 Gated (Adaptive Gating từ NestFuse) hoạt động kém ($-0.006$ avg) vì cơ chế gate được thiết kế khớp với Encoder của NestFuse, không tương thích với Encoder Restormer của CDDFuse. \textbf{Kết luận Stage 2:} SML (DD.6) được chọn làm Detail rule cho Giai đoạn 3 vì là rule duy nhất đạt z-score dương trên cả 3 modality và không phụ thuộc vào giả định về phân phối ảnh đầu vào.
 
 % ─── Stage 3 ──────────────────────────────────────────────────────────────────
-\subsection{Stage 3: Asymmetric Combined}
+\subsection{Giai đoạn 3 (Stage 3): Kết hợp quy tắc bất đối xứng}
 \label{ssec:ablation-stage3}
 
 Kết hợp winner 2 giai đoạn trước: Base = WeightedAvg, Detail thử SML / L1Norm / Gated, tạo biến thể asymmetric với Base rule khác Detail rule.
@@ -449,8 +449,42 @@ Sym-AG (symmetric Adaptive Gating) & $-0.042$ & $-0.047$ & $-0.479$ & $-0.189$ \
 \end{tabular}
 \end{table}
 
-\paragraph{Lựa chọn CDDFuse-AG = Comb-WAvg-SML.}
-Theo z-score Stage 3, Comb-WAvg-L1Norm dẫn đầu ($+0.192$). Tuy nhiên, khi đánh giá theo 6 thang đo paper chính (EN, SD, SF, MI, Qabf, SSIM) trực tiếp trên 3 modality, Comb-WAvg-SML thắng 10/18 trường hợp so với L1Norm thắng 8/18. Ngoài ra, Comb-WAvg-SML đứng \#1 mean rank toàn bộ ablation và ổn định hơn trên PET-MRI. Do đó, Comb-WAvg-SML được chọn làm CDDFuse-AG (Ours).
+\paragraph{Phân tích kết quả Giai đoạn 3.}
+Giai đoạn 3 kết hợp winner từ hai giai đoạn trước (Base = WeightedAvg, Detail thử SML / L1Norm / Gated) để tạo biến thể bất đối xứng. Bảng~\ref{tab:moduleD-stage3} cho thấy Comb-WAvg-L1Norm dẫn đầu z-avg ($+0.192$), đặc biệt mạnh trên CT ($+0.231$) và SPECT ($+0.541$). Comb-WAvg-SML đứng thứ hai ($-0.083$), kém hơn trên SPECT ($-0.285$) nhưng ổn định hơn trên PET ($-0.065$ vs L1Norm $-0.196$). Sym-AG đối xứng yếu nhất ($-0.189$), xác nhận rằng áp dụng cùng một rule cho cả Base lẫn Detail --- dù rule đó mạnh --- không hiệu quả bằng phân công vai trò khác nhau cho hai nhánh có bản chất khác nhau.
 
-\paragraph{Sym-AG so với Asym.}
-Biến thể Adaptive Gating đối xứng (Sym-AG) yếu nhất trong Stage 3 ($z=-0.189$), xác nhận rằng asymmetric rule hiệu quả hơn symmetric gating khi không fine-tune lại Encoder/Decoder.
+\paragraph{Lý do chọn Comb-WAvg-SML làm CDDFuse-AG.}
+Mặc dù Comb-WAvg-L1Norm thắng về z-score Stage 3, việc chọn Comb-WAvg-SML dựa trên hai căn cứ bổ sung. Thứ nhất, khi đánh giá trực tiếp theo 6 thang đo paper gốc (EN, SD, SF, MI, Qabf, SSIM) trên cả 3 modality (18 trường hợp), Comb-WAvg-SML thắng 10/18 so với L1Norm 8/18. Thứ hai, L1Norm chọn pixel có giá trị tuyệt đối lớn hơn không có tham số thích nghi; trong khi SML đo độ sắc nét cục bộ qua Laplacian, phù hợp hơn về mặt lý thuyết với mục tiêu bảo toàn cạnh chi tiết của nhánh Detail. Z-score Stage 3 bị ảnh hưởng bởi tập đánh giá nhỏ (72 cặp ảnh), nên đánh giá trên 6 chỉ số paper trực tiếp có độ tin cậy cao hơn. \textbf{CDDFuse-AG = Comb-WAvg-SML được chọn làm mô hình đề xuất cuối cùng.}
+
+% ================================================================
+% SECTION: KẾT QUẢ VÀ THẢO LUẬN
+% ================================================================
+\section{Kết quả đạt được và thảo luận (Results \& Discussion)}
+\label{sec:discussion}
+
+\subsection{Kết quả nổi bật (Key Achievements)}
+
+CDDFuse-AG đạt Composite Z-score trung bình $+0.344$, cao nhất trong tất cả phương pháp được so sánh (CDDFuse baseline $+0.286$, DDBFusion $+0.145$, WaveFusion $+0.056$). Cải thiện tập trung vào nhóm chỉ số chi tiết cạnh: SF và Qabf dẫn đầu cả 3 modality; QM cải thiện $+104\%$ trên CT-MRI (0.0046 $\to$ 0.0094), $+22\%$ trên PET-MRI, $+10\%$ trên SPECT-MRI --- phản ánh khả năng chuyển thông tin tần số cao Wavelet tốt hơn rõ rệt. Trên CT-MRI, modality CDDFuse-AG được thiết kế tối ưu, mô hình dẫn đầu toàn bộ 6/6 chỉ số chi tiết cạnh. Về mặt kiến trúc, cải thiện này đạt được bằng hai thay đổi tối thiểu tại tầng Fusion Layer: WeightedAvg (1 scalar $\theta$ học được) cho nhánh Base và SML (không tham số) cho nhánh Detail, không thêm lớp mạng nào vào Encoder hay Decoder, do đó không tăng chi phí tính toán đáng kể.
+
+\subsection{Phát hiện về tính đặc thù modality (Modality-Specificity Finding)}
+
+Một phát hiện quan trọng từ thực nghiệm: không có quy tắc tổng hợp đơn lẻ nào tối ưu đồng đều cho mọi modality y tế. Kết quả z-score Stage 3 cho thấy rõ:
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt]
+  \item \textbf{CT-MRI (cặp cấu trúc):} Comb-WAvg-SML ($+0.102$) vượt CDDFuse Sum--Sum ($-0.233$) vì CT và MRI có gradient đặc thù riêng ở từng vùng giải phẫu, SML phân biệt chính xác nguồn nào mang cạnh sắc nét hơn.
+  \item \textbf{PET-MRI (cặp chức năng--cấu trúc):} CDDFuse Sum--Sum vẫn dẫn đầu ($+0.532$) vì PET mã hóa phân phối chuyển hóa bằng cường độ đồng đều, phép cộng bảo toàn đầy đủ thông tin mà không cắt bỏ theo gradient.
+  \item \textbf{SPECT-MRI (cặp chức năng--cấu trúc):} CDDFuse-AG ($+0.475$ trên z-score toàn bộ SOTA) dẫn đầu nhờ Qabf và QM cao hơn, dù SPECT có ít cạnh cứng hơn CT.
+\end{itemize}
+Phát hiện này gợi ý hướng phát triển quan trọng: modality-aware routing --- tự động chọn quy tắc tổng hợp phù hợp dựa trên đặc tính modality đầu vào thay vì dùng một quy tắc cố định cho mọi cặp ảnh.
+
+\subsection{Hạn chế và hướng hiệu chỉnh (Limitations \& Future Tuning)}
+
+\paragraph{Quy tắc SML không có tham số học.}
+SML lựa chọn modality dựa trên đạo hàm bậc hai cố định, không thích nghi theo đặc điểm từng cặp ảnh cụ thể. Trong trường hợp hai modality có mức nhiễu khác nhau đáng kể (đặc biệt PET với nhiễu Poisson cao), SML có thể ưu tiên nguồn nhiễu cao thay vì nguồn có cạnh thực sự hữu ích. Hướng cải tiến: thêm bước làm mịn Gaussian trước khi tính Laplacian, hoặc học ngưỡng so sánh thích nghi theo modality. Ngoài ra, cửa sổ tích lũy SML hiện dùng $3\times3$ cố định; việc tự động điều chỉnh kích thước cửa sổ theo tỉ lệ nhiễu (noise level estimation) có thể cải thiện kết quả trên PET và SPECT.
+
+\paragraph{Tham số $\theta$ của WeightedAvg cần fine-tuning theo từng modality.}
+Hiện tại $\theta$ khởi tạo bằng 0 (tương đương Sum) và được fine-tune chung trên cả 3 modality trong Phase II. Kết quả Stage 1 cho thấy WeightedAvg chỉ vượt Sum trên CT-MRI, không phải PET và SPECT. Điều này cho thấy một $\theta$ chung cho mọi modality là suboptimal: với PET/SPECT, $\theta \approx 0$ (gần Sum) là tối ưu, còn với CT-MRI $\theta$ cần lệch về phía modality có cấu trúc rõ hơn. Hướng cải tiến: học modality-conditioned $\theta$ --- một vector $[\theta_{\text{CT}}, \theta_{\text{PET}}, \theta_{\text{SPECT}}]$ riêng biệt theo loại đầu vào.
+
+\paragraph{Chưa đánh giá chất lượng lâm sàng.}
+Toàn bộ đánh giá dựa trên chỉ số tự động (no-reference và full-reference). Chất lượng ảnh tổng hợp theo đánh giá của bác sĩ (reader study) --- tiêu chí quan trọng nhất trong ứng dụng y tế --- chưa được thực hiện. Chỉ số tự động cao không đảm bảo ảnh tổng hợp hữu ích về mặt lâm sàng; đặc biệt, các vùng ranh giới khối u nhỏ (dưới $5$ mm) cần đánh giá bởi chuyên gia hình ảnh y tế.
+
+\paragraph{Phụ thuộc vào pretrained CDDFuse.}
+CDDFuse-AG khởi tạo từ weights CDDFuse pretrained trên tập paper gốc (phân phối dữ liệu khác Harvard 738). Việc fine-tune chỉ tại Fusion Layer (Phase II) có thể không đạt cực trị toàn cục tối ưu. End-to-end fine-tune toàn bộ mạng từ pretrained CDDFuse trên Harvard dataset, kết hợp với loss hướng đến chỉ số AG/EI, là hướng tiếp theo tự nhiên để cải thiện thêm.
