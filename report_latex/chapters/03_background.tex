@@ -48,7 +48,7 @@ Trước khi đưa vào mạng, ảnh được chuẩn hóa về khoảng $[0, 1
 \subsection{Các phương thức ảnh y tế}
 \label{ssec:modalities}
 
-Bốn phương thức ảnh y tế chính được sử dụng trong đồ án có đặc điểm vật lý và thông tin bổ sung cho nhau, được tóm tắt trong Bảng~\ref{tab:modalities}.
+Bốn phương thức ảnh y tế chính được sử dụng trong đồ án có đặc điểm vật lý và thông tin bổ sung cho nhau~\cite{liu2018survey}, được tóm tắt trong Bảng~\ref{tab:modalities}.
 
 \begin{table}[H]
 \centering
@@ -120,7 +120,7 @@ Sự bổ trợ thông tin giữa các modality tạo ra nhu cầu tự nhiên c
 \label{ssec:cnn-attention}
 
 \paragraph{Mạng tích chập (CNN).}
-Mạng nơ-ron tích chập là nền tảng của xử lý ảnh hiện đại. Phép tích chập 2D áp dụng bộ lọc (kernel) $k \in \mathbb{R}^{K \times K}$ trượt qua ảnh đầu vào để trích xuất đặc trưng cục bộ:
+Mạng nơ-ron tích chập là nền tảng của xử lý ảnh hiện đại~\cite{lecun1998gradient}. Phép tích chập 2D áp dụng bộ lọc (kernel) $k \in \mathbb{R}^{K \times K}$ trượt qua ảnh đầu vào để trích xuất đặc trưng cục bộ:
 \begin{equation}
 (I * k)[i, j] = \sum_{m=0}^{K-1} \sum_{n=0}^{K-1} I[i+m, j+n] \cdot k[m, n]
 \end{equation}
@@ -143,7 +143,7 @@ Cụ thể, đặc trưng đầu vào được chiếu tuyến tính thành ba m
     \item $V$ (Value): thông tin thực sự được lấy ra từ mỗi vị trí.
 \end{itemize}
 
-Mức độ liên quan giữa một query và tất cả các key được tính bằng tích vô hướng $QK^\top$, sau đó chia cho $\sqrt{d_k}$ để tránh giá trị quá lớn làm gradient bão hòa. Hàm softmax chuyển các điểm số này thành trọng số chú ý (attention weights) tổng bằng 1, thể hiện ``tôi quan tâm đến vị trí kia bao nhiêu phần trăm''. Cuối cùng, các giá trị $V$ được tổng hợp có trọng số:
+Mức độ liên quan giữa một query và tất cả các key được tính bằng tích vô hướng $QK^\top$, sau đó chia cho $\sqrt{d_k}$ để tránh giá trị quá lớn làm gradient bão hòa. Hàm softmax chuyển các điểm số này thành trọng số chú ý (attention weights) tổng bằng 1, thể hiện ``tôi quan tâm đến vị trí kia bao nhiêu phần trăm''. Cuối cùng, các giá trị $V$ được tổng hợp có trọng số~\cite{vaswani2017attention}:
 \begin{equation}
 \mathrm{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V
 \end{equation}
@@ -487,7 +487,7 @@ trong đó $H(\cdot)$ là entropy. $\uparrow$ cao tốt hơn.
 \subsubsection*{Nhóm 2: Cấu trúc}
 
 \paragraph{SSIM (Structural Similarity Index).}
-Đo độ tương đồng cấu trúc giữa ảnh fused và ảnh tham chiếu dựa trên luminance, contrast và structure:
+Đo độ tương đồng cấu trúc giữa ảnh fused và ảnh tham chiếu dựa trên luminance, contrast và structure~\cite{wang2004ssim}:
 \begin{equation}
 \mathrm{SSIM}(X,F) = \frac{(2\mu_X\mu_F+c_1)(2\sigma_{XF}+c_2)}{(\mu_X^2+\mu_F^2+c_1)(\sigma_X^2+\sigma_F^2+c_2)}
 \end{equation}
@@ -504,21 +504,21 @@ Giá trị cao hơn phản ánh vùng sáng--tối phân biệt rõ hơn, nội 
 \subsubsection*{Nhóm 3: Biên và gradient}
 
 \paragraph{Spatial Frequency (SF).}
-Đo mức độ hoạt động tần số không gian tổng thể của ảnh fused:
+Đo mức độ hoạt động tần số không gian tổng thể của ảnh fused~\cite{eskicioglu1995sf}:
 \begin{equation}
 \mathrm{SF}(F) = \sqrt{RF^2 + CF^2}
 \end{equation}
 trong đó $RF = \sqrt{\frac{1}{MN}\sum_{i,j}(F_{i,j}-F_{i,j-1})^2}$ (Row Frequency) và $CF = \sqrt{\frac{1}{MN}\sum_{i,j}(F_{i,j}-F_{i-1,j})^2}$ (Column Frequency). Giá trị cao hơn nghĩa là ảnh fused có nhiều chi tiết kết cấu và biên hơn. $\uparrow$ cao tốt hơn.
 
 \paragraph{Average Gradient (AG).}
-Đo độ sắc nét trung bình của ảnh fused thông qua gradient cục bộ:
+Đo độ sắc nét trung bình của ảnh fused thông qua gradient cục bộ~\cite{cui2015ag}:
 \begin{equation}
 \mathrm{AG}(F) = \frac{1}{MN}\sum_{i=1}^{M}\sum_{j=1}^{N} \sqrt{\frac{(\partial F/\partial x)^2 + (\partial F/\partial y)^2}{2}}
 \end{equation}
 trong đó $\partial F/\partial x$, $\partial F/\partial y$ là đạo hàm riêng theo hướng ngang và dọc. Giá trị cao hơn phản ánh ảnh fused sắc nét, bảo toàn tốt chi tiết biên. $\uparrow$ cao tốt hơn.
 
 \paragraph{Edge Intensity (EI).}
-Đo cường độ biên tổng thể sử dụng bộ lọc Laplacian:
+Đo cường độ biên tổng thể sử dụng bộ lọc Laplacian~\cite{liu2020vifb}:
 \begin{equation}
 \mathrm{EI}(F) = \frac{1}{MN}\sum_{i,j}\bigl|\nabla^2 F_{ij}\bigr|
 \end{equation}
