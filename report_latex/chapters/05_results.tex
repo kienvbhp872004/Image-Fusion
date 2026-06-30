@@ -152,6 +152,9 @@ CDDFuse~\cite{zhao2023cddfuse}  & 4.638 & 8.397 & 40.317 & 2.154 & 0.618 & 1.443
 \end{tabular}
 \end{table}
 
+\paragraph{Nhận xét CT-MRI.}
+CDDFuse-AG dẫn đầu 3/6 chỉ số: SF (41.612, tăng $+3.2\%$ so với CDDFuse baseline 40.317), MI (2.211, tăng $+2.6\%$) và Qabf (0.645, tăng $+4.4\%$). Đây là modality CDDFuse-AG cải thiện rõ rệt nhất. Lý do: CT và MRI có cạnh đặc thù ở các vùng giải phẫu khác nhau --- xương cứng trên CT không trùng với ranh giới mô mềm trên MRI --- nên SML phân biệt chính xác tại từng vị trí nguồn nào mang cạnh sắc nét hơn và ưu tiên nguồn đó. Kết quả là ảnh tổng hợp giữ được nhiều chi tiết cạnh từ cả hai nguồn hơn so với phép cộng đều của CDDFuse gốc. EN và SSIM thấp hơn một chút do chiến lược lựa chọn SML giảm một phần thông tin phân phối cường độ tổng thể, đây là trade-off chấp nhận được khi ưu tiên bảo toàn biên.
+
 \subsection{PET-MRI}
 
 \begin{table}[H]
@@ -175,6 +178,9 @@ CDDFuse~\cite{zhao2023cddfuse}  & 5.511 & 8.804 & 34.471 & \textbf{2.653} & 0.76
 \bottomrule
 \end{tabular}
 \end{table}
+
+\paragraph{Nhận xét PET-MRI.}
+CDDFuse-AG dẫn đầu SF (35.619, tăng $+3.3\%$ so CDDFuse 34.471), SD (8.869) và Qabf (0.766). MI giảm nhẹ xuống 2.579 (so với CDDFuse 2.653): trong modality PET, tín hiệu chuyển hóa được mã hóa bằng cường độ pixel, không phải bằng cạnh; SML lựa chọn theo gradient nên một phần thông tin cường độ phổ tần thấp của PET bị giảm. Đây là trade-off chấp nhận được vì cải thiện Qabf $+0.3\%$ và SF $+3.3\%$ xác nhận ảnh tổng hợp có cạnh sắc nét hơn. SSIM thấp hơn TUFusion (1.304 vs 1.365): TUFusion dùng Swin Transformer toàn cục có khả năng bảo toàn cấu trúc ảnh tổng thể tốt, nhưng Qabf của TUFusion (0.168) thấp hơn nhiều cho thấy cạnh chi tiết bị mờ.
 
 \subsection{SPECT-MRI}
 
@@ -200,8 +206,11 @@ CDDFuse~\cite{zhao2023cddfuse}  & 4.970 & 7.337 & 21.845 & 2.715 & 0.750 & 1.403
 \end{tabular}
 \end{table}
 
-\paragraph{Nhận xét.}
-CDDFuse-AG dẫn đầu về SF và Qabf trên cả 3 modality vì hai chỉ số này đo trực tiếp mức độ bảo toàn cạnh và tần số cao, đúng lớp thông tin mà SML Detail rule được thiết kế để khai thác. SML lựa chọn tại mỗi pixel modality nào có đạo hàm bậc hai lớn hơn, tức ưu tiên nguồn có cạnh sắc nét hơn; kết quả là ảnh tổng hợp giữ được nhiều chi tiết tần số cao hơn so với phép cộng Sum cố định của CDDFuse gốc.
+\paragraph{Nhận xét SPECT-MRI.}
+CDDFuse-AG dẫn đầu SF (21.986), MI (2.730) và Qabf (0.752) với biên độ nhỏ so với CDDFuse gốc. SPECT là ảnh chức năng chủ yếu mã hóa phân phối hoạt chất đánh dấu phóng xạ, vốn có phân bố cường độ đồng đều và ít cạnh sắc nét như CT; do đó SML có ít trường hợp phân biệt rõ ràng giữa hai nguồn. Dù vậy, CDDFuse-AG vẫn duy trì kết quả ngang hoặc tốt hơn CDDFuse gốc ở mọi chỉ số, xác nhận quy tắc SML không gây hại ngay cả khi modality thiếu đặc trưng cạnh cứng. EN và SD thấp hơn GeSeNet: GeSeNet dùng mạng sinh tăng cường cường độ tổng thể nhưng Qabf chỉ đạt 0.726, thấp hơn CDDFuse-AG, nghĩa là bảo toàn chi tiết cạnh kém hơn.
+
+\paragraph{Tổng hợp ba modality.}
+CDDFuse-AG dẫn đầu SF và Qabf trên cả 3 modality, nhất quán qua CT/PET/SPECT. Biên độ cải thiện lớn nhất ở CT-MRI ($+4.4\%$ Qabf, $+2.6\%$ MI), nhỏ hơn ở PET-MRI và SPECT-MRI do đặc tính cạnh khác nhau giữa các modality: CT có cạnh xương cứng sắc nét nhất, PET và SPECT thiên về thông tin cường độ chức năng. EN và SSIM không dẫn đầu là trade-off có chủ đích khi SML ưu tiên độ sắc nét cục bộ thay vì đồng đều phân phối cường độ tổng thể.
 
 % ================================================================
 % SECTION 6: CHỈ SỐ CHI TIẾT CẠNH
