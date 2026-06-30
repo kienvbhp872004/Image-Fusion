@@ -351,7 +351,20 @@ CDDFuse-AG đạt z~avg cao nhất ($+0.344$) so với CDDFuse baseline ($+0.286
 \section{Ablation Study: Asymmetric Fusion Rule}
 \label{sec:ablation-moduleD}
 
-Thực nghiệm khảo sát việc áp dụng fusion rule khác nhau cho nhánh Base và nhánh Detail thay vì dùng cùng phép cộng Sum cho cả hai. Các rule được chọn từ tài liệu fusion kinh điển: L1-norm và Weighted Average từ DenseFuse~\cite{li2018densefuse}, Local Energy từ Laplacian pyramid~\cite{burt1983laplacian}, Visual Saliency Map~\cite{wang2008vsm}, SML từ Huang \& Jing~\cite{huang2007sml}, Spatial Frequency~\cite{eskicioglu1995sf}, PCNN từ Eckhorn et al.~\cite{eckhorn1990pcnn}, Adaptive Gating từ NestFuse~\cite{li2020nestfuse}, và Saliency-based selection~\cite{liu2016saliency}. Thực nghiệm chia thành 3 giai đoạn: (1) quét Base rule, (2) quét Detail rule, (3) kết hợp asymmetric. Đánh giá bằng Composite Z-score trên 8 chỉ số chính (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI), baseline = CDDFuse~\cite{zhao2023cddfuse}.
+Thực nghiệm khảo sát việc áp dụng fusion rule khác nhau cho nhánh Base và nhánh Detail thay vì dùng cùng phép cộng Sum cho cả hai. Các rule được chọn từ tài liệu fusion kinh điển và được mô tả vắn tắt như sau:
+
+\begin{itemize}[leftmargin=1.5em, itemsep=2pt, topsep=4pt]
+  \item \textbf{L1-norm và Weighted Average} (DenseFuse~\cite{li2018densefuse}): DenseFuse học feature qua dense connection encoder. L1-norm chọn pixel có giá trị tuyệt đối lớn hơn từ hai nguồn; Weighted Average tính trọng số $\alpha$ từ softmax của activity level, cho phép đóng góp mềm từ cả hai nguồn.
+  \item \textbf{Local Energy} (Laplacian pyramid~\cite{burt1983laplacian}): Phân rã ảnh thành các dải tần qua pyramid, tại mỗi level chọn hệ số có năng lượng cục bộ lớn hơn. Hiệu quả với ảnh đa tỉ lệ, bảo toàn tốt cả cấu trúc thô lẫn chi tiết mịn.
+  \item \textbf{Visual Saliency Map} (VSM~\cite{wang2008vsm}): Tính bản đồ nổi bật thị giác từ gradient và contrast cục bộ, dùng làm trọng số mềm; vùng nổi bật cao trong nguồn nào được ưu tiên trong ảnh tổng hợp.
+  \item \textbf{SML} (Sum-Modified-Laplacian~\cite{huang2007sml}): Tính tổng giá trị tuyệt đối Laplacian trên cửa sổ lân cận, đo độ tập trung tiêu cự cục bộ; nguồn có SML lớn hơn tại mỗi pixel được chọn, không cần tham số học.
+  \item \textbf{Spatial Frequency} (SF~\cite{eskicioglu1995sf}): Đo tần số không gian tổng thể từ đạo hàm hàng và cột; vùng có SF cao hơn trong mỗi nguồn được ưu tiên lựa chọn.
+  \item \textbf{PCNN} (Pulse Coupled Neural Network~\cite{eckhorn1990pcnn}): Mô phỏng xung thần kinh liên kết, nhóm pixel có cường độ tương đồng cùng "bắn" theo vòng lặp; ảnh nguồn có pixel bắn sớm hơn (tín hiệu mạnh hơn) được chọn, nắm bắt được cấu trúc vùng tốt hơn các rule điểm-đơn.
+  \item \textbf{Adaptive Gating} (NestFuse~\cite{li2020nestfuse}): NestFuse dùng nest connection đa tỉ lệ kết hợp attention gate học được; gate điều chỉnh trọng số kết hợp theo nội dung feature, thích nghi với từng vùng ảnh thay vì dùng trọng số toàn cục.
+  \item \textbf{Saliency-based selection} \cite{liu2016saliency}: Tính bản đồ saliency từ contrast cục bộ và background suppression, dùng để chọn vùng thông tin quan trọng từ từng nguồn theo ngưỡng nhị phân.
+\end{itemize}
+
+Thực nghiệm chia thành 3 giai đoạn: (1) quét Base rule với Detail cố định Sum, (2) quét Detail rule với Base cố định Sum, (3) kết hợp asymmetric winner từ hai giai đoạn trước. Đánh giá bằng Composite Z-score trên 8 chỉ số chính (SSIM, PSNR, QG, QM, NABF$\downarrow$, QSF, QMI, MI), baseline = CDDFuse~\cite{zhao2023cddfuse}.
 
 % ─── Stage 1 ──────────────────────────────────────────────────────────────────
 \subsection{Stage 1: Base Rule Ablation}
