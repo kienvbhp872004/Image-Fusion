@@ -2,13 +2,13 @@
 \addcontentsline{toc}{chapter}{Tóm tắt}
 \markboth{Tóm tắt}{}
 
-Tổng hợp ảnh đa phương thức y tế là quá trình kết hợp thông tin từ nhiều loại ảnh chụp như CT, MRI, PET và SPECT thành một ảnh duy nhất, giúp bác sĩ quan sát đồng thời cấu trúc giải phẫu và chức năng cơ quan trong một lần nhìn. Đây là công cụ hỗ trợ chẩn đoán quan trọng cho các bệnh lý phức tạp như ung thư não, đột quỵ và rối loạn thần kinh, nơi mà không một phương thức ảnh đơn lẻ nào cung cấp đủ thông tin.
+Trong thực hành lâm sàng, bác sĩ thường phải đối chiếu đồng thời nhiều loại ảnh y tế để đưa ra chẩn đoán chính xác. Ảnh CT cho thấy rõ cấu trúc xương; ảnh MRI hiển thị chi tiết mô mềm não; ảnh PET và SPECT phản ánh hoạt động chuyển hóa và lưu lượng máu. Việc xem từng loại ảnh riêng lẻ tiềm ẩn nguy cơ bỏ sót thông tin, đặc biệt trong chẩn đoán ung thư não hay rối loạn thần kinh. Tổng hợp ảnh đa phương thức y tế ra đời để tự động kết hợp thông tin từ nhiều nguồn thành một ảnh duy nhất, giúp bác sĩ quan sát toàn diện hơn trong một lần nhìn.
 
-Mô hình CDDFuse \cite{zhao2023cddfuse} (CVPR 2023) phân rã đặc trưng thành nhánh Base (tần số thấp, cấu trúc toàn cục) và nhánh Detail (tần số cao, đặc trưng riêng từng modality), nhưng áp dụng cùng một phép cộng đối xứng cho cả hai nhánh mà không khai thác sự khác biệt bản chất giữa chúng.
+Để ảnh tổng hợp thực sự hữu ích về mặt lâm sàng, nó cần giữ được không chỉ cấu trúc tổng thể mà còn cả những chi tiết tinh tế như ranh giới khối u, viền mô và vùng hoạt động bất thường. Những chi tiết này thường là dấu hiệu then chốt giúp bác sĩ phân biệt mô lành và mô bệnh, nên nếu bị làm mờ hoặc mất đi trong quá trình tổng hợp, giá trị chẩn đoán của ảnh giảm đáng kể.
 
-Đồ án đề xuất CDDFuse-AG, thay phép cộng đối xứng bằng hai quy tắc bất đối xứng: Weighted Average Scalar (WAvg) cho nhánh Base và Sum-Modified-Laplacian (SML) cho nhánh Detail. Quy tắc được lựa chọn qua thực nghiệm ba giai đoạn, khảo sát 13 quy tắc thay thế trên tập dữ liệu Harvard Medical Image Fusion (738 cặp huấn luyện, 72 cặp kiểm thử, ba modality CT/PET/SPECT).
+Đồ án đề xuất CDDFuse-AG, một cải tiến của mô hình CDDFuse (CVPR 2023). Ý tưởng cốt lõi là thay vì xử lý thông tin cấu trúc và thông tin chi tiết theo cùng một cách như mô hình gốc, CDDFuse-AG áp dụng chiến lược khác nhau cho từng loại: thông tin cấu trúc được trung bình hóa cân bằng, còn thông tin chi tiết được lựa chọn tại từng điểm ảnh dựa trên độ sắc nét cục bộ, đảm bảo nét cạnh từ nguồn tốt hơn luôn được ưu tiên giữ lại.
 
-CDDFuse-AG chỉ thêm 4.161 tham số so với baseline, nhưng đạt Composite Z-score trung bình 0,344 so với 0,286 của CDDFuse gốc, dẫn đầu trên sáu chỉ số chi tiết cạnh (SF, AG, EI, Qabf, QM, QMI) trên cả ba modality.
+Thực nghiệm trên 72 cặp ảnh kiểm thử (ba modality CT/PET/SPECT kết hợp với MRI) cho thấy CDDFuse-AG cải thiện rõ rệt các chỉ số đo lường chất lượng chi tiết cạnh so với CDDFuse gốc và năm phương pháp so sánh, trong khi chỉ bổ sung thêm 4.161 tham số. Ảnh tổng hợp sắc nét hơn ở các vùng ranh giới mô có ý nghĩa lâm sàng, giúp bác sĩ nhận diện cấu trúc giải phẫu và phát hiện vùng bất thường dễ dàng hơn.
 
 \bigskip
 \noindent\textbf{Từ khóa:} tổng hợp ảnh y tế đa phương thức, CDDFuse, quy tắc tổng hợp bất đối xứng, Harvard Medical Image Fusion.

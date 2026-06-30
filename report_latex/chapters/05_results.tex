@@ -66,7 +66,7 @@ Toàn bộ huấn luyện được thực hiện trên Kaggle Notebook GPU:
 \paragraph{Hyperparameters.}
 Theo cấu hình paper sect.~5.2 (giữ nguyên với mọi biến thể để đảm bảo so sánh công bằng):
 \begin{center}
-\begin{tabular}{ll}
+\begin{tabular}{lp{0.62\textwidth}}
 \toprule
 Tổng epoch & 120 (Pha I: 40, Pha II: 80) \\
 Optimizer  & 6 Adam riêng (Encoder, Decoder, BaseFuseLayer, DetailFuseLayer, AG-Base, AG-Detail) \\
@@ -395,10 +395,10 @@ DD.3 Saliency~\cite{liu2016saliency}       & \textbf{+0.541} & $-1.341$ & $-0.03
 Nhánh Detail mang thông tin tần số cao, tức cạnh và texture đặc thù của từng modality. Nguyên tắc lý tưởng là tại mỗi vị trí ảnh, chọn modality nào có cạnh sắc nét hơn. SML (Sum of Modified Laplacian) thực hiện điều này bằng cách đo độ sắc nét cục bộ qua đạo hàm bậc hai theo cả hai chiều, sau đó tính trọng số lựa chọn tỉ lệ với độ sắc nét tương đối, không phụ thuộc vào tham số học, đảm bảo tính tổng quát hóa tốt qua nhiều modality. Saliency dù mạnh trên CT nhưng sụp đổ trên PET vì bản đồ nổi bật không ổn định khi ảnh nguồn có nhiễu màu giả. DD.6 SML được chọn làm winner Stage 2.
 
 % ─── Stage 3 ──────────────────────────────────────────────────────────────────
-\subsection{Stage 3: Asymmetric Combined (Base $\neq$ Detail)}
+\subsection{Stage 3: Asymmetric Combined}
 \label{ssec:ablation-stage3}
 
-Kết hợp winner 2 giai đoạn trước: Base = WeightedAvg, Detail thử SML / L1Norm / Gated, tạo biến thể asymmetric (Base rule $\neq$ Detail rule).
+Kết hợp winner 2 giai đoạn trước: Base = WeightedAvg, Detail thử SML / L1Norm / Gated, tạo biến thể asymmetric với Base rule khác Detail rule.
 
 \begin{table}[H]
 \centering
