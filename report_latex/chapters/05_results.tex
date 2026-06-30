@@ -133,7 +133,7 @@ Bài báo CDDFuse gốc \cite{zhao2023cddfuse} đánh giá theo 6 chỉ số: EN
 \begin{table}[H]
 \centering
 \small
-\caption{So sánh trên CT-MRI (24 cặp test). $\uparrow$ cao tốt hơn. \textbf{In đậm} = tốt nhất.}
+\caption[So sánh với SOTA trên CT-MRI (24 cặp test)]{So sánh trên CT-MRI (24 cặp test). $\uparrow$ cao tốt hơn. In đậm: tốt nhất.}
 \label{tab:sota-ct}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lcccccc}
@@ -157,7 +157,7 @@ CDDFuse~\cite{zhao2023cddfuse}  & 4.638 & 8.397 & 40.317 & 2.154 & 0.618 & 1.443
 \begin{table}[H]
 \centering
 \small
-\caption{So sánh trên PET-MRI (24 cặp test). $\uparrow$ cao tốt hơn. \textbf{In đậm} = tốt nhất.}
+\caption[So sánh với SOTA trên PET-MRI (24 cặp test)]{So sánh trên PET-MRI (24 cặp test). $\uparrow$ cao tốt hơn. In đậm: tốt nhất.}
 \label{tab:sota-pet}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lcccccc}
@@ -181,7 +181,7 @@ CDDFuse~\cite{zhao2023cddfuse}  & 5.511 & 8.804 & 34.471 & \textbf{2.653} & 0.76
 \begin{table}[H]
 \centering
 \small
-\caption{So sánh trên SPECT-MRI (24 cặp test). $\uparrow$ cao tốt hơn. \textbf{In đậm} = tốt nhất.}
+\caption[So sánh với SOTA trên SPECT-MRI (24 cặp test)]{So sánh trên SPECT-MRI (24 cặp test). $\uparrow$ cao tốt hơn. In đậm: tốt nhất.}
 \label{tab:sota-spect}
 \setlength{\tabcolsep}{4pt}
 \begin{tabular}{lcccccc}
@@ -214,7 +214,7 @@ Mục~\ref{sec:paper-6metrics} so sánh theo 6 chỉ số chuẩn của CDDFuse 
 % ── CT ────────────────────────────────────────────────────────────────────────
 \begin{table}[H]
 \centering\small
-\caption{So sánh 6 chỉ số tốt nhất: MRI-CT (24 cặp).}
+\caption[Chỉ số chi tiết cạnh trên MRI-CT (24 cặp)]{So sánh chỉ số chi tiết cạnh trên MRI-CT (24 cặp). In đậm: tốt nhất.}
 \label{tab:best6-ct}
 \setlength{\tabcolsep}{4.5pt}
 \begin{tabular}{lcccccc}
@@ -236,7 +236,7 @@ Mục~\ref{sec:paper-6metrics} so sánh theo 6 chỉ số chuẩn của CDDFuse 
 % ── PET ───────────────────────────────────────────────────────────────────────
 \begin{table}[H]
 \centering\small
-\caption{So sánh 6 chỉ số tốt nhất: MRI-PET (24 cặp).}
+\caption[Chỉ số chi tiết cạnh trên MRI-PET (24 cặp)]{So sánh chỉ số chi tiết cạnh trên MRI-PET (24 cặp). In đậm: tốt nhất.}
 \label{tab:best6-pet}
 \setlength{\tabcolsep}{4.5pt}
 \begin{tabular}{lcccccc}
@@ -258,7 +258,7 @@ Mục~\ref{sec:paper-6metrics} so sánh theo 6 chỉ số chuẩn của CDDFuse 
 % ── SPECT ─────────────────────────────────────────────────────────────────────
 \begin{table}[H]
 \centering\small
-\caption{So sánh 6 chỉ số tốt nhất: MRI-SPECT (24 cặp).}
+\caption[Chỉ số chi tiết cạnh trên MRI-SPECT (24 cặp)]{So sánh chỉ số chi tiết cạnh trên MRI-SPECT (24 cặp). In đậm: tốt nhất.}
 \label{tab:best6-spect}
 \setlength{\tabcolsep}{4.5pt}
 \begin{tabular}{lcccccc}
@@ -291,7 +291,7 @@ Sau khi xem xét từng nhóm chỉ số riêng lẻ ở hai mục trên, Bảng
 \begin{table}[H]
 \centering
 \small
-\caption{Composite Z-score theo từng modality (8 chỉ số, 24 cặp test mỗi modality). Z cao hơn = tốt hơn tổng thể. \textbf{In đậm} = tốt nhất cột.}
+\caption[Composite Z-score theo từng modality (8 chỉ số)]{Composite Z-score theo từng modality (8 chỉ số, 24 cặp test mỗi modality). Z cao hơn: tốt hơn tổng thể. In đậm: tốt nhất cột.}
 \label{tab:zscore-sota-modal}
 \begin{tabular}{lcccc}
 \toprule
@@ -344,7 +344,7 @@ Giữ DetailFuseLayer = Sum cố định, thay thế BaseFuseLayer bằng các r
 \begin{table}[H]
 \centering
 \small
-\caption{Stage 1: so sánh Base fusion rule (Detail cố định = Sum). Z-score cao hơn = tốt hơn. \textbf{In đậm} = tốt nhất từng cột.}
+\caption[Ablation Stage 1: so sánh quy tắc nhánh Base]{Stage 1: so sánh Base fusion rule (Detail cố định: Sum). Z-score cao hơn: tốt hơn. In đậm: tốt nhất từng cột.}
 \label{tab:moduleD-stage1}
 \begin{tabular}{lcccc}
 \toprule
@@ -372,7 +372,7 @@ Giữ BaseFuseLayer = Sum cố định, thay thế DetailFuseLayer bằng các r
 \begin{table}[H]
 \centering
 \small
-\caption{Stage 2: so sánh Detail fusion rule (Base cố định = Sum). \textbf{In đậm} = tốt nhất từng cột.}
+\caption[Ablation Stage 2: so sánh quy tắc nhánh Detail]{Stage 2: so sánh Detail fusion rule (Base cố định: Sum). In đậm: tốt nhất từng cột.}
 \label{tab:moduleD-stage2}
 \begin{tabular}{lcccc}
 \toprule
@@ -403,7 +403,7 @@ Kết hợp winner 2 giai đoạn trước: Base = WeightedAvg, Detail thử SML
 \begin{table}[H]
 \centering
 \small
-\caption{Stage 3: Combined asymmetric variants. \textbf{In đậm} = tốt nhất từng cột.}
+\caption[Ablation Stage 3: kết hợp bất đối xứng]{Stage 3: Combined asymmetric variants. In đậm: tốt nhất từng cột.}
 \label{tab:moduleD-stage3}
 \begin{tabular}{lcccc}
 \toprule
