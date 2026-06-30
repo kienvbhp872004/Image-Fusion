@@ -9,7 +9,7 @@
 \subsection{Biểu diễn dữ liệu hình ảnh và không gian màu YCbCr}
 \label{ssec:ycbcr}
 
-Ảnh kỹ thuật số được biểu diễn dưới dạng ma trận số nguyên hai chiều (ảnh xám) hoặc ba chiều (ảnh màu). Mỗi phần tử của ma trận --- gọi là \emph{điểm ảnh} (pixel) --- lưu giá trị cường độ ánh sáng trong khoảng $[0, 255]$ với định dạng 8-bit, hoặc $[0, 1]$ sau khi chuẩn hóa. Trong bài toán tổng hợp ảnh, hầu hết các phương pháp xử lý ảnh xám (thang độ xám, một kênh) vì mỗi modality y tế về cơ bản là bản đồ cường độ đơn kênh.
+Ảnh kỹ thuật số được biểu diễn dưới dạng ma trận số nguyên hai chiều (ảnh xám) hoặc ba chiều (ảnh màu). Mỗi phần tử của ma trận (gọi là điểm ảnh, pixel) lưu giá trị cường độ ánh sáng trong khoảng $[0, 255]$ với định dạng 8-bit, hoặc $[0, 1]$ sau khi chuẩn hóa. Trong bài toán tổng hợp ảnh, hầu hết các phương pháp xử lý ảnh xám (thang độ xám, một kênh) vì mỗi modality y tế về cơ bản là bản đồ cường độ đơn kênh.
 
 Tuy nhiên, đối với ảnh PET và SPECT, thông tin chức năng thường được trực quan hóa bằng bản đồ màu giả (pseudo-color) nhằm giúp bác sĩ phân biệt các vùng hoạt động chuyển hóa. Trong trường hợp này, mô hình cần xử lý ảnh màu mà vẫn bảo toàn thông tin cường độ gốc. Đây là lý do không gian màu YCbCr được ứng dụng rộng rãi trong xử lý ảnh y tế tổng hợp.
 
@@ -42,7 +42,7 @@ Chiến lược này giữ nguyên màu sắc đặc trưng của PET/SPECT (mà
 \end{figure}
 
 \paragraph{Chuẩn hóa và xử lý tiền kỳ.}
-Trước khi đưa vào mạng, ảnh được chuẩn hóa về khoảng $[0, 1]$ bằng phép chia cho 255. Trong quá trình huấn luyện, ảnh được cắt thành các patch $128 \times 128$ để đảm bảo tính đồng nhất đầu vào và giảm yêu cầu bộ nhớ GPU. Tại thời điểm kiểm thử (inference), ảnh gốc kích thước đầy đủ được đưa vào trực tiếp --- CDDFuse xử lý ảnh theo từng cặp độc lập, không yêu cầu padding hay resize.
+Trước khi đưa vào mạng, ảnh được chuẩn hóa về khoảng $[0, 1]$ bằng phép chia cho 255. Trong quá trình huấn luyện, ảnh được cắt thành các patch $128 \times 128$ để đảm bảo tính đồng nhất đầu vào và giảm yêu cầu bộ nhớ GPU. Tại thời điểm kiểm thử (inference), ảnh gốc kích thước đầy đủ được đưa vào trực tiếp: CDDFuse xử lý ảnh theo từng cặp độc lập, không yêu cầu padding hay resize.
 
 % ----------------------------------------------------------------
 \subsection{Các phương thức ảnh y tế}
@@ -89,7 +89,7 @@ Thời gian chụp lâu. Chống chỉ định với bệnh nhân có kim loại
 &
 \includegraphics[width=0.14\textwidth]{figures/modality_samples/PET.png}
 &
-Đo hoạt động chuyển hóa qua chất đánh dấu phóng xạ (FDG --- glucose). Vùng hoạt động mạnh → cường độ cao.
+Đo hoạt động chuyển hóa qua chất đánh dấu phóng xạ (FDG, glucose). Vùng hoạt động mạnh → cường độ cao.
 &
 Thông tin chức năng--phân tử: phát hiện khối u, đánh giá thần kinh.
 &
@@ -143,12 +143,12 @@ Cụ thể, đặc trưng đầu vào được chiếu tuyến tính thành ba m
     \item $V$ (Value): thông tin thực sự được lấy ra từ mỗi vị trí.
 \end{itemize}
 
-Mức độ liên quan giữa một query và tất cả các key được tính bằng tích vô hướng $QK^\top$, sau đó chia cho $\sqrt{d_k}$ để tránh giá trị quá lớn làm gradient bão hòa. Hàm softmax chuyển các điểm số này thành trọng số chú ý (attention weights) tổng bằng 1 --- thể hiện ``tôi quan tâm đến vị trí kia bao nhiêu phần trăm''. Cuối cùng, các giá trị $V$ được tổng hợp có trọng số:
+Mức độ liên quan giữa một query và tất cả các key được tính bằng tích vô hướng $QK^\top$, sau đó chia cho $\sqrt{d_k}$ để tránh giá trị quá lớn làm gradient bão hòa. Hàm softmax chuyển các điểm số này thành trọng số chú ý (attention weights) tổng bằng 1, thể hiện ``tôi quan tâm đến vị trí kia bao nhiêu phần trăm''. Cuối cùng, các giá trị $V$ được tổng hợp có trọng số:
 \begin{equation}
 \mathrm{Attention}(Q, K, V) = \mathrm{softmax}\!\left(\frac{QK^\top}{\sqrt{d_k}}\right) V
 \end{equation}
 
-Multi-head Attention chạy $h$ phép attention song song với không gian chiếu khác nhau, sau đó nối kết quả lại. Mỗi head học một kiểu phụ thuộc khác nhau: một head có thể học quan hệ cạnh-cạnh, head khác học quan hệ vùng xa --- tổng hợp lại cho mô hình cái nhìn toàn diện hơn CNN thuần túy. Hình~\ref{fig:attention} minh họa luồng tính toán đầy đủ.
+Multi-head Attention chạy $h$ phép attention song song với không gian chiếu khác nhau, sau đó nối kết quả lại. Mỗi head học một kiểu phụ thuộc khác nhau: một head có thể học quan hệ cạnh-cạnh, head khác học quan hệ vùng xa, tổng hợp lại cho mô hình cái nhìn toàn diện hơn CNN thuần túy. Hình~\ref{fig:attention} minh họa luồng tính toán đầy đủ.
 
 \begin{figure}[H]
     \centering
@@ -164,15 +164,15 @@ Multi-head Attention chạy $h$ phép attention song song với không gian chi�
 \paragraph{Vision Transformer (ViT).}
 Transformer ban đầu được thiết kế cho xử lý ngôn ngữ tự nhiên, nhưng đã được chuyển đổi thành công sang xử lý ảnh bởi Dosovitskiy et al.~\cite{dosovitskiy2020vit}. Ý tưởng cốt lõi là coi mỗi patch nhỏ của ảnh như một token từ trong câu, từ đó áp dụng Transformer encoder không thay đổi.
 
-Bước 1 --- Patch Embedding.
+Bước 1: Patch Embedding.
 Ảnh đầu vào $\mathbf{x} \in \mathbb{R}^{H \times W \times C}$ được chia thành $N$ patch không chồng lấp kích thước $P \times P$, mỗi patch được phẳng hóa và chiếu tuyến tính thành vector $d$-chiều:
 \begin{equation}
 \mathbf{z}_i^{(0)} = \mathbf{E} \cdot \mathrm{flatten}(\mathbf{x}_i) + \mathbf{p}_i, \quad i = 1, \ldots, N
 \label{eq:patch-embed}
 \end{equation}
-trong đó $\mathbf{E} \in \mathbb{R}^{d \times (P^2 C)}$ là ma trận chiếu học được, $N = HW/P^2$ là số patch, và $\mathbf{p}_i \in \mathbb{R}^d$ là positional embedding --- vector học được mã hóa vị trí không gian của patch thứ $i$ (vì self-attention không có khái niệm thứ tự vốn có).
+trong đó $\mathbf{E} \in \mathbb{R}^{d \times (P^2 C)}$ là ma trận chiếu học được, $N = HW/P^2$ là số patch, và $\mathbf{p}_i \in \mathbb{R}^d$ là positional embedding (vector học được mã hóa vị trí không gian của patch thứ $i$, vì self-attention không có khái niệm thứ tự vốn có).
 
-Bước 2 --- Transformer Encoder Block.
+Bước 2: Transformer Encoder Block.
 Chuỗi $N$ token đi qua $L$ block xếp nối tiếp, mỗi block gồm hai thành phần chính với kết nối dư (residual):
 \begin{align}
 \mathbf{z}'^{(\ell)} &= \mathrm{MSA}\!\left(\mathrm{LN}(\mathbf{z}^{(\ell-1)})\right) + \mathbf{z}^{(\ell-1)} \label{eq:vit-msa} \\
@@ -180,8 +180,8 @@ Chuỗi $N$ token đi qua $L$ block xếp nối tiếp, mỗi block gồm hai th
 \end{align}
 trong đó:
 \begin{itemize}\itemsep1pt
-    \item $\mathrm{LN}$: Layer Normalization --- chuẩn hóa từng token theo chiều đặc trưng, ổn định huấn luyện.
-    \item $\mathrm{MSA}$: Multi-head Self-Attention --- mỗi token đồng thời làm query và key/value cho tất cả token còn lại, cho phép học phụ thuộc tầm xa toàn cục $O(N^2)$.
+    \item $\mathrm{LN}$: Layer Normalization, chuẩn hóa từng token theo chiều đặc trưng, ổn định huấn luyện.
+    \item $\mathrm{MSA}$: Multi-head Self-Attention, mỗi token đồng thời làm query và key/value cho tất cả token còn lại, cho phép học phụ thuộc tầm xa toàn cục $O(N^2)$.
     \item $\mathrm{MLP}$: hai lớp fully-connected với hàm kích hoạt GELU, chiều ẩn thường $= 4d$.
     \item Kết nối dư (residual $+$): giữ nguyên thông tin từ lớp trước, tránh mất mát gradient ở mạng sâu.
 \end{itemize}
@@ -207,7 +207,7 @@ Kích thước patch $P$ vì vậy là tham số then chốt: tăng $P$ lên 2 l
 Restormer~\cite{zamir2022restormer} (Restoration Transformer) là kiến trúc Transformer được thiết kế đặc biệt để khôi phục ảnh độ phân giải cao, giải quyết nút thắt cổ chai tính toán của ViT bằng hai cải tiến cốt lõi.
 
 Multi-Dconv Head Transposed Attention (MDTA).
-Thay vì tính attention trên \emph{chiều không gian} (mỗi pixel là một token), MDTA tính attention trên \emph{chiều kênh}. Cụ thể, với đặc trưng đầu vào $\mathbf{X} \in \mathbb{R}^{C \times H \times W}$:
+Thay vì tính attention trên chiều không gian (mỗi pixel là một token), MDTA tính attention trên chiều kênh. Cụ thể, với đặc trưng đầu vào $\mathbf{X} \in \mathbb{R}^{C \times H \times W}$:
 \begin{enumerate}\itemsep1pt
     \item Sinh $Q, K, V$ bằng tích chập sâu (depthwise conv $3\!\times\!3$) thay vì projection tuyến tính, giúp gộp thêm thông tin không gian cục bộ vào mỗi token kênh.
     \item Reshape: $Q, K, V \in \mathbb{R}^{\hat{C} \times HW}$ (mỗi kênh là một vector $HW$-chiều).
@@ -238,7 +238,7 @@ trong đó $\alpha$ là tham số scale học được. So sánh độ phức t�
     Độ phức tạp   & $O\!\left((HW)^2 C\right)$ & $O\!\left(C^2\, HW\right)$ \\[2pt]
     Số ops (ảnh $256^2$, $C\!=\!64$) & $\sim 2.7\times10^{11}$ & $\sim 2.7\times10^{8}$ \\[4pt]
     \hline\\[-6pt]
-    \multicolumn{3}{c}{\normalsize\textbf{MDTA nhanh hơn $\approx$1000 lần} so với Spatial Attention}
+    \multicolumn{3}{c}{\normalsize MDTA nhanh hơn $\approx$1000 lần so với Spatial Attention}
 \end{tabular}
 \end{tcolorbox}
 
@@ -248,7 +248,7 @@ Thay thế MLP thông thường trong Transformer bằng mạng có cơ chế ga
 \mathrm{GDFN}(\mathbf{X}) = \phi\!\left(\mathrm{DConv}(W_1 \mathbf{X})\right) \odot \mathrm{DConv}(W_2 \mathbf{X})
 \label{eq:gdfn}
 \end{equation}
-trong đó $\phi$ là GELU, $\odot$ là nhân theo phần tử (element-wise), và $W_1, W_2$ là tích chập $1\!\times\!1$. Cơ chế gating cho phép mạng kiểm soát chủ động luồng đặc trưng nào được truyền tiếp --- nhánh trái học ``nên giữ thông tin gì'', nhánh phải học ``thông tin nào cần lọc bỏ''.
+trong đó $\phi$ là GELU, $\odot$ là nhân theo phần tử (element-wise), và $W_1, W_2$ là tích chập $1\!\times\!1$. Cơ chế gating cho phép mạng kiểm soát chủ động luồng đặc trưng nào được truyền tiếp: nhánh trái học ``nên giữ thông tin gì'', nhánh phải học ``thông tin nào cần lọc bỏ''.
 
 Cấu trúc một Restormer Block.
 Mỗi block gồm hai bước với kết nối dư, tương tự ViT nhưng thay MSA bằng MDTA và MLP bằng GDFN:
@@ -264,30 +264,30 @@ CDDFuse sử dụng Restormer block làm xương sống cho cả Encoder và Dec
 \label{ssec:inn}
 
 \paragraph{Vấn đề mất thông tin trong CNN thông thường.}
-Mạng CNN thông thường thực hiện ánh xạ một chiều $f: \mathbf{x} \to \mathbf{y}$. Một khi đặc trưng $\mathbf{y}$ đã được tính, không thể khôi phục lại $\mathbf{x}$ gốc --- thông tin đã bị nén và mất đi không thể đảo ngược. Với ảnh y tế, điều này có nghĩa là các chi tiết biên mỏng (ví dụ ranh giới khối u trong MRI) có thể bị lọc mất qua các lớp convolution.
+Mạng CNN thông thường thực hiện ánh xạ một chiều $f: \mathbf{x} \to \mathbf{y}$. Một khi đặc trưng $\mathbf{y}$ đã được tính, không thể khôi phục lại $\mathbf{x}$ gốc, vì thông tin đã bị nén và mất đi không thể đảo ngược. Với ảnh y tế, điều này có nghĩa là các chi tiết biên mỏng (ví dụ ranh giới khối u trong MRI) có thể bị lọc mất qua các lớp convolution.
 
 \paragraph{Ý tưởng cốt lõi của INN.}
-Mạng nơ-ron khả nghịch (Invertible Neural Network --- INN) xây dựng ánh xạ $f$ sao cho luôn tồn tại $f^{-1}$ tính được hiệu quả:
+Mạng nơ-ron khả nghịch (\emph{Invertible Neural Network}, INN) xây dựng ánh xạ $f$ sao cho luôn tồn tại $f^{-1}$ tính được hiệu quả:
 \[
 \mathbf{x} \;\xrightarrow{f}\; \mathbf{y} \;\xrightarrow{f^{-1}}\; \mathbf{x}
 \]
-Không có thông tin nào bị mất: toàn bộ nội dung của $\mathbf{x}$ được mã hóa trong $\mathbf{y}$ và có thể phục hồi hoàn toàn. CDDFuse sử dụng INN cho nhánh \emph{Detail CNN Encoder} để đảm bảo thông tin modality-specific (tần số cao) không bị mất khi mã hóa.
+Không có thông tin nào bị mất: toàn bộ nội dung của $\mathbf{x}$ được mã hóa trong $\mathbf{y}$ và có thể phục hồi hoàn toàn. CDDFuse sử dụng INN cho nhánh Detail CNN Encoder để đảm bảo thông tin modality-specific (tần số cao) không bị mất khi mã hóa.
 
 \paragraph{Affine Coupling Layer (RealNVP).}
 Câu hỏi thực tế là: làm thế nào để xây dựng được $f$ khả nghịch mà không cần $f$ phải có dạng đặc biệt? RealNVP~\cite{dinh2017density} trả lời bằng thủ thuật chia đôi và coupling (\emph{affine coupling layer}):
 
-Bước 1 --- Chia đôi đầu vào.
+Bước 1: Chia đôi đầu vào.
 Đặc trưng $\mathbf{x} \in \mathbb{R}^{2C \times H \times W}$ được chia thành hai nửa $(\mathbf{x}_1, \mathbf{x}_2) \in \mathbb{R}^{C \times H \times W}$ (chia theo chiều kênh).
 
-Bước 2 --- Biến đổi có điều kiện (chiều thuận).
+Bước 2: Biến đổi có điều kiện (chiều thuận).
 Nửa $\mathbf{x}_1$ được biến đổi có điều kiện trên $\mathbf{x}_2$, và ngược lại:
 \begin{align}
 \mathbf{y}_1 &= \mathbf{x}_1 \odot \exp\!\bigl(s_1(\mathbf{x}_2)\bigr) + t_1(\mathbf{x}_2) \label{eq:inn-fwd1} \\
 \mathbf{y}_2 &= \mathbf{x}_2 \odot \exp\!\bigl(s_2(\mathbf{y}_1)\bigr) + t_2(\mathbf{y}_1) \label{eq:inn-fwd2}
 \end{align}
-trong đó $s_i(\cdot)$ (scale) và $t_i(\cdot)$ (translation) là các mạng CNN con tùy ý --- không cần phải khả nghịch. Phép nhân $\odot \exp(s)$ là phép nhân theo phần tử, có tác dụng co giãn từng kênh đặc trưng.
+trong đó $s_i(\cdot)$ (scale) và $t_i(\cdot)$ (translation) là các mạng CNN con tùy ý, không cần phải khả nghịch. Phép nhân $\odot \exp(s)$ là phép nhân theo phần tử, có tác dụng co giãn từng kênh đặc trưng.
 
-Bước 3 --- Nghịch đảo (chiều ngược).
+Bước 3: Nghịch đảo (chiều ngược).
 Đây là phần then chốt: vì $\mathbf{y}_1$ đã biết, ta tính ngược từ dưới lên:
 \begin{align}
 \mathbf{x}_2 &= \bigl(\mathbf{y}_2 - t_2(\mathbf{y}_1)\bigr) \odot \exp\!\bigl(-s_2(\mathbf{y}_1)\bigr) \label{eq:inn-inv1} \\
@@ -310,12 +310,12 @@ Tại sao khả nghịch? Dù $s_i, t_i$ là mạng CNN bất kỳ, phép biến
 \begin{itemize}\itemsep1pt
     \item Phương trình~\eqref{eq:inn-fwd1} biến đổi $\mathbf{x}_1$ nhưng giữ nguyên $\mathbf{x}_2$ $\Rightarrow$ $\mathbf{x}_2$ vẫn đọc được từ $\mathbf{y}_2$ (bước đầu khi đảo ngược).
     \item Khi đã có $\mathbf{x}_2$, toàn bộ $s_1(\mathbf{x}_2)$ và $t_1(\mathbf{x}_2)$ đều tính được $\Rightarrow$ khôi phục $\mathbf{x}_1$ từ $\mathbf{y}_1$ theo công thức đại số đơn giản.
-    \item Tính khả nghịch đến từ cấu trúc coupling, không phải từ $s_i, t_i$ --- do đó có thể dùng bất kỳ mạng nào cho $s_i, t_i$ mà không lo mất invertibility.
+    \item Tính khả nghịch đến từ cấu trúc coupling, không phải từ $s_i, t_i$, do đó có thể dùng bất kỳ mạng nào cho $s_i, t_i$ mà không lo mất invertibility.
 \end{itemize}
 \end{tcolorbox}
 
 \paragraph{Ứng dụng trong CDDFuse.}
-Nhánh \emph{Detail CNN Encoder} (DCE) gồm 3 khối coupling xếp nối tiếp. Mỗi ảnh đầu vào $I \in \mathbb{R}^{1 \times H \times W}$ được mở rộng lên 64 kênh qua tích chập rồi đi qua 3 lớp INN liên tiếp để thu đặc trưng detail $f^D \in \mathbb{R}^{64 \times H \times W}$. Tính khả nghịch đảm bảo mọi chi tiết tần số cao (biên mỏng, texture) đều được giữ nguyên trong $f^D$ --- điều mà CNN thông thường không đảm bảo được.
+Nhánh Detail CNN Encoder (DCE) gồm 3 khối coupling xếp nối tiếp. Mỗi ảnh đầu vào $I \in \mathbb{R}^{1 \times H \times W}$ được mở rộng lên 64 kênh qua tích chập rồi đi qua 3 lớp INN liên tiếp để thu đặc trưng detail $f^D \in \mathbb{R}^{64 \times H \times W}$. Tính khả nghịch đảm bảo mọi chi tiết tần số cao (biên mỏng, texture) đều được giữ nguyên trong $f^D$, điều mà CNN thông thường không đảm bảo được.
 
 % ================================================================
 \section{Mô hình CDDFuse}
@@ -358,7 +358,7 @@ Encoder dùng trọng số chung (shared weights) cho cả hai ảnh đầu vào
 f_F^B &= \mathrm{BaseFuseLayer}(f_I^B + f_V^B) \label{eq:fuse-base} \\
 f_F^D &= \mathrm{DetailFuseLayer}(f_I^D + f_V^D) \label{eq:fuse-detail}
 \end{align}
-Phép cộng $f_I + f_V$ trước khi qua layer là quy tắc tổng hợp đối xứng mặc định của CDDFuse --- đây chính là thành phần mà đồ án này cải tiến.
+Phép cộng $f_I + f_V$ trước khi qua layer là quy tắc tổng hợp đối xứng mặc định của CDDFuse, và đây chính là thành phần mà đồ án này cải tiến.
 
 \begin{figure}[H]
     \centering
@@ -386,7 +386,7 @@ CDDFuse có $\sim 1{,}20$M tham số tổng cộng, phân bổ: Encoder ($\sim 5
 
 CDDFuse áp dụng curriculum learning với hai pha huấn luyện tách biệt:
 
-\paragraph{Pha I (epoch 0--39 --- tiền huấn luyện phân rã).}
+\paragraph{Pha I (epoch 0--39, tiền huấn luyện phân rã).}
 Chỉ Encoder và Decoder được huấn luyện. Mỗi modality tự encode-decode (không có cross-modality fusion):
 \begin{equation}
 L_I = \alpha_1 (L_{\mathrm{recon}}^{V} + L_{\mathrm{recon}}^{I}) + \alpha_2 L_{\mathrm{decomp}} + \alpha_3 L_{\mathrm{TV}}
@@ -399,7 +399,7 @@ Trong đó:
 \end{itemize}
 Hệ số: $\alpha_1 = 1$, $\alpha_2 = 2$, $\alpha_3 = 5$ (theo code release).
 
-\paragraph{Pha II (epoch 40--119 --- huấn luyện fusion).}
+\paragraph{Pha II (epoch 40--119, huấn luyện fusion).}
 BaseFuseLayer và DetailFuseLayer được huấn luyện cùng với Encoder/Decoder:
 \begin{align}
 L_{II} &= L_{\mathrm{fusion}} + \alpha_4 L_{\mathrm{decomp}} \\
@@ -440,7 +440,7 @@ Hàm mất mát này yêu cầu ảnh tổng hợp giữ nguyên pixel sáng hơ
 \end{tabular}
 \end{table}
 
-CDDFuse đứng vị trí thứ 2 với $\bar{z} = 0{,}926$. Lý do chọn CDDFuse thay vì MM-Net-Fusion (rank 1): khoảng cách composite z chỉ $0{,}10$, trong khi CDDFuse có kiến trúc mô-đun hóa rõ ràng, tham số nhẹ ($1{,}2$M), mã nguồn và checkpoint được công bố đầy đủ, và có điểm cải tiến cụ thể tại Fusion Layer --- đây là điều kiện lý tưởng để nghiên cứu tác động của fusion rule trong khuôn khổ đồ án.
+CDDFuse đứng vị trí thứ 2 với $\bar{z} = 0{,}926$. Lý do chọn CDDFuse thay vì MM-Net-Fusion (rank 1): khoảng cách composite z chỉ $0{,}10$, trong khi CDDFuse có kiến trúc mô-đun hóa rõ ràng, tham số nhẹ ($1{,}2$M), mã nguồn và checkpoint được công bố đầy đủ, và có điểm cải tiến cụ thể tại Fusion Layer, đây là điều kiện lý tưởng để nghiên cứu tác động của fusion rule trong khuôn khổ đồ án.
 
 % ================================================================
 % ================================================================
@@ -453,7 +453,7 @@ CDDFuse đứng vị trí thứ 2 với $\bar{z} = 0{,}926$. Lý do chọn CDDFu
 Đồ án sử dụng 22 chỉ số chất lượng theo chuẩn VIFB~\cite{liu2020vifb}, chia thành sáu nhóm theo bản chất đo lường. Phần này trình bày định nghĩa toán học chi tiết cho các chỉ số được sử dụng trực tiếp trong đánh giá và so sánh. Ký hiệu chung: $A$, $B$ là hai ảnh đầu vào (ví dụ MRI và CT), $F$ là ảnh tổng hợp đầu ra, kích thước $M \times N$.
 
 % ── Nhóm 1: Thông tin ─────────────────────────────────────────────────────────
-\subsubsection*{Nhóm 1 --- Thông tin}
+\subsubsection*{Nhóm 1: Thông tin}
 
 \paragraph{Entropy (EN).}
 Đo lượng thông tin trung bình trong ảnh tổng hợp, tính theo histogram xác suất cường độ điểm ảnh:
@@ -484,7 +484,7 @@ Phiên bản chuẩn hóa của MI, ổn định hơn khi so sánh giữa các m
 trong đó $H(\cdot)$ là entropy. $\uparrow$ cao tốt hơn.
 
 % ── Nhóm 2: Cấu trúc ─────────────────────────────────────────────────────────
-\subsubsection*{Nhóm 2 --- Cấu trúc}
+\subsubsection*{Nhóm 2: Cấu trúc}
 
 \paragraph{SSIM (Structural Similarity Index).}
 Đo độ tương đồng cấu trúc giữa ảnh fused và ảnh tham chiếu dựa trên luminance, contrast và structure:
@@ -501,7 +501,7 @@ trong đó $\mu$, $\sigma^2$, $\sigma_{XF}$ lần lượt là mean, variance và
 Giá trị cao hơn phản ánh vùng sáng--tối phân biệt rõ hơn, nội dung hình ảnh phong phú hơn. $\uparrow$ cao tốt hơn.
 
 % ── Nhóm 3: Biên và gradient ─────────────────────────────────────────────────
-\subsubsection*{Nhóm 3 --- Biên và gradient}
+\subsubsection*{Nhóm 3: Biên và gradient}
 
 \paragraph{Spatial Frequency (SF).}
 Đo mức độ hoạt động tần số không gian tổng thể của ảnh fused:
@@ -524,7 +524,7 @@ trong đó $\partial F/\partial x$, $\partial F/\partial y$ là đạo hàm riê
 \end{equation}
 trong đó $\nabla^2$ là toán tử Laplacian. EI tương quan chặt với AG nhưng nhấn mạnh các biên đột ngột (high-frequency). $\uparrow$ cao tốt hơn.
 
-\paragraph{$Q^{AB/F}$ --- Qabf (Petrovic).}
+\paragraph{$Q^{AB/F}$ (Qabf, Petrovic).}
 Đánh giá mức độ truyền tải thông tin gradient--biên từ hai ảnh nguồn vào ảnh fused~\cite{xydeas2000objective}:
 \begin{equation}
 Q^{AB/F} = \frac{\sum_{i,j}\bigl(Q^{AF}_{ij}\,w^A_{ij} + Q^{BF}_{ij}\,w^B_{ij}\bigr)}{\sum_{i,j}(w^A_{ij}+w^B_{ij})}
@@ -539,7 +539,7 @@ trong đó $Q^{XF}_{ij}$ là chỉ số truyền biên tại điểm $(i,j)$, $w
 Giá trị NABF cao nghĩa là ảnh fused tạo thêm artifact biên không có trong nguồn gốc. $\downarrow$ thấp tốt hơn.
 
 % ── Nhóm 4: Wavelet ───────────────────────────────────────────────────────────
-\subsubsection*{Nhóm 4 --- Wavelet}
+\subsubsection*{Nhóm 4: Wavelet}
 
 \paragraph{QM (Piella Wavelet Quality).}
 Đánh giá chất lượng tổng hợp dựa trên tương quan cấu trúc tại nhiều mức phân giải trong miền wavelet~\cite{piella2003new}:

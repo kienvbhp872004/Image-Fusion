@@ -6,7 +6,7 @@
 
 Trong y học hiện đại, chẩn đoán chính xác đóng vai trò quyết định trong việc lựa chọn phác đồ điều trị, đặc biệt với các bệnh lý phức tạp như ung thư, đột quỵ và rối loạn thần kinh. Mỗi phương thức chụp ảnh y tế cung cấp một góc nhìn khác nhau về cơ thể người bệnh: chụp cắt lớp vi tính (CT) cho thấy rõ cấu trúc xương và mô đặc; chụp cộng hưởng từ (MRI) có độ phân giải cao đối với mô mềm; trong khi chụp cắt lớp phát xạ positron (PET) và chụp cắt lớp đơn photon (SPECT) cung cấp thông tin chức năng và chuyển hóa. Mỗi phương thức đều có ưu điểm và hạn chế riêng, buộc bác sĩ phải đối chiếu đồng thời nhiều loại ảnh trong quá trình chẩn đoán.
 
-Tổng hợp ảnh đa phương thức y tế (Medical Image Fusion --- MIF) ra đời nhằm tự động kết hợp thông tin bổ sung từ hai phương thức ảnh thành một ảnh duy nhất, vừa giữ lại cấu trúc giải phẫu chi tiết, vừa thể hiện được thông tin chức năng. Một ảnh tổng hợp chất lượng cao giúp rút ngắn thời gian chẩn đoán, giảm sai sót và hỗ trợ ra quyết định lâm sàng nhanh hơn. Hình~\ref{fig:mif-examples} minh họa kết quả tổng hợp trên ba cặp modality phổ biến trong y học.
+Tổng hợp ảnh đa phương thức y tế (Medical Image Fusion, MIF) ra đời nhằm tự động kết hợp thông tin bổ sung từ hai phương thức ảnh thành một ảnh duy nhất, vừa giữ lại cấu trúc giải phẫu chi tiết, vừa thể hiện được thông tin chức năng. Một ảnh tổng hợp chất lượng cao giúp rút ngắn thời gian chẩn đoán, giảm sai sót và hỗ trợ ra quyết định lâm sàng nhanh hơn. Hình~\ref{fig:mif-examples} minh họa kết quả tổng hợp trên ba cặp modality phổ biến trong y học.
 
 \begin{figure}[H]
     \centering
@@ -37,35 +37,35 @@ Trong bối cảnh này, CDDFuse~\cite{zhao2023cddfuse} (CVPR 2023) là một ph
 \subsection{Phương pháp truyền thống (trước 2017)}
 \label{ssec:related-traditional}
 
-Trước khi học sâu trở nên phổ biến, tổng hợp ảnh y tế chủ yếu dựa trên các biến đổi đa tỉ lệ. Burt và Adelson~\cite{burt1983laplacian} đề xuất phân rã ảnh theo kim tự tháp Laplacian và kết hợp ở từng mức độ phân giải --- đây là nền tảng của hầu hết các phương pháp truyền thống sau này. Biến đổi Wavelet~\cite{li1995wavelet} cải thiện vấn đề méo khối của kim tự tháp, phân tách ảnh thành các dải tần số ngang, dọc và chéo với tính định hướng tốt hơn. Biểu diễn thưa thớt~\cite{liu2018survey} tiếp tục nâng cao chất lượng bằng cách học từ điển biểu diễn từ dữ liệu, thay vì dùng bộ lọc cố định.
+Trước khi học sâu trở nên phổ biến, tổng hợp ảnh y tế chủ yếu dựa trên các biến đổi đa tỉ lệ. Burt và Adelson~\cite{burt1983laplacian} đề xuất phân rã ảnh theo kim tự tháp Laplacian và kết hợp ở từng mức độ phân giải, đây là nền tảng của hầu hết các phương pháp truyền thống sau này. Biến đổi Wavelet~\cite{li1995wavelet} cải thiện vấn đề méo khối của kim tự tháp, phân tách ảnh thành các dải tần số ngang, dọc và chéo với tính định hướng tốt hơn. Biểu diễn thưa thớt~\cite{liu2018survey} tiếp tục nâng cao chất lượng bằng cách học từ điển biểu diễn từ dữ liệu, thay vì dùng bộ lọc cố định.
 
-Tuy nhiên, nhóm phương pháp này có hai hạn chế cơ bản. Thứ nhất, quy tắc kết hợp đặc trưng --- như lấy giá trị lớn nhất (max-abs), trung bình, hoặc trọng số theo độ tương phản --- đều được thiết kế thủ công, không thích ứng theo nội dung ảnh. Thứ hai, các biến đổi tần số cổ điển không học được biểu diễn ngữ nghĩa cao cấp, dẫn đến hiệu năng kém khi hai modality có phân bố pixel rất khác nhau như PET--MRI hay SPECT--MRI.
+Tuy nhiên, nhóm phương pháp này có hai hạn chế cơ bản. Thứ nhất, quy tắc kết hợp đặc trưng (như lấy giá trị lớn nhất (max-abs), trung bình, hoặc trọng số theo độ tương phản) đều được thiết kế thủ công, không thích ứng theo nội dung ảnh. Thứ hai, các biến đổi tần số cổ điển không học được biểu diễn ngữ nghĩa cao cấp, dẫn đến hiệu năng kém khi hai modality có phân bố pixel rất khác nhau như PET--MRI hay SPECT--MRI.
 
 \subsection{Phương pháp học sâu: CNN và học biểu diễn (2017--2021)}
 \label{ssec:related-cnn}
 
 Sự ra đời của các mạng Encoder--Decoder sâu mở ra giai đoạn mới cho MIF. DeepFuse~\cite{prabhakar2017deepfuse} là một trong những phương pháp đầu tiên dùng CNN để trích xuất đặc trưng cho bài toán fusion ảnh đa phơi sáng. DenseFuse~\cite{li2019densefuse} đưa cấu trúc kết nối dày đặc (DenseNet) vào Encoder--Decoder cho ảnh hồng ngoại và khả kiến, học đặc trưng đa tỉ lệ phong phú hơn. NestFuse~\cite{li2020nestfuse} mở rộng thêm cơ chế attention không gian và kênh để tập trung vào vùng quan trọng. U2Fusion~\cite{xu2020u2fusion} đề xuất khung thống nhất xử lý nhiều bài toán fusion khác nhau trong một mô hình duy nhất. RFN-Nest~\cite{li2021rfnnest} tiến một bước xa hơn: thay vì thiết kế thủ công quy tắc kết hợp, tác giả huấn luyện một mạng con nhỏ (Residual Fusion Network) để học quy tắc đó từ dữ liệu.
 
-Dù đặc trưng được học từ dữ liệu, nhóm phương pháp CNN này vẫn có điểm yếu chung: quy tắc kết hợp đặc trưng áp dụng đồng nhất cho mọi thành phần --- không phân biệt đặc trưng cấu trúc tổng thể (tần số thấp) với đặc trưng chi tiết cạnh (tần số cao). Ngoài ra, CNN có vùng tiếp nhận hữu hạn, khó nắm bắt phụ thuộc tầm xa quan trọng trong ảnh y tế kích thước lớn.
+Dù đặc trưng được học từ dữ liệu, nhóm phương pháp CNN này vẫn có điểm yếu chung: quy tắc kết hợp đặc trưng áp dụng đồng nhất cho mọi thành phần, không phân biệt đặc trưng cấu trúc tổng thể (tần số thấp) với đặc trưng chi tiết cạnh (tần số cao). Ngoài ra, CNN có vùng tiếp nhận hữu hạn, khó nắm bắt phụ thuộc tầm xa quan trọng trong ảnh y tế kích thước lớn.
 
 \subsection{Phương pháp GAN (2019--2022)}
 \label{ssec:related-gan}
 
 FusionGAN~\cite{ma2019fusiongan} đưa mạng đối kháng sinh (GAN) vào bài toán MIF: bộ sinh (generator) tạo ảnh tổng hợp, bộ phân biệt (discriminator) ép ảnh tổng hợp giống phân phối ảnh khả kiến để bảo toàn chi tiết texture. Phương pháp GAN mang lại chất lượng thị giác tốt hơn so với CNN thuần túy.
 
-Song, GAN tồn tại những hạn chế nghiêm trọng trong ngữ cảnh y tế. Vì bộ phân biệt chỉ học từ một modality (ảnh khả kiến), bộ sinh bị lệch về phía phân phối đó và có xu hướng bỏ qua thông tin từ modality còn lại --- điều cực kỳ nguy hiểm trong chẩn đoán, khi thông tin CT hoặc PET bị mất mát có thể dẫn đến sai sót. Bên cạnh đó, huấn luyện GAN không ổn định (dễ sụp đổ chế độ --- mode collapse), không có cơ chế đảm bảo bảo toàn thông tin định lượng từ cả hai nguồn.
+Song, GAN tồn tại những hạn chế nghiêm trọng trong ngữ cảnh y tế. Vì bộ phân biệt chỉ học từ một modality (ảnh khả kiến), bộ sinh bị lệch về phía phân phối đó và có xu hướng bỏ qua thông tin từ modality còn lại (điều cực kỳ nguy hiểm trong chẩn đoán, khi thông tin CT hoặc PET bị mất mát có thể dẫn đến sai sót). Bên cạnh đó, huấn luyện GAN không ổn định (dễ sụp đổ chế độ, mode collapse), không có cơ chế đảm bảo bảo toàn thông tin định lượng từ cả hai nguồn.
 
 \subsection{Phương pháp Transformer và mô hình sinh (2022--nay)}
 \label{ssec:related-transformer}
 
-Transformer khắc phục giới hạn tầm xa của CNN thông qua cơ chế self-attention. SwinFusion~\cite{ma2022swinfusion} áp dụng Swin Transformer cho fusion ảnh đa miền, mô hình hóa phụ thuộc tầm xa hiệu quả hơn. CDDFuse~\cite{zhao2023cddfuse} (CVPR 2023) đạt bước tiến quan trọng nhất: phân rã đặc trưng thành nhánh Base (tần số thấp, dùng khối Lite Transformer) và nhánh Detail (tần số cao, dùng mạng khả nghịch INN), với hàm mất mát ràng buộc hai nhánh học thông tin bổ trợ nhau. TUFusion~\cite{zhao2024tufusion} và APGFusion~\cite{hu2024apgfusion} tiếp tục cải thiện bằng cơ chế attention tổng hợp và Adaptive Pooling Guided. Ở hướng mô hình sinh, DDFM~\cite{zhao2023ddfm} (ICCV 2023) công thức hóa fusion như bài toán suy diễn xác suất dưới DDPM, tạo ảnh tổng hợp chất lượng thị giác cao --- nhưng thời gian suy diễn hàng trăm bước khiến phương pháp này chưa thực tế cho lâm sàng.
+Transformer khắc phục giới hạn tầm xa của CNN thông qua cơ chế self-attention. SwinFusion~\cite{ma2022swinfusion} áp dụng Swin Transformer cho fusion ảnh đa miền, mô hình hóa phụ thuộc tầm xa hiệu quả hơn. CDDFuse~\cite{zhao2023cddfuse} (CVPR 2023) đạt bước tiến quan trọng nhất: phân rã đặc trưng thành nhánh Base (tần số thấp, dùng khối Lite Transformer) và nhánh Detail (tần số cao, dùng mạng khả nghịch INN), với hàm mất mát ràng buộc hai nhánh học thông tin bổ trợ nhau. TUFusion~\cite{zhao2024tufusion} và APGFusion~\cite{hu2024apgfusion} tiếp tục cải thiện bằng cơ chế attention tổng hợp và Adaptive Pooling Guided. Ở hướng mô hình sinh, DDFM~\cite{zhao2023ddfm} (ICCV 2023) công thức hóa fusion như bài toán suy diễn xác suất dưới DDPM, tạo ảnh tổng hợp chất lượng thị giác cao, nhưng thời gian suy diễn hàng trăm bước khiến phương pháp này chưa thực tế cho lâm sàng.
 
 \subsection{Khoảng trống nghiên cứu}
 \label{ssec:related-gap}
 
-Nhìn lại toàn bộ lịch sử phát triển, một điểm chung nổi bật xuyên suốt tất cả các thế hệ phương pháp: từ CNN (DenseFuse, NestFuse, U2Fusion) đến Transformer (SwinFusion, TUFusion) đến cả CDDFuse --- mô hình đỉnh cao nhất với thiết kế hai nhánh rõ ràng --- đều áp dụng cùng một phép kết hợp đối xứng cho cả nhánh Base lẫn nhánh Detail. Cụ thể, CDDFuse dùng phép cộng đơn giản $f_F = f_V + f_I$ trước cả hai lớp BaseFuseLayer và DetailFuseLayer, bất chấp sự khác biệt bản chất giữa hai nhánh.
+Nhìn lại toàn bộ lịch sử phát triển, một điểm chung nổi bật xuyên suốt tất cả các thế hệ phương pháp: từ CNN (DenseFuse, NestFuse, U2Fusion) đến Transformer (SwinFusion, TUFusion) đến cả CDDFuse (mô hình đỉnh cao nhất với thiết kế hai nhánh rõ ràng) đều áp dụng cùng một phép kết hợp đối xứng cho cả nhánh Base lẫn nhánh Detail. Cụ thể, CDDFuse dùng phép cộng đơn giản $f_F = f_V + f_I$ trước cả hai lớp BaseFuseLayer và DetailFuseLayer, bất chấp sự khác biệt bản chất giữa hai nhánh.
 
-Điều này đặt ra câu hỏi chưa được trả lời có hệ thống: \emph{liệu hai nhánh có bản chất khác nhau có thực sự cần hai quy tắc kết hợp khác nhau?} Thành phần Base mang thông tin cấu trúc toàn cục, tương quan cao giữa hai modality --- phép trung bình hóa là hợp lý. Thành phần Detail mang cạnh và texture đặc thù từng modality, bổ trợ nhau --- lựa chọn theo độ sắc nét cục bộ mới là chiến lược phù hợp. Không một nghiên cứu nào khảo sát có kiểm soát tác động của việc áp dụng quy tắc bất đối xứng này. Đây chính là khoảng trống mà đồ án hướng đến lấp đầy.
+Điều này đặt ra câu hỏi chưa được trả lời có hệ thống: liệu hai nhánh có bản chất khác nhau có thực sự cần hai quy tắc kết hợp khác nhau? Thành phần Base mang thông tin cấu trúc toàn cục, tương quan cao giữa hai modality, nên phép trung bình hóa là hợp lý. Thành phần Detail mang cạnh và texture đặc thù từng modality, bổ trợ nhau, nên lựa chọn theo độ sắc nét cục bộ mới là chiến lược phù hợp. Không một nghiên cứu nào khảo sát có kiểm soát tác động của việc áp dụng quy tắc bất đối xứng này. Đây chính là khoảng trống mà đồ án hướng đến lấp đầy.
 
 \section{Mục tiêu và Đóng góp của Đồ án}
 \label{sec:goal}
@@ -73,25 +73,25 @@ Nhìn lại toàn bộ lịch sử phát triển, một điểm chung nổi bậ
 \subsection{Tầm quan trọng của thành phần chi tiết trong chẩn đoán y tế}
 \label{ssec:goal-motivation}
 
-Để hiểu được mục tiêu của đồ án, cần hiểu rõ điều bác sĩ thực sự cần khi nhìn vào ảnh tổng hợp. Khi bác sĩ đọc ảnh y tế, phần thông tin thường quyết định chẩn đoán không phải là cấu trúc tổng thể của cơ quan --- thứ mà ai cũng nhìn thấy rõ --- mà là những chi tiết nhỏ: rìa khối u có rõ không, ranh giới mô lành và mô bệnh có phân biệt được không, tổn thương khu trú ở đúng vùng giải phẫu nào. Những chi tiết này thường chỉ hiện rõ trên một trong hai phương thức ảnh --- ví dụ, CT cho thấy cạnh xương sắc nét trong khi MRI tiết lộ sự xâm lấn vào mô mềm xung quanh. Nếu ảnh tổng hợp không bảo toàn được các chi tiết đó, bác sĩ buộc phải quay lại xem lần lượt từng ảnh gốc --- đúng với hạn chế mà MIF đặt mục tiêu giải quyết.
+Để hiểu được mục tiêu của đồ án, cần hiểu rõ điều bác sĩ thực sự cần khi nhìn vào ảnh tổng hợp. Khi bác sĩ đọc ảnh y tế, phần thông tin thường quyết định chẩn đoán không phải là cấu trúc tổng thể của cơ quan (thứ mà ai cũng nhìn thấy rõ) mà là những chi tiết nhỏ: rìa khối u có rõ không, ranh giới mô lành và mô bệnh có phân biệt được không, tổn thương khu trú ở đúng vùng giải phẫu nào. Những chi tiết này thường chỉ hiện rõ trên một trong hai phương thức ảnh, ví dụ CT cho thấy cạnh xương sắc nét trong khi MRI tiết lộ sự xâm lấn vào mô mềm xung quanh. Nếu ảnh tổng hợp không bảo toàn được các chi tiết đó, bác sĩ buộc phải quay lại xem lần lượt từng ảnh gốc, đúng với hạn chế mà MIF đặt mục tiêu giải quyết.
 
 Tệ hơn, ảnh tổng hợp kém chất lượng có thể làm mờ đi những chi tiết tế nhị vốn có trong ảnh gốc. Một cạnh không rõ, một vùng ranh giới bị trung bình hóa quá mức có thể khiến bác sĩ bỏ sót tổn thương nhỏ hoặc đánh giá sai mức độ xâm lấn. Nói cách khác, chất lượng thành phần chi tiết trong ảnh tổng hợp ảnh hưởng trực tiếp đến độ an toàn của chẩn đoán lâm sàng.
 
-Tuy nhiên, các mô hình MIF hiện tại --- kể cả CDDFuse~\cite{zhao2023cddfuse}, một trong những phương pháp hàng đầu hiện nay --- áp dụng cùng một phép cộng đơn giản ($f_F = f_V + f_I$) cho cả thành phần cấu trúc tổng thể lẫn thành phần chi tiết. Phép cộng này hoạt động như một phép trung bình hóa: thay vì giữ lại chi tiết sắc nét nhất từ mỗi modality, nó pha trộn cả hai, làm giảm độ nét của các vùng cạnh quan trọng. Đây chính là khoảng trống mà đồ án này nhắm đến.
+Tuy nhiên, các mô hình MIF hiện tại (kể cả CDDFuse~\cite{zhao2023cddfuse}, một trong những phương pháp hàng đầu hiện nay) áp dụng cùng một phép cộng đơn giản ($f_F = f_V + f_I$) cho cả thành phần cấu trúc tổng thể lẫn thành phần chi tiết. Phép cộng này hoạt động như một phép trung bình hóa: thay vì giữ lại chi tiết sắc nét nhất từ mỗi modality, nó pha trộn cả hai, làm giảm độ nét của các vùng cạnh quan trọng. Đây chính là khoảng trống mà đồ án này nhắm đến.
 
 \subsection{Mục tiêu đề xuất}
 \label{ssec:goal-objective}
 
-Mục tiêu của đồ án là đề xuất mô hình \textbf{CDDFuse-AG} --- một phiên bản cải tiến của CDDFuse --- với khả năng bảo toàn thành phần chi tiết tốt hơn trong quá trình tổng hợp ảnh y tế đa phương thức.
+Mục tiêu của đồ án là đề xuất mô hình CDDFuse-AG (một phiên bản cải tiến của CDDFuse) với khả năng bảo toàn thành phần chi tiết tốt hơn trong quá trình tổng hợp ảnh y tế đa phương thức.
 
 Ý tưởng xuất phát từ việc nhận ra rằng hai thành phần trong kiến trúc CDDFuse có bản chất hoàn toàn khác nhau và cần được xử lý khác nhau:
 
 \begin{itemize}\itemsep2pt
-    \item Thành phần cơ sở (Base) mang thông tin cấu trúc chung, tương quan cao giữa hai modality --- hai ảnh thường đồng thuận ở mức độ tổng thể. Với thành phần này, trung bình hóa là hợp lý.
-    \item Thành phần chi tiết (Detail) mang các cạnh, texture và thông tin đặc thù của từng modality --- hai ảnh mang thông tin bổ sung nhau, không phải lặp lại nhau. Với thành phần này, cần lựa chọn thay vì trung bình: tại mỗi vùng không gian, ưu tiên lấy chi tiết từ modality nào cung cấp thông tin sắc nét hơn.
+    \item Thành phần cơ sở (Base) mang thông tin cấu trúc chung, tương quan cao giữa hai modality: hai ảnh thường đồng thuận ở mức độ tổng thể. Với thành phần này, trung bình hóa là hợp lý.
+    \item Thành phần chi tiết (Detail) mang các cạnh, texture và thông tin đặc thù của từng modality: hai ảnh mang thông tin bổ sung nhau, không phải lặp lại nhau. Với thành phần này, cần lựa chọn thay vì trung bình, tại mỗi vùng không gian ưu tiên lấy chi tiết từ modality nào cung cấp thông tin sắc nét hơn.
 \end{itemize}
 
-Từ phân tích đó, CDDFuse-AG áp dụng hai quy tắc tổng hợp khác nhau cho hai thành phần: quy tắc trung bình có trọng số học được (WAvg) cho nhánh Base, và quy tắc lựa chọn theo độ sắc nét cục bộ (SML --- Sum-Modified-Laplacian) cho nhánh Detail. Toàn bộ kiến trúc Encoder--Decoder của CDDFuse được giữ nguyên; phần thay đổi duy nhất là cơ chế kết hợp đặc trưng tại Fusion Layer.
+Từ phân tích đó, CDDFuse-AG áp dụng hai quy tắc tổng hợp khác nhau cho hai thành phần: quy tắc trung bình có trọng số học được (WAvg) cho nhánh Base, và quy tắc lựa chọn theo độ sắc nét cục bộ (SML, Sum-Modified-Laplacian) cho nhánh Detail. Toàn bộ kiến trúc Encoder--Decoder của CDDFuse được giữ nguyên; phần thay đổi duy nhất là cơ chế kết hợp đặc trưng tại Fusion Layer.
 
 \subsection{Đóng góp chính}
 \label{ssec:goal-contributions}
@@ -99,9 +99,9 @@ Từ phân tích đó, CDDFuse-AG áp dụng hai quy tắc tổng hợp khác nh
 Các đóng góp chính của đồ án được tóm tắt như sau:
 
 \begin{itemize}\itemsep4pt
-    \item Đề xuất mô hình \textbf{CDDFuse-AG} với thiết kế bất đối xứng: Weighted Average Scalar (WAvg) cho nhánh Base và Sum-Modified-Laplacian (SML) cho nhánh Detail. Mô hình chỉ bổ sung \textbf{4{,}161} tham số so với CDDFuse ($\approx 0{,}35\%$), nhưng cải thiện rõ rệt các chỉ số đo chất lượng chi tiết: SF, Qabf, AG, EI, QM, QMI --- đây là các thang đo phản ánh trực tiếp mức độ bảo toàn cạnh, tần số không gian và thông tin chi tiết mà bác sĩ cần trong chẩn đoán.
+    \item Đề xuất mô hình CDDFuse-AG với thiết kế bất đối xứng: Weighted Average Scalar (WAvg) cho nhánh Base và Sum-Modified-Laplacian (SML) cho nhánh Detail. Mô hình chỉ bổ sung 4.161 tham số so với CDDFuse ($\approx 0{,}35\%$), nhưng cải thiện rõ rệt các chỉ số đo chất lượng chi tiết: SF, Qabf, AG, EI, QM, QMI, là các thang đo phản ánh trực tiếp mức độ bảo toàn cạnh, tần số không gian và thông tin chi tiết mà bác sĩ cần trong chẩn đoán.
 
-    \item Khảo sát thực nghiệm hệ thống theo chiến lược ablation ba giai đoạn kiểm soát một yếu tố tại một thời điểm, bao gồm 13 quy tắc tổng hợp (5 quy tắc Base, 8 quy tắc Detail), cung cấp bằng chứng thực nghiệm toàn diện về vai trò của thiết kế quy tắc tổng hợp \emph{bất đối xứng} trong MIF.
+    \item Khảo sát thực nghiệm hệ thống theo chiến lược ablation ba giai đoạn kiểm soát một yếu tố tại một thời điểm, bao gồm 13 quy tắc tổng hợp (5 quy tắc Base, 8 quy tắc Detail), cung cấp bằng chứng thực nghiệm toàn diện về vai trò của thiết kế quy tắc tổng hợp bất đối xứng trong MIF.
 \end{itemize}
 
 \section{Bố cục đồ án}
@@ -110,15 +110,15 @@ Các đóng góp chính của đồ án được tóm tắt như sau:
 Phần còn lại của đồ án tốt nghiệp được tổ chức thành năm chương, cụ thể như sau:
 
 \begin{itemize}\itemsep4pt
-    \item Chương~\ref{ch:background} --- Cơ sở lý thuyết. Trình bày các nền tảng lý thuyết liên quan đến bài toán tổng hợp ảnh y tế đa phương thức, bao gồm kiến trúc dual-branch Transformer--CNN của CDDFuse, cơ chế phân rã đặc trưng Base/Detail, các phương pháp tổng hợp đặc trưng truyền thống và chỉ số đánh giá chất lượng ảnh tổng hợp.
+    \item Chương~\ref{ch:background}: Cơ sở lý thuyết. Trình bày các nền tảng lý thuyết liên quan đến bài toán tổng hợp ảnh y tế đa phương thức, bao gồm kiến trúc dual-branch Transformer--CNN của CDDFuse, cơ chế phân rã đặc trưng Base/Detail, các phương pháp tổng hợp đặc trưng truyền thống và chỉ số đánh giá chất lượng ảnh tổng hợp.
 
-    \item Chương~\ref{ch:method} --- Phương pháp đề xuất. Mô tả chi tiết chiến lược thực nghiệm ablation ba giai đoạn có kiểm soát, công thức toán học của 13 quy tắc tổng hợp được khảo sát và thiết kế mô hình bất đối xứng Comb-WAvg-SML. Trọng tâm của chương là lý giải lý do chọn quy tắc riêng biệt cho nhánh Base và nhánh Detail.
+    \item Chương~\ref{ch:method}: Phương pháp đề xuất. Mô tả chi tiết chiến lược thực nghiệm ablation ba giai đoạn có kiểm soát, công thức toán học của 13 quy tắc tổng hợp được khảo sát và thiết kế mô hình bất đối xứng Comb-WAvg-SML. Trọng tâm của chương là lý giải lý do chọn quy tắc riêng biệt cho nhánh Base và nhánh Detail.
 
-    \item Chương~\ref{ch:results} --- Thí nghiệm và kết quả. Trình bày thiết lập thực nghiệm, kết quả đánh giá định lượng với bảng Composite Z-score cho cả ba giai đoạn và phân tích chi tiết theo từng modality CT/PET/SPECT.
+    \item Chương~\ref{ch:results}: Thí nghiệm và kết quả. Trình bày thiết lập thực nghiệm, kết quả đánh giá định lượng với bảng Composite Z-score cho cả ba giai đoạn và phân tích chi tiết theo từng modality CT/PET/SPECT.
 
-    \item Chương~\ref{ch:discussion} --- Thảo luận. Phân tích và lý giải các phát hiện thực nghiệm, bao gồm hiện tượng Modality-Specificity, vai trò của thiết kế bất đối xứng và tính hiệu quả tham số, cũng như các hạn chế còn tồn tại của đồ án.
+    \item Chương~\ref{ch:discussion}: Thảo luận. Phân tích và lý giải các phát hiện thực nghiệm, bao gồm hiện tượng Modality-Specificity, vai trò của thiết kế bất đối xứng và tính hiệu quả tham số, cũng như các hạn chế còn tồn tại của đồ án.
 
-    \item Chương~\ref{ch:conclusion} --- Kết luận và hướng phát triển. Tổng kết các kết quả và đóng góp chính của đồ án, đồng thời đề xuất các hướng nghiên cứu mở rộng trong tương lai.
+    \item Chương~\ref{ch:conclusion}: Kết luận và hướng phát triển. Tổng kết các kết quả và đóng góp chính của đồ án, đồng thời đề xuất các hướng nghiên cứu mở rộng trong tương lai.
 \end{itemize}
 
 Tóm lại, Chương~1 đã giới thiệu bài toán tổng hợp ảnh y tế đa phương thức cùng hạn chế của CDDFuse trong thiết kế quy tắc tổng hợp đối xứng, từ đó xác định mục tiêu và định hướng xây dựng mô hình CDDFuse-AG. Trên cơ sở đó, Chương~\ref{ch:background} tiếp theo sẽ trình bày chi tiết các nền tảng lý thuyết và công cụ cần thiết cho việc thiết kế và triển khai phương pháp đề xuất.

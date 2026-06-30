@@ -2,15 +2,13 @@
 \addcontentsline{toc}{chapter}{Tóm tắt}
 \markboth{Tóm tắt}{}
 
-Tổng hợp ảnh đa phương thức y tế là quá trình kết hợp thông tin từ nhiều loại ảnh chụp khác nhau --- ví dụ CT, MRI, PET, SPECT --- thành một ảnh duy nhất giúp bác sĩ vừa quan sát được cấu trúc giải phẫu, vừa nắm bắt được thông tin chức năng của cơ quan. Đây là công cụ hỗ trợ chẩn đoán quan trọng trong điều trị các bệnh lý phức tạp như ung thư, đột quỵ và rối loạn thần kinh.
+Tổng hợp ảnh đa phương thức y tế là quá trình kết hợp thông tin từ nhiều loại ảnh chụp như CT, MRI, PET và SPECT thành một ảnh duy nhất, giúp bác sĩ quan sát đồng thời cấu trúc giải phẫu và chức năng cơ quan trong một lần nhìn. Đây là công cụ hỗ trợ chẩn đoán quan trọng cho các bệnh lý phức tạp như ung thư não, đột quỵ và rối loạn thần kinh, nơi mà không một phương thức ảnh đơn lẻ nào cung cấp đủ thông tin.
 
-Mô hình CDDFuse \cite{zhao2023cddfuse} (CVPR 2023) là một trong những phương pháp dẫn đầu hiện tại, sử dụng kiến trúc dual-branch Transformer--CNN để phân rã đặc trưng ảnh thành thành phần Cơ sở (Base --- tần số thấp, cấu trúc toàn cục) và Chi tiết (Detail --- tần số cao, đặc trưng riêng từng modality). Tuy nhiên, CDDFuse áp dụng cùng một quy tắc tổng hợp --- phép cộng đơn giản $f_F = f_V + f_I$ --- cho cả hai nhánh, không khai thác được sự khác biệt bản chất giữa Base và Detail.
+Mô hình CDDFuse \cite{zhao2023cddfuse} (CVPR 2023) phân rã đặc trưng thành nhánh Base (tần số thấp, cấu trúc toàn cục) và nhánh Detail (tần số cao, đặc trưng riêng từng modality), nhưng áp dụng cùng một phép cộng đối xứng cho cả hai nhánh mà không khai thác sự khác biệt bản chất giữa chúng.
 
-Đồ án này đề xuất chiến lược tổng hợp bất đối xứng (\emph{Asymmetric Fusion}): thay vì dùng cùng một quy tắc cho cả hai nhánh, thiết kế quy tắc riêng biệt phù hợp với đặc tính của từng nhánh. Thực nghiệm được tổ chức theo ba giai đoạn nhằm tìm ra cấu hình tối ưu. Giai đoạn 1 khảo sát 5 quy tắc thay thế cho nhánh Base (L1-norm, Visual Saliency Map, Local Energy, Local Entropy, Weighted Average Scalar), giữ nguyên nhánh Detail theo paper gốc. Giai đoạn 2 khảo sát 8 quy tắc thay thế cho nhánh Detail (Spatial Frequency, SML, L1-norm, MaxAbs, Local Energy, Adaptive Gating, Saliency Gate, Soft PCNN), giữ nguyên nhánh Base. Giai đoạn 3 ghép các quy tắc tốt nhất từ hai giai đoạn, tạo mô hình \textbf{Comb-WAvg-SML} sử dụng Weighted Average Scalar cho nhánh Base và Sum-Modified-Laplacian cho nhánh Detail.
+Đồ án đề xuất CDDFuse-AG, thay phép cộng đối xứng bằng hai quy tắc bất đối xứng: Weighted Average Scalar (WAvg) cho nhánh Base và Sum-Modified-Laplacian (SML) cho nhánh Detail. Quy tắc được lựa chọn qua thực nghiệm ba giai đoạn, khảo sát 13 quy tắc thay thế trên tập dữ liệu Harvard Medical Image Fusion (738 cặp huấn luyện, 72 cặp kiểm thử, ba modality CT/PET/SPECT).
 
-Toàn bộ thực nghiệm được thực hiện trên tập dữ liệu Harvard Medical Image Fusion (738 cặp ảnh huấn luyện, 72 cặp ảnh kiểm thử trên 3 modality CT/PET/SPECT), đánh giá bằng 22 chỉ số chất lượng theo chuẩn VIFB và xếp hạng tổng hợp bằng phương pháp Composite Z-score.
-
-Mô hình đề xuất Comb-WAvg-SML vượt CDDFuse rõ rệt trên CT-MRI với z-score \textbf{+0{,}240} so với $-0{,}483$ (chênh lệch $+0{,}72$), đặc biệt ở các chỉ số chất lượng biên và tần số không gian như SF, AG, EI và QG. Kết quả trên nhóm 6 chỉ số tốt nhất cho thấy mô hình đạt \textbf{14/18} lần dẫn đầu so với CDDFuse và các phương pháp so sánh.
+CDDFuse-AG chỉ thêm 4.161 tham số so với baseline, nhưng đạt Composite Z-score trung bình 0,344 so với 0,286 của CDDFuse gốc, dẫn đầu trên sáu chỉ số chi tiết cạnh (SF, AG, EI, Qabf, QM, QMI) trên cả ba modality.
 
 \bigskip
-\noindent\textbf{Từ khóa:} tổng hợp ảnh y tế đa phương thức, CDDFuse, quy tắc tổng hợp bất đối xứng, Composite Z-score, Modality-Specificity, Harvard Medical Image Fusion.
+\noindent\textbf{Từ khóa:} tổng hợp ảnh y tế đa phương thức, CDDFuse, quy tắc tổng hợp bất đối xứng, Harvard Medical Image Fusion.
