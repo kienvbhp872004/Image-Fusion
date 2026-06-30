@@ -242,6 +242,9 @@ Mục~\ref{sec:paper-6metrics} so sánh theo 6 chỉ số chuẩn của CDDFuse 
 \end{tabular}
 \end{table}
 
+\paragraph{Nhận xét CT-MRI.}
+CDDFuse-AG dẫn đầu toàn bộ 6 chỉ số chi tiết cạnh, kết quả tốt nhất trong ba modality. Nổi bật nhất là QM tăng gần gấp đôi so với CDDFuse baseline (0.0094 vs 0.0046, $+104\%$), phản ánh khả năng chuyển thông tin tần số cao theo Wavelet tốt hơn rõ rệt. AG và EI tăng lần lượt $+2.6\%$ và $+2.4\%$, xác nhận ảnh tổng hợp sắc nét hơn ở biên. Lý do CT-MRI đạt cải thiện toàn diện nhất: xương và mô mềm có phân phối gradient hoàn toàn khác nhau ở từng vị trí, cho phép SML phân biệt chính xác nguồn nào mang cạnh mạnh hơn tại mỗi pixel và lựa chọn mà không trộn lẫn.
+
 % ── PET ───────────────────────────────────────────────────────────────────────
 \begin{table}[H]
 \centering\small
@@ -263,6 +266,9 @@ Mục~\ref{sec:paper-6metrics} so sánh theo 6 chỉ số chuẩn của CDDFuse 
 \bottomrule
 \end{tabular}
 \end{table}
+
+\paragraph{Nhận xét MRI-PET.}
+CDDFuse-AG dẫn đầu 5/6 chỉ số: SF ($+3.3\%$), Qabf ($+0.1\%$), AG ($+5.2\%$, 11.863 vs CDDFuse 11.277), EI ($+5.1\%$, 120.521 vs 114.699) và QM ($+21.9\%$, 0.1500 vs 0.1230). QM tăng mạnh nhất, cho thấy SML khai thác hiệu quả thành phần tần số cao Wavelet ngay cả trong modality PET. QMI giảm nhẹ (0.785 vs CDDFuse 0.802): phép cộng Sum của CDDFuse giữ nguyên phân phối thông tin chung từ cả hai nguồn, trong khi SML lựa chọn chọn lọc làm giảm một phần thông tin chung đo bởi mutual information theo chất lượng. Đây là trade-off của chiến lược selection so với averaging: chọn nguồn tốt hơn nhưng không tích lũy thêm thông tin từ nguồn kia. GeSeNet dẫn đầu AG/EI nhờ mạng encoder nhận dạng semantic edge toàn cục, nhưng Qabf chỉ đạt 0.738 thấp hơn CDDFuse-AG (0.765), nghĩa là edge transfer sang ảnh tổng hợp ít trung thực hơn.
 
 % ── SPECT ─────────────────────────────────────────────────────────────────────
 \begin{table}[H]
@@ -286,8 +292,11 @@ Mục~\ref{sec:paper-6metrics} so sánh theo 6 chỉ số chuẩn của CDDFuse 
 \end{tabular}
 \end{table}
 
-\paragraph{Nhận xét.}
-Kết quả nhất quán với cơ chế hoạt động của từng rule. Trên CT, vùng cạnh xương và mô mềm không chồng lấp: SML lựa chọn có chọn lọc, bảo toàn cạnh từ cả hai nguồn thay vì trung bình làm mờ. Trên PET, CDDFuse (Sum) thắng QMI vì phép cộng giữ nguyên phân phối thông tin chung; SML lựa chọn chọn lọc làm giảm nhẹ thông tin chung đo bởi QMI. Trên SPECT, GeSeNet dẫn SF/AG/EI nhờ cơ chế semantic-edge fusion; CDDFuse-AG dẫn Qabf/QM/QMI nhờ SML bảo toàn chi tiết tần số cao phù hợp hơn với chỉ số đo thông tin. Trade-off: SML nhạy với artifact từ mã hóa màu giả của PET, làm tăng nhẹ NABF (cái giá của rule không tham số thay vì rule học được).
+\paragraph{Nhận xét MRI-SPECT.}
+CDDFuse-AG dẫn đầu Qabf (0.752), QM (0.0870, $+10.4\%$ so CDDFuse 0.0788) và QMI (0.919, $+1.5\%$ so CDDFuse 0.905). GeSeNet dẫn SF (22.327), AG (7.059) và EI (71.276): GeSeNet dùng cơ chế fusion dựa trên semantic edge map toàn cục, tốt cho các chỉ số đo gradient thô. Tuy nhiên Qabf của GeSeNet (0.726) thấp hơn CDDFuse-AG (0.752) có nghĩa thông tin cạnh chuyển sang ảnh kết quả ít trung thực hơn, dù cạnh về mặt cường độ trông sắc nét. CDDFuse-AG thua SF/AG/EI thô nhưng dẫn về Qabf và QM vì SML chọn pixel theo đạo hàm bậc hai (Laplacian), nhạy với tần số cao thực sự hơn là cường độ gradient bậc một. QMI (0.919) cao hơn CDDFuse baseline (0.905): SML ưu tiên nguồn mang tần số cao nên thông tin chức năng SPECT được tích hợp với độ trung thực cao hơn trong ảnh tổng hợp.
+
+\paragraph{Tổng hợp nhóm chỉ số chi tiết cạnh.}
+Trên cả ba modality, CDDFuse-AG cải thiện QM rõ rệt nhất ($+104\%$ CT, $+22\%$ PET, $+10\%$ SPECT), phản ánh khả năng chuyển thành phần tần số cao Wavelet tốt hơn. Qabf và EI cải thiện nhất quán ở CT và PET; SPECT cho kết quả cạnh tranh sát sao với GeSeNet. Trường hợp duy nhất không dẫn đầu là QMI trên PET (0.785 vs 0.802): đây là đặc thù của modality chức năng, nơi thông tin phân phối phổ tần thấp của PET bị SML giảm nhẹ khi chọn lọc theo gradient.
 
 % ================================================================
 % SECTION 7: ĐÁNH GIÁ TỔNG THỂ QUA COMPOSITE Z-SCORE
