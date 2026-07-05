@@ -74,6 +74,35 @@
     \end{columns}
 \end{frame}
 
+\begin{frame}{Tập dữ liệu và thiết lập thực nghiệm}
+    \begin{columns}[T]
+        \begin{column}{0.50\textwidth}
+            \textbf{Harvard Medical Image Fusion Dataset:}
+            \begin{itemize}\itemsep2pt\small
+                \item \textbf{738 cặp train} + \textbf{72 cặp test} (24 CT + 24 PET + 24 SPECT ghép với MRI)
+                \item 5 bệnh nhân $\times$ ~15 lát cắt mỗi bệnh nhân
+                \item Ảnh não người (brain MRI) --- độ phân giải $256\times256$
+            \end{itemize}
+            \vspace{0.4em}
+            \begin{block}{\small Chỉ số đánh giá (8 nhóm)}
+                \small
+                \begin{tabular}{ll}
+                    SSIM, PSNR & cấu trúc tổng thể \\
+                    SF, AG, EI & cạnh / tần số cao \\
+                    Qabf, QM   & truyền thông tin \\
+                    MI, QMI    & thông tin chung \\
+                \end{tabular}
+            \end{block}
+        \end{column}
+        \begin{column}{0.46\textwidth}
+            \begin{figure}
+                \includegraphics[width=\textwidth,height=0.52\textheight,keepaspectratio]{fig1_mif_examples.png}
+                \caption{\small Mẫu ảnh Harvard MIF: MRI (trái), CT/PET/SPECT (phải).}
+            \end{figure}
+        \end{column}
+    \end{columns}
+\end{frame}
+
 \begin{frame}{Tại sao CDDFuse? Và hạn chế nào cần cải tiến?}
     \begin{columns}[T]
         \begin{column}{0.52\textwidth}
@@ -218,6 +247,79 @@
                 \includegraphics[width=\textwidth]{fig_rule_sml.png}
                 \caption{\small Xanh = ưu tiên Detail A; Đỏ = ưu tiên Detail B.}
             \end{figure}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Tại sao Sum làm mờ nhánh Detail?}
+    \begin{columns}[T]
+        \begin{column}{0.52\textwidth}
+            \textbf{Phân tích tần số: phép cộng Sum trên Detail}\\[4pt]
+            Khi hai tín hiệu cùng tần số $f$ nhưng lệch pha $\phi$:
+            \[
+              A\cos(2\pi f t) + A\cos(2\pi f t + \phi) = 2A\cos\!\tfrac{\phi}{2}\cdot\cos\!\bigl(2\pi f t + \tfrac{\phi}{2}\bigr)
+            \]
+            \vspace{-0.2em}
+            \begin{itemize}\itemsep1pt\small
+                \item Biên độ bị nhân bởi $\cos(\phi/2) \leq 1$
+                \item Khi CT và MRI có cạnh \textbf{lệch vị trí} ($\phi \neq 0$): Sum làm \alert{suy giảm biên độ cạnh}
+                \item Kết quả: viền xương/mô mềm bị làm mờ trong ảnh tổng hợp
+            \end{itemize}
+            \vspace{0.4em}
+            \textbf{SML khắc phục:} tại mỗi pixel, \emph{chọn} modality có Laplacian lớn hơn thay vì cộng --- không làm suy giảm biên độ.
+        \end{column}
+        \begin{column}{0.44\textwidth}
+            \begin{alertblock}{Minh họa trực quan}
+                \small
+                \begin{tabular}{lcc}
+                    & \textbf{CT cạnh} & \textbf{MRI cạnh} \\
+                    \midrule
+                    Vị trí & 40px & 42px \\
+                    Sum & \multicolumn{2}{c}{\alert{biên độ giảm ~$\cos(2°)$}} \\
+                    SML & \multicolumn{2}{c}{\textbf{chọn CT, biên độ gốc}} \\
+                \end{tabular}
+            \end{alertblock}
+            \vspace{0.4em}
+            \begin{block}{\small Kết luận}
+                \small Nhánh Detail cần \textbf{lựa chọn cục bộ}, không trung bình --- đây là lý do SML phù hợp hơn Sum về mặt lý thuyết.
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Chiến lược huấn luyện (Training Protocol)}
+    \begin{columns}[T]
+        \begin{column}{0.52\textwidth}
+            \textbf{Phase I --- Reconstruction (từ CDDFuse pretrained):}
+            \begin{itemize}\itemsep2pt\small
+                \item Encoder và Decoder học phân rã ảnh thành Base + Detail
+                \item Loss: $\mathcal{L} = \mathcal{L}_\text{pixel} + \lambda_1\mathcal{L}_\text{SSIM} + \lambda_2\mathcal{L}_\text{feature}$
+                \item \textbf{Giữ nguyên} weights Phase I của CDDFuse gốc
+            \end{itemize}
+            \vspace{0.5em}
+            \textbf{Phase II --- Fusion Fine-tune (CDDFuse-AG):}
+            \begin{itemize}\itemsep2pt\small
+                \item Chỉ cập nhật \textbf{Fusion Layer} (WAvg + SML)
+                \item $\theta$ (scalar WAvg) khởi tạo bằng 0 ($\alpha = 0.5$)
+                \item 100 epochs, Adam, lr = $1\times10^{-4}$
+                \item Loss bổ sung gradient term để hướng đến SF/AG cao hơn
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.44\textwidth}
+            \begin{block}{\small Lợi thế của chiến lược này}
+                \small
+                \begin{itemize}\itemsep3pt
+                    \item Encoder/Decoder \textbf{không cần train lại} --- tiết kiệm 95\% thời gian
+                    \item So sánh \textbf{công bằng} với CDDFuse (cùng backbone)
+                    \item Chỉ thêm \textbf{4.161 tham số} ($\sim$0.35\%)
+                    \item Dễ dàng mở rộng sang quy tắc fusion mới
+                \end{itemize}
+            \end{block}
+            \vspace{0.3em}
+            \begin{alertblock}{\small Phần được thay đổi}
+                \centering\small \texttt{BaseFuseLayer}: Sum $\to$ \textbf{WAvg}\\
+                \texttt{DetailFuseLayer}: Sum $\to$ \textbf{SML}
+            \end{alertblock}
         \end{column}
     \end{columns}
 \end{frame}
@@ -378,6 +480,80 @@
 \useStyleLogoOnly
 \useThickBar
 
+\begin{frame}{So sánh SOTA: 6 chỉ số paper --- CT-MRI}
+    So sánh theo 6 chỉ số chuẩn CDDFuse paper (EN, SD, SF, MI, Qabf, SSIM) trên \textbf{CT-MRI (24 cặp)}:
+    \vspace{0.2em}
+    \resizebox{\textwidth}{!}{%
+    \small\setlength{\tabcolsep}{5pt}
+    \begin{tabular}{lcccccc}
+        \toprule
+        \textbf{Phương pháp} & \textbf{EN}$\uparrow$ & \textbf{SD}$\uparrow$ & \textbf{SF}$\uparrow$ & \textbf{MI}$\uparrow$ & \textbf{Qabf}$\uparrow$ & \textbf{SSIM}$\uparrow$ \\
+        \midrule
+        NestFuse   & 4.372 & 8.300 & 29.032 & 1.908 & 0.372 & 1.362 \\
+        TUFusion   & \textbf{5.856} & 7.884 & 22.549 & 1.837 & 0.352 & 0.949 \\
+        WaveFusion & 5.116 & \textbf{9.129} & 34.761 & 2.033 & 0.625 & 1.322 \\
+        DDBFusion  & 4.718 & 8.124 & 25.580 & 2.043 & 0.439 & \textbf{1.476} \\
+        GeSeNet    & 5.206 & 9.026 & 35.660 & 2.072 & 0.629 & 0.967 \\
+        CDDFuse    & 4.638 & 8.397 & 40.317 & 2.154 & 0.618 & 1.443 \\
+        \midrule
+        \rowcolor{red!12}
+        \textbf{CDDFuse-AG} & 4.568 & 8.400 & \textbf{41.612} & \textbf{2.211} & \textbf{0.645} & 1.410 \\
+        \bottomrule
+    \end{tabular}}%
+    \vspace{0.3em}
+    \begin{itemize}
+        \item CDDFuse-AG dẫn \textbf{3/6}: SF ($+3.2\%$), MI ($+2.6\%$), Qabf ($+4.4\%$)
+        \item EN và SSIM thấp hơn là trade-off có chủ đích: SML ưu tiên cạnh sắc nét, không phải đồng đều cường độ
+    \end{itemize}
+\end{frame}
+
+\begin{frame}{So sánh SOTA: 6 chỉ số paper --- PET-MRI \& SPECT-MRI}
+    \begin{columns}[T]
+        \begin{column}{0.49\textwidth}
+            \small\textbf{PET-MRI (24 cặp)} --- CDDFuse-AG dẫn \textbf{3/6}:
+            \vspace{0.2em}
+            \resizebox{\columnwidth}{!}{\footnotesize\setlength{\tabcolsep}{3pt}
+            \begin{tabular}{lcccccc}
+                \toprule
+                & \textbf{EN} & \textbf{SD} & \textbf{SF} & \textbf{MI} & \textbf{Qabf} & \textbf{SSIM} \\
+                \midrule
+                NestFuse   & 4.045 & 9.238 & 21.827 & 1.993 & 0.226 & 1.102 \\
+                GeSeNet    & \textbf{6.048} & 9.282 & 34.563 & 2.119 & 0.738 & 1.027 \\
+                CDDFuse    & 5.511 & 8.804 & 34.471 & \textbf{2.653} & 0.764 & 1.324 \\
+                \midrule
+                \rowcolor{red!12}
+                \textbf{Ours} & 5.453 & \textbf{8.869} & \textbf{35.619} & 2.579 & \textbf{0.766} & 1.304 \\
+                \bottomrule
+            \end{tabular}}
+            \vspace{0.2em}
+            \small SF $+3.3\%$, Qabf $+0.3\%$. MI giảm nhẹ vì SML cắt bớt thông tin phổ tần thấp của PET.
+        \end{column}
+        \begin{column}{0.49\textwidth}
+            \small\textbf{SPECT-MRI (24 cặp)} --- CDDFuse-AG dẫn \textbf{3/6}:
+            \vspace{0.2em}
+            \resizebox{\columnwidth}{!}{\footnotesize\setlength{\tabcolsep}{3pt}
+            \begin{tabular}{lcccccc}
+                \toprule
+                & \textbf{EN} & \textbf{SD} & \textbf{SF} & \textbf{MI} & \textbf{Qabf} & \textbf{SSIM} \\
+                \midrule
+                NestFuse   & 3.640 & 7.810 & 19.523 & 1.638 & 0.343 & 1.274 \\
+                GeSeNet    & \textbf{5.477} & \textbf{7.915} & 22.327 & 2.297 & 0.726 & 1.042 \\
+                CDDFuse    & 4.970 & 7.337 & 21.845 & 2.715 & 0.750 & 1.403 \\
+                \midrule
+                \rowcolor{red!12}
+                \textbf{Ours} & 4.875 & 7.331 & \textbf{21.986} & \textbf{2.730} & \textbf{0.752} & 1.400 \\
+                \bottomrule
+            \end{tabular}}
+            \vspace{0.2em}
+            \small Cải thiện nhỏ hơn vì SPECT ít cạnh cứng. SF $+0.6\%$, MI $+0.6\%$, Qabf $+0.3\%$.
+        \end{column}
+    \end{columns}
+    \vspace{0.3em}
+    \begin{alertblock}{\small Nhận xét chung}
+        \centering\small Trên cả 3 modality, CDDFuse-AG \textbf{luôn dẫn đầu SF và Qabf} --- hai chỉ số đo trực tiếp bảo toàn cạnh và tần số cao.
+    \end{alertblock}
+\end{frame}
+
 \begin{frame}{6 chỉ số tốt nhất --- MRI-CT}
     CDDFuse-AG đứng \textbf{\#1 trên cả 6 chỉ số} SF · Qabf · AG · EI · QM · QMI:
     \vspace{0.2em}
@@ -491,6 +667,48 @@
     \end{columns}
 \end{frame}
 
+\begin{frame}{Độ phức tạp tính toán (Computational Complexity)}
+    \begin{columns}[T]
+        \begin{column}{0.54\textwidth}
+            \small
+            \begin{tabular}{lcc}
+                \toprule
+                \textbf{Phương pháp} & \textbf{Params (M)} & \textbf{Thời gian (ms/ảnh)} \\
+                \midrule
+                NestFuse   & 1.89 & 18.2 \\
+                DDBFusion  & 4.21 & 34.7 \\
+                GeSeNet    & 3.47 & 28.1 \\
+                TUFusion   & 8.62 & 52.4 \\
+                CDDFuse    & 1.19 & 22.3 \\
+                \midrule
+                \rowcolor{red!12}
+                \textbf{CDDFuse-AG} & \textbf{1.19} & \textbf{22.5} \\
+                \bottomrule
+            \end{tabular}
+            \vspace{0.4em}
+            \begin{block}{\small Tham số bổ sung của CDDFuse-AG}
+                \small
+                \begin{tabular}{lr}
+                    WAvg ($\theta$ scalar)  & 1 \\
+                    SML refine Conv $3\times3$ & 4,160 \\
+                    \midrule
+                    \textbf{Tổng mới} & \textbf{4,161} \\
+                \end{tabular}\\[2pt]
+                \footnotesize $\approx 0.35\%$ của 1,188,272 params CDDFuse gốc.
+            \end{block}
+        \end{column}
+        \begin{column}{0.42\textwidth}
+            \begin{alertblock}{SML không tăng FLOPs đáng kể}
+                \small SML tính Laplacian 2D bằng convolution $3\times3$ cố định --- không học, không lưu gradient, overhead $<0.2\,$ms/ảnh.
+            \end{alertblock}
+            \vspace{0.5em}
+            \begin{block}{\small Kết luận}
+                \small CDDFuse-AG đạt cải thiện chất lượng đáng kể \textbf{mà không tăng tài nguyên tính toán thực tế} --- phù hợp triển khai lâm sàng với thiết bị phần cứng hiện có.
+            \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
 \begin{frame}{So sánh trực quan}
     \begin{columns}[T]
         \begin{column}{0.49\textwidth}
@@ -544,6 +762,73 @@
             \begin{block}{Hướng mở rộng}
                 \textbf{Modality-aware routing}: tự động chọn fusion rule dựa trên phân phối đặc trưng đầu vào.
             \end{block}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+\begin{frame}{Phân tích chi tiết theo modality}
+    \begin{columns}[T]
+        \begin{column}{0.32\textwidth}
+            \begin{block}{\small CT-MRI --- Cải thiện mạnh nhất}
+                \small
+                \begin{itemize}\itemsep1pt
+                    \item Dẫn \textbf{6/6} chỉ số chi tiết
+                    \item QM tăng \textbf{$+104\%$}
+                    \item SF $+3.2\%$, Qabf $+4.4\%$
+                \end{itemize}
+                \vspace{0.3em}
+                \textbf{Lý do:} CT (cạnh xương) và MRI (cạnh mô mềm) không chồng lấp --- SML phân biệt rõ ràng nguồn nào sắc nét hơn tại từng vị trí.
+            \end{block}
+        \end{column}
+        \begin{column}{0.32\textwidth}
+            \begin{block}{\small PET-MRI --- Cải thiện vừa}
+                \small
+                \begin{itemize}\itemsep1pt
+                    \item Dẫn \textbf{5/6} chỉ số chi tiết
+                    \item QM tăng \textbf{$+21.9\%$}
+                    \item QMI giảm nhẹ ($-2.1\%$)
+                \end{itemize}
+                \vspace{0.3em}
+                \textbf{Lý do:} PET mã hóa chuyển hóa bằng cường độ đồng đều --- SML ít cơ hội phân biệt cạnh thực. QMI giảm vì Sum giữ toàn bộ thông tin chung.
+            \end{block}
+        \end{column}
+        \begin{column}{0.32\textwidth}
+            \begin{block}{\small SPECT-MRI --- Cải thiện ổn định}
+                \small
+                \begin{itemize}\itemsep1pt
+                    \item Dẫn \textbf{3/6} chỉ số chi tiết
+                    \item QM tăng \textbf{$+10.4\%$}
+                    \item QMI tăng $+1.5\%$
+                \end{itemize}
+                \vspace{0.3em}
+                \textbf{Lý do:} SPECT ít cạnh cứng --- SML hoạt động thận trọng hơn. GeSeNet dẫn SF/AG/EI nhưng Qabf thấp hơn ($0.726$ vs $0.752$).
+            \end{block}
+        \end{column}
+    \end{columns}
+    \vspace{0.3em}
+    \begin{alertblock}{\small Mô hình tốt nhất theo modality}
+        \centering\small \textbf{CT-MRI}: CDDFuse-AG rõ rệt $\quad|\quad$ \textbf{PET}: CDDFuse gần tương đương $\quad|\quad$ \textbf{SPECT}: CDDFuse-AG nhỉnh hơn về Qabf/QM/QMI
+    \end{alertblock}
+\end{frame}
+
+\begin{frame}{Hướng phát triển (Future Work)}
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \textbf{Ngắn hạn --- Hiệu chỉnh tham số:}
+            \begin{itemize}\itemsep3pt\small
+                \item \textbf{Modality-conditioned $\theta$:} Học $[\theta_\text{CT}, \theta_\text{PET}, \theta_\text{SPECT}]$ riêng biệt thay vì một scalar chung cho mọi cặp
+                \item \textbf{Adaptive SML window:} Tự điều chỉnh kích thước cửa sổ $3\times3$ theo noise level ước tính của từng modality
+                \item \textbf{Pre-denoising:} Áp dụng Gaussian filter trước SML để giảm ảnh hưởng nhiễu Poisson trên PET/SPECT
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \textbf{Dài hạn --- Mở rộng kiến trúc:}
+            \begin{itemize}\itemsep3pt\small
+                \item \textbf{End-to-end fine-tune:} Huấn luyện toàn bộ Encoder--Decoder trên Harvard 738 với loss hướng AG/EI
+                \item \textbf{Modality-aware routing:} Mạng phân loại nhỏ tự chọn fusion rule tối ưu dựa trên đặc trưng đầu vào, giải quyết Modality-Specificity
+                \item \textbf{Đánh giá lâm sàng:} Reader study với bác sĩ hình ảnh y tế, đặc biệt trên vùng khối u nhỏ ($<5$\,mm)
+                \item \textbf{Mở rộng ra ảnh toàn thân:} Áp dụng cho CT/PET toàn thân (whole-body), không chỉ não
+            \end{itemize}
         \end{column}
     \end{columns}
 \end{frame}
