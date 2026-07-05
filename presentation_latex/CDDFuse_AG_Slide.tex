@@ -45,7 +45,7 @@
 \showPageNumber
 
 % =================================================================
-\section{Giới thiệu bài toán}
+\section{Giới thiệu và bài toán (Introduction)}
 % =================================================================
 \useStyleHustFull
 \useThinBar
@@ -102,7 +102,49 @@
 \end{frame}
 
 % =================================================================
-\section{Phương pháp đề xuất}
+\section{Các nghiên cứu liên quan (Related Work)}
+% =================================================================
+\useStyleHustFull
+\useThinBar
+
+\begin{frame}{Tiến trình nghiên cứu tổng hợp ảnh y tế}
+    \begin{columns}[T]
+        \begin{column}{0.48\textwidth}
+            \textbf{Phương pháp truyền thống:}
+            \begin{itemize}\itemsep1pt\small
+                \item Laplacian pyramid, Wavelet --- phân rã đa tỉ lệ, không cần học
+                \item Hạn chế: tham số thủ công, không thích nghi với dữ liệu
+            \end{itemize}
+            \vspace{0.3em}
+            \textbf{CNN và học biểu diễn:}
+            \begin{itemize}\itemsep1pt\small
+                \item DenseFuse, NestFuse, RFN-Nest --- encoder học đặc trưng
+                \item Fusion rule vẫn cố định (L1, Weighted Avg)
+            \end{itemize}
+            \vspace{0.3em}
+            \textbf{GAN:}
+            \begin{itemize}\itemsep1pt\small
+                \item FusionGAN --- bảo toàn chi tiết qua adversarial loss
+                \item Huấn luyện không ổn định, dễ mode collapse
+            \end{itemize}
+        \end{column}
+        \begin{column}{0.48\textwidth}
+            \textbf{Transformer và mô hình sinh:}
+            \begin{itemize}\itemsep1pt\small
+                \item SwinFusion, CDDFuse, DDFM, TUFusion --- attention toàn cục
+                \item DDFM dùng diffusion model, chất lượng cao nhưng rất chậm
+            \end{itemize}
+            \vspace{0.5em}
+            \begin{alertblock}{Khoảng trống nghiên cứu}
+                \small Hầu hết phương pháp dùng \textbf{cùng quy tắc} cho cả nhánh Base (tần số thấp) và Detail (tần số cao) --- không khai thác bản chất khác nhau của hai nhánh.\\[4pt]
+                $\Rightarrow$ CDDFuse-AG đề xuất \textbf{quy tắc bất đối xứng}.
+            \end{alertblock}
+        \end{column}
+    \end{columns}
+\end{frame}
+
+% =================================================================
+\section{Phương pháp đề xuất (Proposed Method)}
 % =================================================================
 \useStyleLogoOnly
 \useThickBar
@@ -212,12 +254,12 @@
 \end{frame}
 
 % =================================================================
-\section{Ablation Study}
+\section{Thực nghiệm đối chứng (Ablation Study)}
 % =================================================================
 \useStyleHustFull
 \useThinBar
 
-\begin{frame}{Chiến lược Ablation 3 giai đoạn}
+\begin{frame}{Chiến lược thực nghiệm đối chứng 3 giai đoạn}
     Khảo sát hệ thống \textbf{13 quy tắc tổng hợp} theo chiến lược \emph{one-factor-at-a-time}:
     \vspace{0.3em}
     \begin{columns}[T]
@@ -249,10 +291,10 @@
     \textbf{Đánh giá:} Composite Z-score trên 8 chỉ số --- 72 cặp test Harvard MIF (24 CT + 24 PET + 24 SPECT).
 \end{frame}
 
-\begin{frame}{Ablation Stage 1 \& Stage 2}
+\begin{frame}{Giai đoạn 1 \& 2 (Stage 1 \& 2): Chọn rule tốt nhất từng nhánh}
     \begin{columns}[T]
         \begin{column}{0.47\textwidth}
-            \small\textbf{Stage 1 --- Base rule} (Detail = Sum):
+            \small\textbf{Giai đoạn 1 --- Quy tắc nhánh Base} (Detail = Sum):
             \vspace{0.2em}
             \resizebox{\columnwidth}{!}{\footnotesize
             \begin{tabular}{lcccc}
@@ -268,10 +310,11 @@
                 \bottomrule
             \end{tabular}}
             \vspace{0.2em}
-            \small $\Rightarrow$ \textbf{WAvg winner} (\#1 CT-MRI).
+            \small\textbf{WAvg chọn cho CT-MRI:} CT và MRI có cấu trúc rất khác (xương vs mô mềm) --- cần điều chỉnh trọng số $\alpha$, không trung bình cứng nhắc.\\
+            \alert{LocalEntropy sụp đổ} ($-0.99$): entropy feature-space $\neq$ entropy pixel-space.
         \end{column}
         \begin{column}{0.47\textwidth}
-            \small\textbf{Stage 2 --- Detail rule} (Base = Sum):
+            \small\textbf{Giai đoạn 2 --- Quy tắc nhánh Detail} (Base = Sum):
             \vspace{0.2em}
             \resizebox{\columnwidth}{!}{\footnotesize
             \begin{tabular}{lcccc}
@@ -287,14 +330,15 @@
                 \bottomrule
             \end{tabular}}
             \vspace{0.2em}
-            \small $\Rightarrow$ \textbf{SML winner} (ổn định nhất 3 modality).
+            \small\textbf{SML ổn định nhất:} z dương cả 3 modality. Đo độ sắc nét cục bộ qua Laplacian, không bị nhiễu màu giả PET.\\
+            \alert{Saliency sụp đổ trên PET} ($-1.341$): bản đồ nổi bật không ổn định với nhiễu chức năng.
         \end{column}
     \end{columns}
 \end{frame}
 
-\begin{frame}{Ablation Stage 3 --- Chọn CDDFuse-AG}
-    \textbf{Stage 3 --- Kết hợp bất đối xứng} (Base = WAvg):
-    \vspace{0.3em}
+\begin{frame}{Giai đoạn 3 (Stage 3): Kết hợp bất đối xứng và lựa chọn mô hình}
+    \textbf{Kết hợp bất đối xứng} --- Base = WAvg (winner G1), Detail thử SML / L1Norm / Gated:
+    \vspace{0.2em}
     \small
     \begin{tabular}{lcccc}
         \toprule
@@ -308,25 +352,28 @@
         Sym-AG (đối xứng)              & $-0.042$ & $-0.047$ & $-0.479$ & $-0.189$ \\
         \bottomrule
     \end{tabular}
-    \vspace{0.4em}
+    \vspace{0.3em}
     \begin{columns}[T]
-        \begin{column}{0.52\textwidth}
-            \small\textbf{Tại sao chọn Comb-WAvg-SML?}
-            \begin{itemize}
-                \item Trên 6 chỉ số paper: thắng \textbf{10/18} (L1Norm: 8/18)
-                \item Ổn định hơn trên PET; \textbf{\#1 mean rank} toàn ablation
+        \begin{column}{0.56\textwidth}
+            \small\textbf{Tại sao chọn Comb-WAvg-SML dù L1Norm thắng z-score?}
+            \begin{itemize}\itemsep1pt
+                \item Trên 6 chỉ số paper gốc (18 trường hợp): \textbf{SML thắng 10/18} --- L1Norm chỉ thắng 8/18
+                \item SML ổn định hơn trên PET ($-0.065$ vs $-0.196$)
+                \item SML phù hợp lý thuyết hơn: đo sắc nét Laplacian, không chỉ chọn max tuyệt đối
+                \item Z-score Stage 3 bị ảnh hưởng tập nhỏ (72 ảnh) --- 6 chỉ số paper tin cậy hơn
             \end{itemize}
         \end{column}
-        \begin{column}{0.44\textwidth}
-            \begin{alertblock}{\small Kết luận}
-                \small \textbf{Sym-AG} yếu nhất ($-0.189$) --- xác nhận \textbf{bất đối xứng} hiệu quả hơn đối xứng.
+        \begin{column}{0.40\textwidth}
+            \begin{alertblock}{\small Hai kết luận chính}
+                \small \textbf{(1)} Sym-AG yếu nhất ($-0.189$) --- xác nhận \textbf{bất đối xứng} hiệu quả hơn đối xứng.\\[4pt]
+                \textbf{(2)} CDDFuse-AG = \textbf{Comb-WAvg-SML} --- mô hình đề xuất cuối cùng.
             \end{alertblock}
         \end{column}
     \end{columns}
 \end{frame}
 
 % =================================================================
-\section{Kết quả định lượng}
+\section{Kết quả thực nghiệm (Experimental Results)}
 % =================================================================
 \useStyleLogoOnly
 \useThickBar
@@ -462,7 +509,7 @@
 \end{frame}
 
 % =================================================================
-\section{Thảo luận \& Kết luận}
+\section{Thảo luận và kết luận (Discussion \& Conclusion)}
 % =================================================================
 \useStyleHustFull
 \useThinBar
@@ -501,28 +548,33 @@
     \end{columns}
 \end{frame}
 
-\begin{frame}{Kết luận}
+\begin{frame}{Kết luận và hạn chế (Conclusion \& Limitations)}
     \begin{columns}[T]
         \begin{column}{0.54\textwidth}
             \textbf{Đóng góp chính:}
-            \begin{enumerate}
+            \begin{enumerate}\itemsep2pt\small
                 \item \textbf{CDDFuse-AG}: WAvg + SML bất đối xứng, chỉ thêm \textbf{4.161 tham số}
                 \item \textbf{Ablation 3 giai đoạn}: 13 quy tắc, cơ sở thực nghiệm toàn diện
-                \item \textbf{Modality-Specificity}: CT-MRI hưởng lợi nhiều nhất
+                \item \textbf{Modality-Specificity}: phát hiện quy tắc tối ưu khác nhau theo modality
                 \item \textbf{Tính giản dị}: WAvg 1 tham số vượt nhiều quy tắc phức tạp
             \end{enumerate}
-        \end{column}
-        \begin{column}{0.42\textwidth}
-            \begin{block}{Kết quả nổi bật}
-                \begin{itemize}
+            \vspace{0.3em}
+            \begin{block}{\small Kết quả nổi bật}
+                \small
+                \begin{itemize}\itemsep1pt
                     \item \textbf{14/18 chỉ số} SF/Qabf/AG/EI/QM/QMI
-                    \item CT z-score: $+0.309$ (CDDFuse: $-0.014$)
-                    \item z avg \textbf{+0.344} --- cao nhất nhóm
+                    \item CT-MRI: QM tăng \textbf{+104\%} (0.0046$\to$0.0094)
+                    \item z-avg \textbf{+0.344} --- cao nhất trong nhóm so sánh
                 \end{itemize}
             \end{block}
-            \vspace{0.3em}
-            \begin{alertblock}{Hạn chế}
-                \small SML nhạy artifact màu giả PET; chưa reader study lâm sàng.
+        \end{column}
+        \begin{column}{0.42\textwidth}
+            \begin{alertblock}{Hạn chế và hướng hiệu chỉnh}
+                \small
+                \textbf{(1) SML không tham số học:} Nhạy nhiễu PET/SPECT. Cải tiến: làm mịn Gaussian trước, hoặc cửa sổ thích nghi theo noise level.\\[4pt]
+                \textbf{(2) $\theta$ WAvg chung cho mọi modality:} Suboptimal với PET/SPECT (cần $\theta\approx0$). Cải tiến: học modality-conditioned $[\theta_\text{CT},\theta_\text{PET},\theta_\text{SPECT}]$.\\[4pt]
+                \textbf{(3) Chưa reader study lâm sàng:} Chỉ số tự động cao không đảm bảo hữu ích cho bác sĩ.\\[4pt]
+                \textbf{(4) Fine-tune toàn mạng:} Chỉ train Fusion Layer, chưa end-to-end fine-tune trên Harvard.
             \end{alertblock}
         \end{column}
     \end{columns}
